@@ -1,8 +1,10 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useLoader } from "@react-three/fiber";
+import { pieceTypes } from "@/data/furniture.mock";
 import { buildFurnitureModel } from "./colladaModel";
 import { NamedColladaLoader } from "./namedColladaLoader";
 import type { FurnitureModel } from "./types";
+import { verifyModel } from "./verifyModel";
 
 export const OLMO_DAE_URL = "/models/olmo.dae";
 
@@ -17,11 +19,25 @@ function skipTextures(loader: NamedColladaLoader): void {
 // PUNTO DE REEMPLAZO del modelo 3D: de dónde sale el mueble.
 // Hoy: el .dae exportado desde SketchUp (public/models/olmo.dae).
 // Suspende mientras carga: el llamador debe estar dentro de <Suspense> (ver FurnitureCanvas).
-// Las geometrías generadas viven lo que dura la app (spike): no se liberan a mano.
+// Las geometrías generadas viven lo que dura la app (prototipo): no se liberan a mano.
 export function useFurnitureModel(): FurnitureModel {
   const collada = useLoader(NamedColladaLoader, OLMO_DAE_URL, skipTextures);
-  return useMemo(() => {
+  const model = useMemo(() => {
     if (!collada) throw new Error(`No se pudo leer ${OLMO_DAE_URL}`);
     return buildFurnitureModel(collada.scene);
   }, [collada]);
+
+  // Solo en desarrollo, sin UI: avisa por consola si el modelo no coincide con el listado.
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    const result = verifyModel(model.parts, pieceTypes);
+    result.warnings.forEach((message) => console.warn(`[verificación del modelo] ${message}`));
+    result.anomalies.forEach((message) => console.warn(`[verificación del modelo] anomalía: ${message}`));
+    console.info(
+      `[verificación del modelo] ${result.types} tipos, ${result.instances} instancias, ` +
+        `advertencias: ${result.warnings.length}, anomalías: ${result.anomalies.length}.`,
+    );
+  }, [model]);
+
+  return model;
 }

@@ -16,7 +16,7 @@ export default function FurnitureCanvas() {
       frameloop="demand"
       dpr={[1, 2]}
       gl={{ antialias: !HIGH_DENSITY, powerPreference: "high-performance" }}
-      camera={{ position: [2.3, 1.5, 2.8], fov: 36, near: 0.05, far: 20 }}
+      camera={{ position: [1.8, 1.2, 2.15], fov: 36, near: 0.05, far: 20 }}
     >
       <color attach="background" args={[BACKGROUND]} />
 

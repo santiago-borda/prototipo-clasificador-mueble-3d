@@ -5,10 +5,10 @@ import { PIECE_NAME } from "./ids";
  * ColladaLoader pierde el nombre de los componentes de SketchUp: cuando un <node> solo envuelve
  * un <instance_node> (caso de casi todas las piezas), three devuelve el componente de la
  * biblioteca pero lo renombra con el nombre del envoltorio ("instance_27"), y el código de
- * pieza (`_04_Lateral_modulo_cajones`) desaparece de la escena.
+ * pieza (`_0001-01-M01-C04`) desaparece de la escena.
  *
  * Este loader, antes de parsear, copia el nombre del componente al envoltorio, así el nombre
- * sobrevive. Solo toca componentes cuyo nombre lleva código de pieza (`_NN_...`).
+ * sobrevive. Solo toca componentes cuyo nombre es un código de pieza (ver `PIECE_NAME`).
  */
 function restoreComponentNames(xml: string): string {
   const doc = new DOMParser().parseFromString(xml, "application/xml");

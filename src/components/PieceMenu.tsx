@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { getFurniture, listModules, listPieces, resolveQr } from "@/lib/lookup";
+import { shortCode } from "@/model/ids";
 import { useViewStore } from "@/store/viewStore";
 
 /** Etiqueta corta del QR actual para el botón del menú. */
 function currentLabel(qrId: string | null): string {
   const target = qrId ? resolveQr(qrId) : undefined;
   if (!target) return "Menú";
-  if (target.kind === "piece") return `Pieza ${target.piece.code}`;
+  if (target.kind === "piece") return `Pieza ${shortCode(target.piece.code)}`;
   if (target.kind === "module") return target.module.name;
   return target.furniture.name;
 }
@@ -103,7 +104,7 @@ export function PieceMenu() {
                         >
                           <span className="min-w-0">
                             <span className={`mr-2 font-semibold ${active ? "text-orange-600" : "text-teal-700"}`}>
-                              {piece.code}
+                              {shortCode(piece.code)}
                             </span>
                             <span className="break-words">{piece.name}</span>
                           </span>

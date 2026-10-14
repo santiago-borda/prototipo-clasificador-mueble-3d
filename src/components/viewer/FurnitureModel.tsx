@@ -6,15 +6,14 @@ import { Html } from "@react-three/drei";
 import { useRouter } from "next/navigation";
 import { MeshStandardMaterial } from "three";
 import type { EdgeId } from "@/data/types";
-import { getPieceByInstanceId, isInstanceHot, listPieces, resolveQr } from "@/lib/lookup";
+import { getPieceByInstanceId, isInstanceHot, resolveQr } from "@/lib/lookup";
+import { pieceMatchesInstance } from "@/data/mapping";
+import { shortCode } from "@/model/ids";
 import { useFurnitureModel } from "@/model/useFurnitureModel";
 import { useViewStore } from "@/store/viewStore";
 import { ACCENT_COLOR, NEUTRAL_COLOR, PartMesh } from "./PartMesh";
 
 const NO_EDGES: readonly EdgeId[] = [];
-
-// Instancias que tienen ficha: se calcula una vez, no depende de la selección.
-const LINKED_IDS: ReadonlySet<string> = new Set(listPieces().flatMap((piece) => piece.instanceIds));
 
 export function FurnitureModel() {
   const router = useRouter();
@@ -74,8 +73,8 @@ export function FurnitureModel() {
           part={part}
           baseMaterial={baseMaterial}
           hot={isInstanceHot(target, part.instanceId)}
-          linked={LINKED_IDS.has(part.instanceId)}
-          current={currentPiece?.instanceIds.includes(part.instanceId) ?? false}
+          linked={getPieceByInstanceId(part.instanceId) !== undefined}
+          current={currentPiece ? pieceMatchesInstance(currentPiece, part.instanceId) : false}
           showLinked={showLinked}
           edgeBanding={edgeBanding}
           viewMode={effectiveMode}
@@ -86,7 +85,7 @@ export function FurnitureModel() {
       {hoveredPiece && tooltipPosition && (
         <Html position={tooltipPosition} center zIndexRange={[20, 0]} style={{ pointerEvents: "none" }}>
           <div className="-translate-y-6 whitespace-nowrap rounded-full bg-slate-900/90 px-3 py-1 text-xs font-medium text-white shadow">
-            <span className="text-teal-300">{hoveredPiece.code}</span> {hoveredPiece.name}
+            <span className="text-teal-300">{shortCode(hoveredPiece.code)}</span> {hoveredPiece.name}
           </div>
         </Html>
       )}

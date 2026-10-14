@@ -2,11 +2,12 @@ import Link from "next/link";
 import type { Furniture } from "@/data/types";
 import { edgeSummary } from "@/lib/edgeText";
 import type { QrTarget } from "@/lib/lookup";
+import { shortCode } from "@/model/ids";
 import { NewerVersionBanner } from "./NewerVersionBanner";
 
 type ModuleTarget = Extract<QrTarget, { kind: "module" }>;
 
-/** Ficha de módulo: sus piezas con ficha y los componentes del modelo que todavía no la tienen. */
+/** Ficha de módulo: sus tipos de pieza. */
 export function ModuleSheet({ target, furniture }: { target: ModuleTarget; furniture: Furniture }) {
   const totalPieces = target.pieces.reduce((sum, piece) => sum + piece.quantity, 0);
 
@@ -29,7 +30,7 @@ export function ModuleSheet({ target, furniture }: { target: ModuleTarget; furni
       </header>
 
       <p className="text-sm text-slate-600">
-        {target.pieces.length} {target.pieces.length === 1 ? "tipo de pieza con ficha" : "tipos de pieza con ficha"} ({totalPieces}{" "}
+        {target.pieces.length} {target.pieces.length === 1 ? "tipo de pieza" : "tipos de pieza"} ({totalPieces}{" "}
         {totalPieces === 1 ? "pieza" : "piezas"}). En el 3D se resaltan todas las piezas del módulo.
       </p>
 
@@ -45,7 +46,7 @@ export function ModuleSheet({ target, furniture }: { target: ModuleTarget; furni
                 className="flex items-center justify-between gap-3 rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-200 transition hover:ring-orange-400"
               >
                 <span>
-                  <span className="block text-sm font-semibold text-orange-600">{piece.code}</span>
+                  <span className="block text-sm font-semibold text-orange-600">{shortCode(piece.code)}</span>
                   <span className="block font-medium text-slate-900">{piece.name}</span>
                   <span className="block text-xs text-slate-500">
                     {piece.lengthMm} x {piece.widthMm} mm · {piece.material} · {edgeSummary(piece.edgeBanding)}
@@ -59,19 +60,6 @@ export function ModuleSheet({ target, furniture }: { target: ModuleTarget; furni
           ))}
         </ul>
       </section>
-
-      {target.codesWithoutSheet.length > 0 && (
-        <section aria-labelledby="sin-ficha" className="rounded-xl border border-dashed border-slate-300 p-4">
-          <h2 id="sin-ficha" className="text-sm font-semibold text-slate-700">
-            Componentes del modelo 3D sin ficha todavía
-          </h2>
-          <p className="mt-1 text-sm text-slate-600">{target.codesWithoutSheet.join(", ")}</p>
-          <p className="mt-2 text-xs text-slate-500">
-            Están en el modelo y se resaltan con el módulo, pero faltan en el listado de piezas cargado. Pertenencia al
-            módulo asumida para el prototipo.
-          </p>
-        </section>
-      )}
     </article>
   );
 }

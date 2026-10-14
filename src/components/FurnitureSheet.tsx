@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { QrTarget } from "@/lib/lookup";
 import { listPieces } from "@/lib/lookup";
+import { shortCode } from "@/model/ids";
 import { NewerVersionBanner } from "./NewerVersionBanner";
 
 type FurnitureTarget = Extract<QrTarget, { kind: "furniture" }>;
@@ -36,7 +37,7 @@ export function FurnitureSheet({ target }: { target: FurnitureTarget }) {
       <dl>
         <Row label="Medidas generales (ancho x alto x prof.)" value={`${furniture.dimsMm.x} x ${furniture.dimsMm.y} x ${furniture.dimsMm.z} mm`} />
         <Row label="Versión del diseño" value={furniture.designVersion} />
-        <Row label="Canto" value={`${spec.type} ${spec.widthMm} x ${String(spec.thicknessMm).replace(".", ",")} mm (${spec.status})`} />
+        <Row label="Canto" value={`${spec.type} ${spec.widthMm} x ${String(spec.thicknessMm).replace(".", ",")} mm (${spec.status}${spec.note ? `; ${spec.note}` : ""})`} />
         <Row label="Módulos" value={String(modules.length)} />
       </dl>
 
@@ -55,7 +56,7 @@ export function FurnitureSheet({ target }: { target: FurnitureTarget }) {
                 >
                   <span>
                     <span className="block font-medium text-slate-900">{mod.name}</span>
-                    <span className="block text-xs text-slate-500">{modPieces.map((piece) => piece.code).join(", ")}</span>
+                    <span className="block text-xs text-slate-500">{modPieces.map((piece) => shortCode(piece.code)).join(", ")}</span>
                   </span>
                   <span className="shrink-0 text-sm text-slate-500">{modPieces.length} tipos de pieza →</span>
                 </Link>

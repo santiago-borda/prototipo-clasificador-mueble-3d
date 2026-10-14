@@ -7,7 +7,7 @@
 //  - largo-A / largo-B: los dos bordes a lo largo, en el mínimo / máximo del eje del ancho.
 //  - corto-A / corto-B: los dos bordes cortos, en el mínimo / máximo del eje del largo.
 //  - Esquina de referencia: el vértice largo-A × corto-A (a mitad del espesor, visible desde ambas caras).
-// Con piezas equivalentes (ej. los dos laterales _04) cada copia usa su propia caja, así que
+// Con piezas equivalentes (ej. los dos laterales C04) cada copia usa su propia caja, así que
 // "A" puede quedar espejado entre una y otra: el dato real lo debe definir Casa Mueble.
 
 import { Box3, Vector3, type BufferGeometry } from "three";

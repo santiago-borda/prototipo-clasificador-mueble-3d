@@ -2,18 +2,14 @@
 //
 // Lo que el exportador de SketchUp deja en el archivo (verificado en olmo.dae):
 //  - Unidades en pulgadas y Z hacia arriba: ColladaLoader ya lo resuelve (escala a metros y rota a Y arriba).
-//  - Cada pieza es un componente con el código en el nombre: `_04_Lateral_modulo_cajones`
-//    (paneles de 24 triángulos cada uno).
-//  - Solo se conservan esas piezas. Lo demás se descarta a propósito:
-//      * Herrajes (correderas, billas, gomas): cuelgan de componentes sin código y suman ~214.000
-//        triángulos (el 99,6 % de la geometría del mueble) en piezas de pocos milímetros, escondidas
-//        dentro de los cajones. Dibujarlas en cada frame (y otra vez en la sombra y en cada raycast)
-//        hacía tironear el visor en celulares.
-//      * Una lámina de 1200 x 550 x 10 mm por debajo del piso, sin nombre.
+//  - Cada pieza es un componente cuyo nombre es el código: `_0001-01-M01-C04` (paneles de 24
+//    triángulos cada uno). Las instancias se numeran por código: `0001-01-M01-C04#1`, `#2`.
+//  - Solo se conservan esas piezas. El modelo no trae herrajes. Quedan afuera 6 geometrías sueltas de
+//    20 x 35 x 10 mm (material Color_M06, sin identificar): no cuelgan de ningún componente con código.
 
 import { Box3, Mesh, Vector3, type BufferGeometry, type Object3D } from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { PIECE_NAME } from "./ids";
+import { PIECE_NAME, canonicalCode } from "./ids";
 import type { FurnitureModel, FurniturePart } from "./types";
 
 /** Componente (con código) más cercano hacia arriba, o null si el mesh no pertenece a una pieza. */
@@ -53,7 +49,7 @@ export function buildFurnitureModel(scene: Object3D): FurnitureModel {
   scene.traverse((object) => {
     if (!(object instanceof Mesh)) return;
     const pieceNode = findPieceNode(object);
-    if (!pieceNode) return; // herraje o suelto: ni siquiera se procesa
+    if (!pieceNode) return; // geometría suelta sin código: ni siquiera se procesa
     const geometry = bakeGeometry(object);
     if (!geometry) return;
     const list = byPieceNode.get(pieceNode);
@@ -66,9 +62,10 @@ export function buildFurnitureModel(scene: Object3D): FurnitureModel {
   for (const [node, geometries] of byPieceNode) {
     const geometry = merge(geometries);
     if (!geometry) continue;
-    const n = (counters.get(node.name) ?? 0) + 1;
-    counters.set(node.name, n);
-    parts.push({ instanceId: `${node.name}#${n}`, geometry });
+    const code = canonicalCode(node.name);
+    const n = (counters.get(code) ?? 0) + 1;
+    counters.set(code, n);
+    parts.push({ instanceId: `${code}#${n}`, componentName: node.name, geometry });
   }
 
   // Centrar en x/z y apoyar en y = 0 para que OrbitControls orbite alrededor del mueble.

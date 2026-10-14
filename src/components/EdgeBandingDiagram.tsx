@@ -11,12 +11,12 @@ const PLAIN_COLOR = "#94a3b8";
 const REFERENCE_COLOR = "#1e293b"; // igual que la esquina de referencia del visor 3D
 const MAX_W = 250;
 const MAX_H = 150;
-const PAD_X = 44;
+const PAD_X = 52;
 const PAD_Y = 34;
 
 /**
  * Esquema de la pieza (largo horizontal, ancho vertical).
- * Convención del spike: borde superior = largo A, inferior = largo B, izquierdo = corto A, derecho = corto B.
+ * Convención del prototipo: borde superior = largo A, inferior = largo B, izquierdo = corto A, derecho = corto B.
  * La esquina de referencia es largo A × corto A (arriba a la izquierda).
  */
 export function EdgeBandingDiagram({ lengthMm, widthMm, edges }: EdgeBandingDiagramProps) {
@@ -66,8 +66,11 @@ export function EdgeBandingDiagram({ lengthMm, widthMm, edges }: EdgeBandingDiag
         <text x={(x0 + x1) / 2} y={y1 + 18} fontSize="10" textAnchor="middle" fill="#475569">
           {label("largo-B")}
         </text>
-        <text x={x0 - 8} y={(y0 + y1) / 2} fontSize="10" textAnchor="end" dominantBaseline="middle" fill="#475569">
+        <text x={x0 - 8} y={(y0 + y1) / 2 - 6} fontSize="10" textAnchor="end" dominantBaseline="middle" fill="#475569">
           {label("corto-A")}
+        </text>
+        <text x={x0 - 8} y={(y0 + y1) / 2 + 7} fontSize="10" textAnchor="end" dominantBaseline="middle" fill="#475569">
+          {widthMm}
         </text>
         <text x={x1 + 8} y={(y0 + y1) / 2} fontSize="10" textAnchor="start" dominantBaseline="middle" fill="#475569">
           {label("corto-B")}

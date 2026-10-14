@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { edgeSummary } from "@/lib/edgeText";
 import { getFurniture, listModules, listPieces } from "@/lib/lookup";
+import { shortCode } from "@/model/ids";
 
 export default function Home() {
   const furniture = getFurniture();
@@ -8,7 +9,7 @@ export default function Home() {
 
   return (
     <main className="mx-auto w-full max-w-xl p-4 pb-10 lg:p-8">
-      <p className="text-xs font-semibold uppercase tracking-wide text-orange-600">Prototipo descartable</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-orange-600">Prototipo — vista previa</p>
       <h1 className="mt-1 text-2xl font-bold text-slate-900">{furniture.name}</h1>
       <p className="mt-1 text-sm text-slate-500">
         {furniture.dimsMm.x} x {furniture.dimsMm.y} x {furniture.dimsMm.z} mm · versión {furniture.designVersion}
@@ -51,7 +52,7 @@ export default function Home() {
                     className="flex items-center justify-between gap-3 rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-200 transition hover:ring-orange-400"
                   >
                     <span>
-                      <span className="block text-sm font-semibold text-orange-600">{piece.code}</span>
+                      <span className="block text-sm font-semibold text-orange-600">{shortCode(piece.code)}</span>
                       <span className="block font-medium text-slate-900">{piece.name}</span>
                       <span className="block text-xs text-slate-500">
                         {piece.lengthMm} x {piece.widthMm} mm · {edgeSummary(piece.edgeBanding)}

@@ -1,4 +1,4 @@
-// Tipos del dominio del spike. Sin dependencias de React ni de three.
+// Tipos del dominio del prototipo. Sin dependencias de React ni de three.
 
 export type ViewMode = "highlight" | "isolate" | "dim";
 
@@ -10,6 +10,8 @@ export interface EdgeBandSpec {
   widthMm: number;
   thicknessMm: number;
   status: "provisorio" | "confirmado";
+  /** Aclaración que se muestra junto al canto (ej. discrepancia con la lista de compra). */
+  note?: string;
 }
 
 export interface Furniture {
@@ -33,6 +35,7 @@ export interface Module {
 
 export interface PieceType {
   qrId: string;
+  /** Código canónico del componente en el .dae: `0001-01-M01-C04`. */
   code: string;
   name: string;
   moduleId: string;
@@ -46,9 +49,4 @@ export interface PieceType {
   /** Bordes que llevan canto. Vacío = sin canto. */
   edgeBanding: readonly EdgeId[];
   notes: string | null;
-}
-
-/** PieceType + instancias físicas del 3D (resueltas vía mapping.ts). */
-export interface ResolvedPieceType extends PieceType {
-  instanceIds: readonly string[];
 }

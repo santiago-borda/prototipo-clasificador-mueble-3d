@@ -35,7 +35,7 @@ export function ViewModeControl() {
             aria-checked={active}
             disabled={disabled}
             onClick={() => setViewMode(option.value)}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+            className={`min-h-11 rounded-full px-4 text-sm font-medium transition-colors ${
               active ? "bg-orange-500 text-white" : "text-slate-600 hover:bg-slate-100"
             }`}
           >

@@ -25,10 +25,11 @@ function isLocalHost(baseUrl: string): boolean {
 
 /** QR reales de cada mueble, módulo y pieza: se escanean con la cámara del celular y abren la ficha. */
 export function QrSheet({ entries }: { entries: readonly QrEntry[] }) {
-  // La dirección por defecto es la de esta misma página; en el servidor no existe, por eso "".
+  // Por defecto, NEXT_PUBLIC_BASE_URL (URL estable de producción: los QR impresos no deben apuntar a un deploy puntual);
+  // si no está definida, la de esta misma página. En el servidor window no existe, por eso "".
   const origin = useSyncExternalStore(subscribeNever, () => window.location.origin, () => "");
   const [override, setOverride] = useState<string | null>(null);
-  const baseUrl = override ?? origin;
+  const baseUrl = override ?? (process.env.NEXT_PUBLIC_BASE_URL?.trim() || origin);
   const setBaseUrl = setOverride;
   const [images, setImages] = useState<Readonly<Record<string, string>>>({});
 

@@ -14,7 +14,7 @@ export function LinkedToggle() {
       aria-pressed={showLinked}
       onClick={() => setShowLinked(!showLinked)}
       title="Marca las piezas que tienen ficha: tocalas para abrirla"
-      className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-2 text-sm font-medium text-slate-800 shadow-md ring-1 ring-slate-200"
+      className="pointer-events-auto inline-flex min-h-11 items-center gap-2 rounded-full bg-white/95 px-4 text-sm font-medium text-slate-800 shadow-md ring-1 ring-slate-200"
     >
       <span
         aria-hidden

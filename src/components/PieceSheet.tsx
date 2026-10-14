@@ -1,7 +1,8 @@
 import Link from "next/link";
-import type { Furniture, ResolvedPieceType } from "@/data/types";
+import type { Furniture, PieceType } from "@/data/types";
 import { edgeSummary } from "@/lib/edgeText";
 import { getModule } from "@/lib/lookup";
+import { shortCode } from "@/model/ids";
 import { EdgeBandingDiagram } from "./EdgeBandingDiagram";
 import { NewerVersionBanner } from "./NewerVersionBanner";
 
@@ -14,10 +15,10 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function PieceSheet({ piece, furniture }: { piece: ResolvedPieceType; furniture: Furniture }) {
+export function PieceSheet({ piece, furniture }: { piece: PieceType; furniture: Furniture }) {
   const mod = getModule(piece.moduleId);
   const spec = furniture.edgeBandSpec;
-  const specText = `${spec.type} ${spec.widthMm} x ${String(spec.thicknessMm).replace(".", ",")} mm (${spec.status})`;
+  const specText = `${spec.type} ${spec.widthMm} x ${String(spec.thicknessMm).replace(".", ",")} mm (${spec.status}${spec.note ? `; ${spec.note}` : ""})`;
 
   return (
     <article className="mx-auto flex max-w-xl flex-col gap-5 p-4 pb-10 lg:p-8">
@@ -28,7 +29,7 @@ export function PieceSheet({ piece, furniture }: { piece: ResolvedPieceType; fur
       {furniture.newerVersionAvailable && <NewerVersionBanner currentVersion={furniture.designVersion} />}
 
       <header>
-        <p className="text-sm font-semibold tracking-wide text-orange-600">{piece.code}</p>
+        <p className="text-sm font-semibold tracking-wide text-orange-600">{shortCode(piece.code)}</p>
         <h1 className="text-2xl font-bold text-slate-900">{piece.name}</h1>
         <p className="text-sm text-slate-500">
           <Link href={`/p/${furniture.qrId}`} className="underline decoration-slate-300 underline-offset-2 hover:text-slate-800">
@@ -50,6 +51,7 @@ export function PieceSheet({ piece, furniture }: { piece: ResolvedPieceType; fur
           Datos de la pieza
         </h2>
         <dl>
+          <Row label="N° de pieza" value={piece.code} />
           <Row label="Medidas (largo x ancho)" value={`${piece.lengthMm} x ${piece.widthMm} mm`} />
           <Row label="Espesor" value={`${piece.thicknessMm} mm`} />
           <Row label="Material" value={piece.material} />

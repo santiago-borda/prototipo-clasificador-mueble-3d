@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ficha de pieza — Spike Olmo",
-  description: "Prototipo descartable: ficha de pieza y visor 3D al escanear un QR.",
+  title: "Ficha de pieza — Prototipo",
+  description: "Prototipo — vista previa: ficha de pieza y visor 3D al escanear un QR.",
 };
 
 export const viewport: Viewport = {

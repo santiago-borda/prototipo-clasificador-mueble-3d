@@ -15,7 +15,7 @@ export default function Home() {
         {furniture.dimsMm.x} x {furniture.dimsMm.y} x {furniture.dimsMm.z} mm · versión {furniture.designVersion}
       </p>
       <p className="mt-3 text-sm text-slate-600">
-        El escaneo se simula: tocá un QR para abrir la ficha de esa pieza, como si lo hubieras escaneado.
+        Escaneá la etiqueta de una pieza desde la pestaña «Escanear QR», o tocá una de la lista para abrir su ficha.
       </p>
 
       <div className="mt-4 flex flex-wrap gap-2">

@@ -1,6 +1,18 @@
 # Prototipo — vista previa: ficha de pieza + visor 3D (Escritorio Olmo)
 
-Vista previa temprana de la pantalla que vería un operario al escanear el QR de una pieza. El escaneo se simula: se entra por URL.
+Vista previa temprana de la pantalla que vería un operario al escanear el QR de la etiqueta de una pieza: ficha con los datos de fabricación y visor 3D del mueble con la pieza resaltada.
+
+## Qué hace
+
+- **Escanear QR** (pestaña `/escanear`): abre la cámara del dispositivo, lee el QR de la etiqueta y abre la ficha de esa pieza sin salir de la app. Acepta la URL de la etiqueta o un id suelto (`olmo-c04`); si el QR no es del mueble, avisa y sigue escaneando.
+- **Piezas** (pestaña `/`): lista de los 24 QR del Escritorio Olmo (mueble, 2 módulos y 21 tipos de pieza). Las pestañas **Piezas** y **Escanear QR** están siempre arriba.
+- **Ficha** (`/p/<qrId>`), en tres niveles:
+  - *Pieza*: N° de pieza (código completo), medidas, espesor, material, cantidad de piezas equivalentes, esquema de canteado con las medidas de los lados largo y corto, y observaciones.
+  - *Módulo*: sus tipos de pieza; en el 3D se resaltan todas.
+  - *Mueble*: medidas generales, versión del diseño y módulos.
+- **Visor 3D** del `.dae` real, que se mantiene al pasar de una ficha a otra: modos **Resaltar** / **Aislar** / **Atenuar**, marcas azules sobre los bordes con canto y un punto en la esquina de referencia, interruptor **Con ficha**, menú de piezas y navegación a la ficha tocando un panel.
+- **QR para imprimir** (`/qr`): genera los códigos reales de cada mueble, módulo y pieza.
+- **Aviso de versión**: si hay un diseño más nuevo, las fichas lo avisan (ver [Datos y supuestos](#datos-y-supuestos)).
 
 Stack del prototipo (no fija el del proyecto): Next.js (App Router) + TypeScript estricto + Tailwind + React Three Fiber + drei + Zustand.
 
@@ -43,7 +55,15 @@ Cada tipo de pieza se identifica con el código del componente del .dae, p. ej. 
 
 En el visor: **Resaltar** / **Aislar** / **Atenuar**; arrastrar para rotar, pellizcar o rueda para zoom. Las piezas con ficha se tiñen de verde azulado (interruptor **Con ficha**); al pasar el cursor muestran su nombre y al tocarlas se abre su ficha. El menú de piezas (arriba a la izquierda) lista todos los QR para saltar de una ficha a otra sin volver al inicio.
 
-## QR reales para escanear
+## Escanear con la cámara
+
+La pestaña **Escanear QR** (`/escanear`) usa la cámara trasera, lee el código con [`jsqr`](https://github.com/cozmo/jsQR) y navega a `/p/<qrId>`; las fichas se precargan, así que el salto es inmediato. Al abrir una ficha la cámara se apaga; para escanear otra pieza, volver a la pestaña.
+
+- **La cámara exige https o `localhost`.** Funciona en el sitio de Vercel; con `npm run dev:lan` por `http://<IP>:3000` el navegador la bloquea y la app lo avisa (usar la cámara nativa del celular o `/p/<qrId>` por URL).
+- Si no hay permiso de cámara, habilitarlo en los ajustes del sitio en el navegador (en iPhone, Safari).
+- También sirve la cámara nativa del celular: el QR es una URL que abre la ficha directamente.
+
+## QR reales para imprimir
 
 `/qr` genera el código QR de cada mueble, módulo y pieza (para imprimir con el botón **Imprimir** o mostrar en pantalla). Al escanearlo con la cámara del celular se abre la ficha. El QR apunta a la dirección desde la que abras `/qr`, o a la que escribas en el campo "Dirección base": para que el celular pueda abrirlo, abrí `/qr` desde la IP de la PC (`http://<IP>:3000/qr` con `npm run dev:lan`) y no desde `localhost`. En producción la dirección base viene de `NEXT_PUBLIC_BASE_URL` (ver [Despliegue](#despliegue-vercel)).
 
@@ -57,7 +77,7 @@ En el visor: **Resaltar** / **Aislar** / **Atenuar**; arrastrar para rotar, pell
 3. Averiguar la IP de la PC (Windows: `ipconfig`, línea "Dirección IPv4", p. ej. `192.168.1.23`).
 4. En el celular abrir `http://192.168.1.23:3000/p/olmo-c04`.
 
-Si no carga: permitir Node.js en el Firewall de Windows para redes privadas. `next.config.ts` ya habilita `allowedDevOrigins` para los rangos `192.168.*.*`, `10.*.*.*` y `172.*.*.*`; si tu red usa otro, agregarlo ahí.
+Ojo: así se ven las fichas y el visor, pero la pestaña **Escanear QR** no puede abrir la cámara por ser `http` (ver [Escanear con la cámara](#escanear-con-la-cámara)); para probarla en el celular usar el sitio desplegado. Si no carga: permitir Node.js en el Firewall de Windows para redes privadas. `next.config.ts` ya habilita `allowedDevOrigins` para los rangos `192.168.*.*`, `10.*.*.*` y `172.*.*.*`; si tu red usa otro, agregarlo ahí.
 
 ## Despliegue (Vercel)
 
@@ -81,4 +101,4 @@ Ver [CLAUDE.md](CLAUDE.md): qué es mock, qué es asumido (qué bordes llevan ca
 
 ## Fuera de alcance
 
-Escáner QR real, autenticación, base de datos, API, motor de asociación, etiquetas, guía de armado y asociación automática de piezas (el modelo 3D que se carga es `public/models/olmo.dae`: 21 componentes, 33 instancias, sin herrajes, ~700 triángulos, y se ignoran 6 geometrías sueltas de 20 x 35 x 10 mm; el punto de reemplazo es `src/model/useFurnitureModel.ts`).
+Autenticación, base de datos, API, motor de asociación, etiquetas, guía de armado y asociación automática de piezas (el modelo 3D que se carga es `public/models/olmo.dae`: 21 componentes, 33 instancias, sin herrajes, ~700 triángulos, y se ignoran 6 geometrías sueltas de 20 x 35 x 10 mm; el punto de reemplazo es `src/model/useFurnitureModel.ts`).

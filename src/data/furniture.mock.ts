@@ -2,7 +2,7 @@
 // Medidas, cantidades y materiales: tomados del listado provisto. No agregar cifras que no estén en él.
 // Todo lo marcado "ASUMIDO PARA EL PROTOTIPO" es un dato a confirmar con Casa Mueble.
 
-import type { EdgeId, Furniture, Module, PieceType } from "./types";
+import type { EdgeId, Furniture, FurnitureDef, Module, PieceType } from "./types";
 
 export const furniture: Furniture = {
   id: "olmo",
@@ -16,7 +16,8 @@ export const furniture: Furniture = {
   edgeBandSpec: { type: "ABS", widthMm: 22, thicknessMm: 0.45, status: "provisorio", note: "la lista de compra dice 0,22" },
 };
 
-// ASUMIDO PARA EL PROTOTIPO, a confirmar con Casa Mueble: la agrupación de piezas en módulos.
+// ASUMIDO PARA EL PROTOTIPO, a confirmar con Casa Mueble: la agrupación de piezas en módulos, los nombres
+// de módulo y los qrId de módulo y de mueble (R6 sigue abierto).
 // El código de pieza lleva M01 en todas, así que no sirve para agrupar.
 export const modules: readonly Module[] = [
   { id: "mod-escritorio", qrId: "olmo-mod-escritorio", furnitureId: "olmo", name: "Escritorio" },
@@ -99,3 +100,12 @@ export const pieceTypes: readonly PieceType[] = [
   piece("C20", "Fondo cajones", CAJ, 400, 378, 3, MDF_BLANCO, 2, SIN_CANTO),
   piece("C21", "Fondo sector cajones", CAJ, 614, 422, 3, MDF_BLANCO, 1, SIN_CANTO),
 ];
+
+/** Olmo como mueble registrable. Tolerancia 2 mm: la de la verificación original. */
+export const olmoDef: FurnitureDef = {
+  furniture,
+  modules,
+  pieceTypes,
+  modelUrl: "/models/olmo.dae",
+  toleranceMm: 2,
+};

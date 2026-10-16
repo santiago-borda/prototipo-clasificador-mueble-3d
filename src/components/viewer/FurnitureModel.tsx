@@ -8,6 +8,7 @@ import { MeshStandardMaterial } from "three";
 import type { EdgeId } from "@/data/types";
 import { getPieceByInstanceId, isInstanceHot, resolveQr } from "@/lib/lookup";
 import { pieceMatchesInstance } from "@/data/mapping";
+import type { FurnitureDef } from "@/data/types";
 import { shortCode } from "@/model/ids";
 import { useFurnitureModel } from "@/model/useFurnitureModel";
 import { useViewStore } from "@/store/viewStore";
@@ -15,9 +16,9 @@ import { ACCENT_COLOR, NEUTRAL_COLOR, PartMesh } from "./PartMesh";
 
 const NO_EDGES: readonly EdgeId[] = [];
 
-export function FurnitureModel() {
+export function FurnitureModel({ def }: { def: FurnitureDef }) {
   const router = useRouter();
-  const model = useFurnitureModel();
+  const model = useFurnitureModel(def);
   const invalidate = useThree((state) => state.invalidate);
   const selectedQrId = useViewStore((s) => s.selectedQrId);
   const viewMode = useViewStore((s) => s.viewMode);
@@ -45,19 +46,23 @@ export function FurnitureModel() {
   }, [model, hoveredId, invalidate]);
 
   // Derivado de los datos: qué es el QR seleccionado (pieza, módulo o mueble).
-  const target = useMemo(() => (selectedQrId ? resolveQr(selectedQrId) : undefined), [selectedQrId]);
+  // Solo cuenta si es de ESTE mueble: durante el cambio de mueble el store ya apunta al nuevo.
+  const target = useMemo(() => {
+    const resolved = selectedQrId ? resolveQr(selectedQrId) : undefined;
+    return resolved?.def === def ? resolved : undefined;
+  }, [selectedQrId, def]);
   const currentPiece = target?.kind === "piece" ? target.piece : undefined;
   const edgeBanding = currentPiece?.edgeBanding ?? NO_EDGES;
   // El mueble completo no resalta nada, así que Aislar/Atenuar no tienen sentido: se ve siempre normal.
   const effectiveMode = target?.kind === "furniture" ? "highlight" : viewMode;
 
   const handlePick = (instanceId: string) => {
-    const piece = getPieceByInstanceId(instanceId);
+    const piece = getPieceByInstanceId(def, instanceId);
     if (piece && piece.qrId !== currentPiece?.qrId) router.push(`/p/${piece.qrId}`);
   };
 
   // Cartel sobre la pieza bajo el cursor (solo si tiene ficha y no es la que ya se está viendo).
-  const hoveredPiece = hoveredId ? getPieceByInstanceId(hoveredId) : undefined;
+  const hoveredPiece = hoveredId ? getPieceByInstanceId(def, hoveredId) : undefined;
   const hoveredPart =
     hoveredPiece && hoveredPiece.qrId !== currentPiece?.qrId ? model.parts.find((p) => p.instanceId === hoveredId) : undefined;
   const tooltipPosition = useMemo<[number, number, number] | null>(() => {
@@ -66,17 +71,19 @@ export function FurnitureModel() {
   }, [hoveredPart]);
 
   return (
-    <group name="olmo">
+    <group name={def.furniture.id}>
       {model.parts.map((part) => (
         <PartMesh
           key={part.instanceId}
           part={part}
           baseMaterial={baseMaterial}
           hot={isInstanceHot(target, part.instanceId)}
-          linked={getPieceByInstanceId(part.instanceId) !== undefined}
+          linked={getPieceByInstanceId(def, part.instanceId) !== undefined}
           current={currentPiece ? pieceMatchesInstance(currentPiece, part.instanceId) : false}
           showLinked={showLinked}
           edgeBanding={edgeBanding}
+          lengthMm={currentPiece?.lengthMm}
+          widthMm={currentPiece?.widthMm}
           viewMode={effectiveMode}
           onPick={handlePick}
           onHover={setHoveredId}

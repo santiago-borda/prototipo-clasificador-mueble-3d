@@ -24,7 +24,7 @@ function isLocalHost(baseUrl: string): boolean {
 }
 
 /** QR reales de cada mueble, módulo y pieza: se escanean con la cámara del celular y abren la ficha. */
-export function QrSheet({ entries }: { entries: readonly QrEntry[] }) {
+export function QrSheet({ entries, furnitureNames }: { entries: readonly QrEntry[]; furnitureNames: Readonly<Record<string, string>> }) {
   // Por defecto, NEXT_PUBLIC_BASE_URL (URL estable de producción: los QR impresos no deben apuntar a un deploy puntual);
   // si no está definida, la de esta misma página. En el servidor window no existe, por eso "".
   const origin = useSyncExternalStore(subscribeNever, () => window.location.origin, () => "");
@@ -96,33 +96,38 @@ export function QrSheet({ entries }: { entries: readonly QrEntry[] }) {
         </button>
       </div>
 
-      {SECTIONS.map((section) => {
-        const items = entries.filter((entry) => entry.kind === section.kind);
-        if (items.length === 0) return null;
-        return (
-          <section key={section.kind} className="mt-8 break-inside-avoid">
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">{section.title}</h2>
-            <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              {items.map((entry) => (
-                <li key={entry.qrId} className="break-inside-avoid rounded-xl bg-white p-3 text-center shadow-sm ring-1 ring-slate-200">
-                  {images[entry.qrId] ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- data URL generado en el cliente
-                    <img src={images[entry.qrId]} alt={`QR de ${entry.code} ${entry.title}`} className="mx-auto aspect-square w-full max-w-[180px]" />
-                  ) : (
-                    <div className="mx-auto aspect-square w-full max-w-[180px] animate-pulse rounded bg-slate-100" />
-                  )}
-                  <p className="mt-2 text-sm font-semibold text-orange-600">{entry.code}</p>
-                  <p className="text-sm font-medium text-slate-900">{entry.title}</p>
-                  <p className="text-xs text-slate-500">{entry.subtitle}</p>
-                  <Link href={`/p/${entry.qrId}`} className="mt-1 inline-block text-xs text-slate-500 underline print:hidden">
-                    Abrir ficha
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        );
-      })}
+      {Object.entries(furnitureNames).map(([furnitureId, furnitureName]) => (
+        <div key={furnitureId} className="mt-10">
+          <h2 className="border-b border-slate-200 pb-1 text-lg font-bold text-slate-900">{furnitureName}</h2>
+          {SECTIONS.map((section) => {
+            const items = entries.filter((entry) => entry.furnitureId === furnitureId && entry.kind === section.kind);
+            if (items.length === 0) return null;
+            return (
+              <section key={section.kind} className="mt-6 break-inside-avoid">
+                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">{section.title}</h3>
+                <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                  {items.map((entry) => (
+                    <li key={entry.qrId} className="break-inside-avoid rounded-xl bg-white p-3 text-center shadow-sm ring-1 ring-slate-200">
+                      {images[entry.qrId] ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- data URL generado en el cliente
+                        <img src={images[entry.qrId]} alt={`QR de ${entry.code} ${entry.title}`} className="mx-auto aspect-square w-full max-w-[180px]" />
+                      ) : (
+                        <div className="mx-auto aspect-square w-full max-w-[180px] animate-pulse rounded bg-slate-100" />
+                      )}
+                      <p className="mt-2 text-sm font-semibold text-orange-600">{entry.code}</p>
+                      <p className="text-sm font-medium text-slate-900">{entry.title}</p>
+                      <p className="text-xs text-slate-500">{entry.subtitle}</p>
+                      <Link href={`/p/${entry.qrId}`} className="mt-1 inline-block text-xs text-slate-500 underline print:hidden">
+                        Abrir ficha
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            );
+          })}
+        </div>
+      ))}
     </main>
   );
 }

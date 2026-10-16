@@ -47,3 +47,6 @@ next-env.d.ts
 # dashboard de la tesis (local, se regenera; ver CLAUDE.md)
 /dashboard.html
 /dashboard/
+
+# Modelo y datos de Sabrina (clienta de Casa Mueble): titularidad y uso pendientes. NO subir a GitHub.
+/Sabrina/

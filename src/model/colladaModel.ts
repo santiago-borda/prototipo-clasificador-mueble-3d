@@ -6,8 +6,11 @@
 //    triángulos cada uno). Las instancias se numeran por código: `0001-01-M01-C04#1`, `#2`.
 //  - Solo se conservan esas piezas. El modelo no trae herrajes. Quedan afuera 6 geometrías sueltas de
 //    20 x 35 x 10 mm (material Color_M06, sin identificar): no cuelgan de ningún componente con código.
+//  - sabrina.dae (verificado): mismo formato, instancias anidadas en grupos de hasta 3 niveles (ColladaLoader
+//    compone las transformaciones) y 24 objetos de líneas sueltos (aristas) que tampoco son piezas.
+//  - Lo que queda afuera se cuenta en `FurnitureModel.excluded` (líneas y mallas sin código).
 
-import { Box3, Mesh, Vector3, type BufferGeometry, type Object3D } from "three";
+import { Box3, Line, LineSegments, Mesh, Vector3, type BufferGeometry, type Object3D } from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { PIECE_NAME, canonicalCode } from "./ids";
 import type { FurnitureModel, FurniturePart } from "./types";
@@ -45,11 +48,16 @@ export function buildFurnitureModel(scene: Object3D): FurnitureModel {
 
   // Map conserva el orden de inserción = orden de recorrido del .dae.
   const byPieceNode = new Map<Object3D, BufferGeometry[]>();
+  const excluded = { lineObjects: 0, meshesWithoutCode: 0 };
 
   scene.traverse((object) => {
+    if (object instanceof Line || object instanceof LineSegments) excluded.lineObjects += 1;
     if (!(object instanceof Mesh)) return;
     const pieceNode = findPieceNode(object);
-    if (!pieceNode) return; // geometría suelta sin código: ni siquiera se procesa
+    if (!pieceNode) {
+      excluded.meshesWithoutCode += 1; // geometría suelta sin código: ni siquiera se procesa
+      return;
+    }
     const geometry = bakeGeometry(object);
     if (!geometry) return;
     const list = byPieceNode.get(pieceNode);
@@ -81,5 +89,5 @@ export function buildFurnitureModel(scene: Object3D): FurnitureModel {
     part.geometry.computeBoundingSphere();
   }
 
-  return { parts };
+  return { parts, excluded };
 }

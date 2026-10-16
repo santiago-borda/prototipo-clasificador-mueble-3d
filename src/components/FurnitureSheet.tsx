@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { QrTarget } from "@/lib/lookup";
-import { listPieces } from "@/lib/lookup";
 import { shortCode } from "@/model/ids";
 import { NewerVersionBanner } from "./NewerVersionBanner";
 
@@ -19,7 +18,7 @@ function Row({ label, value }: { label: string; value: string }) {
 export function FurnitureSheet({ target }: { target: FurnitureTarget }) {
   const { furniture, modules } = target;
   const spec = furniture.edgeBandSpec;
-  const pieces = listPieces();
+  const pieces = target.def.pieceTypes;
 
   return (
     <article className="mx-auto flex max-w-xl flex-col gap-5 p-4 pb-10 lg:p-8">

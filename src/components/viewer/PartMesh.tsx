@@ -38,6 +38,9 @@ interface PartMeshProps {
   showLinked: boolean;
   /** Bordes con canto del tipo de pieza seleccionado; solo se marcan en las piezas resaltadas. */
   edgeBanding: readonly EdgeId[];
+  /** Medidas del listado del tipo seleccionado (mm), para orientar largo/corto en el 3D. */
+  lengthMm?: number;
+  widthMm?: number;
   viewMode: ViewMode;
   onPick: (instanceId: string) => void;
   onHover: (instanceId: string | null) => void;
@@ -55,6 +58,8 @@ export function PartMesh({
   current,
   showLinked,
   edgeBanding,
+  lengthMm,
+  widthMm,
   viewMode,
   onPick,
   onHover,
@@ -178,7 +183,7 @@ export function PartMesh({
         visible={false}
         raycast={() => null}
       />
-      {hot && edgeBanding.length > 0 && <EdgeMarkers geometry={part.geometry} edges={edgeBanding} />}
+      {hot && edgeBanding.length > 0 && <EdgeMarkers geometry={part.geometry} edges={edgeBanding} lengthMm={lengthMm} widthMm={widthMm} />}
     </>
   );
 }

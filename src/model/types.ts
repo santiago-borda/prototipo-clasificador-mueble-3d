@@ -16,6 +16,15 @@ export interface FurniturePart {
   geometry: BufferGeometry;
 }
 
+/** Lo que el .dae trae y no se convierte en pieza. Se informa para que no pase desapercibido. */
+export interface ModelExclusions {
+  /** Objetos de líneas (aristas sueltas de SketchUp): no son piezas. */
+  lineObjects: number;
+  /** Mallas que no cuelgan de ningún componente con código de pieza. */
+  meshesWithoutCode: number;
+}
+
 export interface FurnitureModel {
   parts: readonly FurniturePart[];
+  excluded: ModelExclusions;
 }

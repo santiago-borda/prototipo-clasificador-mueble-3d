@@ -1,7 +1,6 @@
 import Link from "next/link";
-import type { Furniture, PieceType } from "@/data/types";
+import type { Furniture, Module, PieceType } from "@/data/types";
 import { edgeSummary } from "@/lib/edgeText";
-import { getModule } from "@/lib/lookup";
 import { shortCode } from "@/model/ids";
 import { EdgeBandingDiagram } from "./EdgeBandingDiagram";
 import { NewerVersionBanner } from "./NewerVersionBanner";
@@ -15,8 +14,7 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function PieceSheet({ piece, furniture }: { piece: PieceType; furniture: Furniture }) {
-  const mod = getModule(piece.moduleId);
+export function PieceSheet({ piece, furniture, module: mod }: { piece: PieceType; furniture: Furniture; module: Module | undefined }) {
   const spec = furniture.edgeBandSpec;
   const specText = `${spec.type} ${spec.widthMm} x ${String(spec.thicknessMm).replace(".", ",")} mm (${spec.status}${spec.note ? `; ${spec.note}` : ""})`;
 
@@ -64,8 +62,14 @@ export function PieceSheet({ piece, furniture }: { piece: PieceType; furniture: 
           Canteado
         </h2>
         <p className="mb-3 text-lg text-slate-800">{edgeSummary(piece.edgeBanding)}</p>
-        <EdgeBandingDiagram lengthMm={piece.lengthMm} widthMm={piece.widthMm} edges={piece.edgeBanding} />
-        {piece.edgeBanding.length > 0 && (
+        {piece.edgeBanding === null ? (
+          <p className="text-sm text-slate-600">
+            Pendiente de confirmar con Casa Mueble: el listado no indica qué bordes llevan canto.
+          </p>
+        ) : (
+          <EdgeBandingDiagram lengthMm={piece.lengthMm} widthMm={piece.widthMm} edges={piece.edgeBanding} />
+        )}
+        {piece.edgeBanding !== null && piece.edgeBanding.length > 0 && (
           <p className="mt-3 text-xs text-slate-500">
             Canto {specText}. En el 3D, los bordes con canto se marcan en azul y la esquina de referencia con un punto oscuro.
           </p>

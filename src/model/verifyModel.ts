@@ -5,21 +5,46 @@ import type { PieceType } from "@/data/types";
 import type { FurniturePart } from "./types";
 import { CODE_FORMAT, canonicalCode, componentCode } from "./ids";
 
-/** Tolerancia al comparar la caja de la geometría con las medidas del listado. */
-const TOLERANCE_MM = 2;
+/**
+ * Tolerancia por defecto al comparar la caja de la geometría con las medidas del listado (la de Olmo).
+ * Cada mueble puede fijar la suya (`FurnitureDef.toleranceMm`). Sabrina usa 0,5 mm: el listado "final" y el
+ * "ajustado" difieren 1 mm por redondeo, y con 2 mm no se distinguirían.
+ */
+export const DEFAULT_TOLERANCE_MM = 2;
+
+export interface VerifyOptions {
+  toleranceMm?: number;
+}
 
 export interface ModelVerification {
   types: number;
   instances: number;
+  /** Códigos de pieza distintos en el modelo. */
+  distinctCodes: number;
+  /** Mayor diferencia (mm) entre una medida de la geometría y la del listado, en todas las instancias. */
+  maxDeviationMm: number;
   /** Diferencias entre el listado y el modelo. Se espera que no haya ninguna. */
   warnings: string[];
   /** Rarezas del nombre en el .dae que no impiden asociar la pieza (ej. guiones bajos de más). */
   anomalies: string[];
 }
 
-export function verifyModel(parts: readonly FurniturePart[], pieces: readonly PieceType[]): ModelVerification {
+export function verifyModel(
+  parts: readonly FurniturePart[],
+  pieces: readonly PieceType[],
+  options: VerifyOptions = {},
+): ModelVerification {
+  const toleranceMm = options.toleranceMm ?? DEFAULT_TOLERANCE_MM;
   const warnings: string[] = [];
   const anomalies: string[] = [];
+  let maxDeviationMm = 0;
+
+  // Códigos únicos en el listado: si no, la asociación por código sería ambigua.
+  const listed = new Set<string>();
+  for (const piece of pieces) {
+    if (listed.has(piece.code)) warnings.push(`${piece.code}: el código está repetido en el listado.`);
+    listed.add(piece.code);
+  }
 
   for (const piece of pieces) {
     // (c) formato del código
@@ -43,7 +68,8 @@ export function verifyModel(parts: readonly FurniturePart[], pieces: readonly Pi
       const actual = [box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z]
         .map((meters) => meters * 1000)
         .sort((a, b) => a - b);
-      if (actual.some((mm, i) => Math.abs(mm - expected[i]) > TOLERANCE_MM)) {
+      for (let i = 0; i < 3; i += 1) maxDeviationMm = Math.max(maxDeviationMm, Math.abs(actual[i] - expected[i]));
+      if (actual.some((mm, i) => Math.abs(mm - expected[i]) > toleranceMm)) {
         const fmt = (values: number[]) => values.map((v) => Math.round(v * 10) / 10).join(" x ");
         warnings.push(`${part.instanceId}: mide ${fmt(actual)} mm y el listado dice ${fmt(expected)} mm (espesor x ancho x largo).`);
       }
@@ -61,5 +87,6 @@ export function verifyModel(parts: readonly FurniturePart[], pieces: readonly Pi
     }
   }
 
-  return { types: pieces.length, instances: parts.length, warnings, anomalies };
+  const distinctCodes = new Set(parts.map((part) => componentCode(part.instanceId))).size;
+  return { types: pieces.length, instances: parts.length, distinctCodes, maxDeviationMm, warnings, anomalies };
 }

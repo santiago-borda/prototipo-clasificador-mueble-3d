@@ -39,3 +39,12 @@ export class NamedColladaLoader extends ColladaLoader {
     return super.parse(restoreComponentNames(text), path);
   }
 }
+
+// El visor usa sus propios materiales: las texturas que referencia el .dae (Blanco_nature.png, GAUDI.jpeg en
+// Olmo; Cedro.jpeg y Blanco_Liso.jpeg en Sabrina, con rutas rotas) no se necesitan. Se reemplazan por un píxel
+// transparente para no pedirlas (404). Decisión: sin texturas (opción A de la especificación de Sabrina).
+const BLANK_PIXEL = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+
+export function skipTextures(loader: ColladaLoader): void {
+  loader.manager.setURLModifier((url) => (/\.(png|jpe?g)$/i.test(url) ? BLANK_PIXEL : url));
+}

@@ -1,31 +1,38 @@
-import { furniture, modules, pieceTypes } from "@/data/furniture.mock";
+import { olmoDef } from "@/data/furniture.mock";
 import { pieceMatchesInstance } from "@/data/mapping";
-import type { Furniture, Module, PieceType } from "@/data/types";
+import { loadOptionalFurniture } from "@/data/optionalFurniture";
+import { createRegistry } from "@/data/registry";
+import type { Furniture, FurnitureDef, Module, PieceType } from "@/data/types";
 import { componentCode, shortCode } from "@/model/ids";
 
-export function getFurniture(): Furniture {
-  return furniture;
+// Olmo siempre; los muebles opcionales (carpetas ignoradas por git) solo si están presentes.
+const registry = createRegistry([olmoDef, ...loadOptionalFurniture()]);
+
+export function listFurniture(): readonly FurnitureDef[] {
+  return registry.defs;
 }
 
-export function listPieces(): readonly PieceType[] {
-  return pieceTypes;
+/** Mueble que se muestra cuando no hay un QR seleccionado. */
+export function defaultFurnitureDef(): FurnitureDef {
+  return registry.defs[0];
 }
 
-export function getPieceByQrId(qrId: string): PieceType | undefined {
-  return pieceTypes.find((piece) => piece.qrId === qrId);
+export function getFurnitureDef(furnitureId: string): FurnitureDef | undefined {
+  return registry.getDef(furnitureId);
 }
 
-/** Búsqueda inversa: a qué tipo de pieza pertenece una instancia del 3D (coincidencia exacta de código). */
-export function getPieceByInstanceId(instanceId: string): PieceType | undefined {
-  return pieceTypes.find((piece) => pieceMatchesInstance(piece, instanceId));
+/** Mueble al que pertenece un qrId (de mueble, módulo o pieza). */
+export function getFurnitureDefByQrId(qrId: string | null): FurnitureDef | undefined {
+  return qrId ? registry.findDefByQrId(qrId) : undefined;
 }
 
-export function getModule(moduleId: string): Module | undefined {
-  return modules.find((m) => m.id === moduleId);
+/** Búsqueda inversa: a qué tipo de pieza de ESE mueble pertenece una instancia del 3D (coincidencia exacta de código). */
+export function getPieceByInstanceId(def: FurnitureDef, instanceId: string): PieceType | undefined {
+  return def.pieceTypes.find((piece) => pieceMatchesInstance(piece, instanceId));
 }
 
-export function listModules(): readonly Module[] {
-  return modules;
+export function getModule(def: FurnitureDef, moduleId: string): Module | undefined {
+  return def.modules.find((m) => m.id === moduleId);
 }
 
 // --- Resolución de cualquier QR (mueble, módulo o pieza) -------------------------------------
@@ -33,29 +40,33 @@ export function listModules(): readonly Module[] {
 export type QrKind = "furniture" | "module" | "piece";
 
 export type QrTarget =
-  | { kind: "furniture"; qrId: string; furniture: Furniture; modules: readonly Module[] }
+  | { kind: "furniture"; qrId: string; def: FurnitureDef; furniture: Furniture; modules: readonly Module[] }
   | {
       kind: "module";
       qrId: string;
+      def: FurnitureDef;
       module: Module;
       /** Tipos de pieza que pertenecen al módulo. */
       pieces: readonly PieceType[];
       /** Códigos de los componentes del módulo en el .dae. */
       componentCodes: readonly string[];
     }
-  | { kind: "piece"; qrId: string; piece: PieceType };
+  | { kind: "piece"; qrId: string; def: FurnitureDef; piece: PieceType; module: Module | undefined };
 
 export function resolveQr(qrId: string): QrTarget | undefined {
-  if (qrId === furniture.qrId) return { kind: "furniture", qrId, furniture, modules };
+  const def = registry.findDefByQrId(qrId);
+  if (!def) return undefined;
 
-  const mod = modules.find((m) => m.qrId === qrId);
+  if (qrId === def.furniture.qrId) return { kind: "furniture", qrId, def, furniture: def.furniture, modules: def.modules };
+
+  const mod = def.modules.find((m) => m.qrId === qrId);
   if (mod) {
-    const pieces = pieceTypes.filter((piece) => piece.moduleId === mod.id);
-    return { kind: "module", qrId, module: mod, pieces, componentCodes: pieces.map((piece) => piece.code) };
+    const pieces = def.pieceTypes.filter((piece) => piece.moduleId === mod.id);
+    return { kind: "module", qrId, def, module: mod, pieces, componentCodes: pieces.map((piece) => piece.code) };
   }
 
-  const piece = getPieceByQrId(qrId);
-  return piece ? { kind: "piece", qrId, piece } : undefined;
+  const piece = def.pieceTypes.find((p) => p.qrId === qrId);
+  return piece ? { kind: "piece", qrId, def, piece, module: getModule(def, piece.moduleId) } : undefined;
 }
 
 /** ¿Esta instancia del 3D hay que resaltarla para el QR dado? (El mueble completo no resalta nada.) */
@@ -71,6 +82,7 @@ export function isInstanceHot(target: QrTarget | undefined, instanceId: string):
 
 export interface QrEntry {
   qrId: string;
+  furnitureId: string;
   kind: QrKind;
   /** Texto corto grande: "C04", "Módulo", "Mueble". */
   code: string;
@@ -78,17 +90,24 @@ export interface QrEntry {
   subtitle: string;
 }
 
-/** Todos los QR del mueble: el mueble, sus módulos y cada tipo de pieza. */
-export function listQrEntries(): QrEntry[] {
+/** Todos los QR de un mueble: el mueble, sus módulos y cada tipo de pieza. */
+export function listQrEntriesOf(def: FurnitureDef): QrEntry[] {
+  const { furniture, modules, pieceTypes } = def;
   return [
-    { qrId: furniture.qrId, kind: "furniture", code: "Mueble", title: furniture.name, subtitle: "Mueble completo" },
-    ...modules.map<QrEntry>((m) => ({ qrId: m.qrId, kind: "module", code: "Módulo", title: m.name, subtitle: furniture.name })),
+    { qrId: furniture.qrId, furnitureId: furniture.id, kind: "furniture", code: "Mueble", title: furniture.name, subtitle: "Mueble completo" },
+    ...modules.map<QrEntry>((m) => ({ qrId: m.qrId, furnitureId: furniture.id, kind: "module", code: "Módulo", title: m.name, subtitle: furniture.name })),
     ...pieceTypes.map<QrEntry>((piece) => ({
       qrId: piece.qrId,
+      furnitureId: furniture.id,
       kind: "piece",
       code: shortCode(piece.code),
       title: piece.name,
-      subtitle: `${getModule(piece.moduleId)?.name ?? ""} · x${piece.quantity}`,
+      subtitle: `${getModule(def, piece.moduleId)?.name ?? ""} · x${piece.quantity}`,
     })),
   ];
+}
+
+/** Todos los QR de todos los muebles registrados. */
+export function listQrEntries(): QrEntry[] {
+  return registry.defs.flatMap(listQrEntriesOf);
 }

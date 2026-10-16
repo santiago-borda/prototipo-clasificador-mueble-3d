@@ -1,7 +1,8 @@
 import type { EdgeId } from "@/data/types";
 
-/** "2 largos, 1 corto" / "Sin canto". Se deriva de edgeBanding, no se duplica en los datos. */
-export function edgeSummary(edges: readonly EdgeId[]): string {
+/** "2 largos, 1 corto" / "Sin canto" / "Canto: pendiente". Se deriva de edgeBanding, no se duplica en los datos. */
+export function edgeSummary(edges: readonly EdgeId[] | null): string {
+  if (edges === null) return "Canto: pendiente";
   if (edges.length === 0) return "Sin canto";
   const largos = edges.filter((e) => e.startsWith("largo")).length;
   const cortos = edges.filter((e) => e.startsWith("corto")).length;

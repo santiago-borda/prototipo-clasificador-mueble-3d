@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { getFurniture, listModules, listPieces, resolveQr } from "@/lib/lookup";
+import { defaultFurnitureDef, getFurnitureDefByQrId, listFurniture, resolveQr } from "@/lib/lookup";
 import { shortCode } from "@/model/ids";
 import { useViewStore } from "@/store/viewStore";
 
@@ -44,8 +44,11 @@ export function PieceMenu() {
     };
   }, [open]);
 
-  const furniture = getFurniture();
-  const pieces = listPieces();
+  // El menú lista los QR del mueble que se está viendo; los demás muebles van al final.
+  const def = getFurnitureDefByQrId(selectedQrId) ?? defaultFurnitureDef();
+  const { furniture } = def;
+  const pieces = def.pieceTypes;
+  const otherFurniture = listFurniture().filter((other) => other !== def);
 
   return (
     <div ref={rootRef} className="pointer-events-auto relative">
@@ -78,7 +81,7 @@ export function PieceMenu() {
             <span className="shrink-0 text-xs text-slate-500">Mueble</span>
           </Link>
 
-          {listModules().map((mod) => {
+          {def.modules.map((mod) => {
             const modPieces = pieces.filter((piece) => piece.moduleId === mod.id);
             return (
               <div key={mod.id} className="mt-2">
@@ -119,6 +122,23 @@ export function PieceMenu() {
               </div>
             );
           })}
+
+          {otherFurniture.length > 0 && (
+            <div className="mt-2 border-t border-slate-100 pt-2">
+              <p className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Otros muebles</p>
+              {otherFurniture.map((other) => (
+                <Link
+                  key={other.furniture.id}
+                  href={`/p/${other.furniture.qrId}`}
+                  onClick={() => setOpen(false)}
+                  className={rowClass(false)}
+                >
+                  <span className="font-medium">{other.furniture.name}</span>
+                  <span className="shrink-0 text-xs text-slate-500">Mueble</span>
+                </Link>
+              ))}
+            </div>
+          )}
         </nav>
       )}
     </div>

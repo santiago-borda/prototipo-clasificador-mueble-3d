@@ -13,11 +13,17 @@ const REFERENCE_RADIUS = 0.014;
 interface EdgeMarkersProps {
   geometry: BufferGeometry;
   edges: readonly EdgeId[];
+  /** Medidas del listado de la pieza (mm): deciden qué eje es el largo. */
+  lengthMm?: number;
+  widthMm?: number;
 }
 
 /** Marca sobre la pieza 3D los bordes que llevan canto y la esquina de referencia. */
-export function EdgeMarkers({ geometry, edges }: EdgeMarkersProps) {
-  const layout = useMemo(() => computeEdgeLayout(geometry, edges), [geometry, edges]);
+export function EdgeMarkers({ geometry, edges, lengthMm, widthMm }: EdgeMarkersProps) {
+  const layout = useMemo(
+    () => computeEdgeLayout(geometry, edges, lengthMm !== undefined && widthMm !== undefined ? { lengthMm, widthMm } : undefined),
+    [geometry, edges, lengthMm, widthMm],
+  );
 
   return (
     <group name="edge-markers">

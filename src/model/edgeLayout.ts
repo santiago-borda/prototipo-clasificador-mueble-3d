@@ -2,8 +2,10 @@
 //
 // ASUMIDO PARA EL PROTOTIPO: falta el dato real de orientación (ver data/furniture.mock.ts).
 // Convención usada, que replica la del esquema 2D (EdgeBandingDiagram):
-//  - La pieza es el prisma de su bounding box: eje más corto = espesor, el más largo = largo,
-//    el restante = ancho. (Los paneles de este mueble están alineados a los ejes.)
+//  - La pieza es el prisma de su bounding box: eje más corto = espesor. De los otros dos, el "largo" es el
+//    que mide `lengthMm` del listado (si no se pasan las medidas, el más largo) y el restante es el ancho.
+//    Importa en las piezas con largo < ancho en el listado (Sabrina: C04 100 x 1264). (Los paneles de este
+//    mueble están alineados a los ejes.)
 //  - largo-A / largo-B: los dos bordes a lo largo, en el mínimo / máximo del eje del ancho.
 //  - corto-A / corto-B: los dos bordes cortos, en el mínimo / máximo del eje del largo.
 //  - Esquina de referencia: el vértice largo-A × corto-A (a mitad del espesor, visible desde ambas caras).
@@ -33,7 +35,13 @@ function toVec(values: number[]): Vec3 {
   return [values[0], values[1], values[2]];
 }
 
-export function computeEdgeLayout(geometry: BufferGeometry, edges: readonly EdgeId[]): EdgeLayout {
+/** Medidas del listado de la pieza, en mm: deciden cuál de los dos ejes mayores es el "largo". */
+export interface PieceDims {
+  lengthMm: number;
+  widthMm: number;
+}
+
+export function computeEdgeLayout(geometry: BufferGeometry, edges: readonly EdgeId[], dims?: PieceDims): EdgeLayout {
   if (!geometry.boundingBox) geometry.computeBoundingBox();
   const box = geometry.boundingBox ?? new Box3();
   const min = box.min.toArray();
@@ -41,8 +49,11 @@ export function computeEdgeLayout(geometry: BufferGeometry, edges: readonly Edge
   const size = box.getSize(new Vector3()).toArray();
   const mid = (axis: number) => (min[axis] + max[axis]) / 2;
 
-  // Ejes ordenados de menor a mayor medida: espesor, ancho, largo.
-  const [t, w, l] = [0, 1, 2].sort((a, b) => size[a] - size[b]);
+  // Ejes ordenados de menor a mayor medida: el primero es el espesor.
+  const [t, small, big] = [0, 1, 2].sort((a, b) => size[a] - size[b]);
+  // Por defecto el largo es el eje más largo; con las medidas del listado, el que más se acerca a `lengthMm`.
+  const lengthIsSmall = dims !== undefined && Math.abs(size[small] * 1000 - dims.lengthMm) < Math.abs(size[big] * 1000 - dims.lengthMm);
+  const [w, l] = lengthIsSmall ? [big, small] : [small, big];
 
   const band = (id: EdgeId, across: number, along: number, side: -1 | 1): EdgeBandBox => {
     const s = [0, 0, 0];

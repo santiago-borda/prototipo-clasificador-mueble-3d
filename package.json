@@ -6,6 +6,9 @@
     "dev": "next dev",
     "dev:lan": "next dev -H 0.0.0.0",
     "typecheck": "tsc --noEmit",
+    "dashboard": "node dashboard/generar.mjs",
+    "dashboard:ver": "node dashboard/generar.mjs --serve",
+    "dashboard:check": "node dashboard/generar.mjs --check",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

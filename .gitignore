@@ -43,3 +43,7 @@ next-env.d.ts
 
 # claude code (config local)
 .claude/settings.local.json
+
+# dashboard de la tesis (local, se regenera; ver CLAUDE.md)
+/dashboard.html
+/dashboard/

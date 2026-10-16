@@ -44,3 +44,15 @@ npm run typecheck && npm run lint && npm run build
 - Next 16: leer `node_modules/next/dist/docs/` antes de usar APIs de Next (ver AGENTS.md).
 - `cacheComponents` está desactivado a propósito (simplicidad del prototipo).
 - Para ver el aviso "Hay una versión más nueva de este diseño": `newerVersionAvailable: true` en `furniture.mock.ts`.
+
+## Dashboard de la tesis
+Seguimiento visual en `dashboard.html` (autónomo, un solo archivo; se abre con doble clic). **No editar `dashboard.html` a mano**: se genera. **Es local: `dashboard.html` y `dashboard/` están en `.gitignore` y no se suben a GitHub.** No los agregues a un commit (ni con `git add -f`).
+- `dashboard/datos.json`: contenido curado (áreas, consultas 1–44, bloqueos, pasos, hitos). Es lo único que cambia al actualizar.
+- `dashboard/plantilla.html`: diseño (HTML + CSS + JS). Cambiarlo solo si se pide un cambio de diseño.
+- `dashboard/generar.mjs`: une plantilla + datos, guarda el hash de las fuentes. `npm run dashboard` genera, `npm run dashboard:check` dice si los .md cambiaron, `npm run dashboard:ver` sirve en `http://localhost:4173` y el dashboard avisa solo cuando cambian los .md o el HTML.
+
+**Cuando el usuario diga «actualiza el dashboard de la tesis»:**
+1. Leer `ESTADO.md`, `docs/Consultas y respuestas Casa Mueble y cátedra.md` y el PDF de la tesis `docs/PFG-Muebles3D-v2.pdf` (o la versión más nueva; ajustar `fuentes` en `datos.json`). Si falta alguno, pedir la ruta; no inventar.
+2. Actualizar `dashboard/datos.json` con lo que dicen las fuentes (capítulos: `documento.capitulos[].secciones[].s` = hecho si está redactada sin pendientes marcados, parcial si tiene pendientes o datos por confirmar, pendiente si solo describe el método; `correcciones` = diferencias entre el PDF y ESTADO.md o las consultas): estado de cada consulta (`e`: cerrada, reunion, salvedad, parcial, sin, nueva), ítems de cada área (`s`: hecho, parcial, pendiente), bloqueos, pasos, hitos (con commits de `git log`) y cifras de `prototipo`. Los porcentajes no se escriben: se calculan (hecho = 1, parcial = 0,5; consultas = cerradas / total; global = promedio de las áreas).
+3. Ejecutar `npm run dashboard` y resumir al usuario qué cambió (consultas que cambiaron de estado, bloqueos nuevos o resueltos, variación del global).
+4. Si algo del .md contradice a `datos.json` o es ambiguo, decirlo; no resolverlo en silencio.

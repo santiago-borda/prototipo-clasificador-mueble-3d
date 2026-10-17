@@ -1,4 +1,4 @@
-// A1–A5 y A8–A9 con el modelo real de Sabrina (caso limpio, segundo fixture junto a Olmo).
+// A1–A5, A8–A9 y S2 con el modelo real de Sabrina (caso limpio, segundo fixture junto a Olmo).
 // El .dae y la tabla de piezas están en la carpeta ignorada `Sabrina/` (titularidad pendiente): si faltan,
 // todo este archivo se saltea (A7) y la suite sigue en verde.
 import fs from "node:fs";
@@ -13,6 +13,12 @@ import { verifyModel } from "@/model/verifyModel";
 import { computeEdgeLayout } from "@/model/edgeLayout";
 import { collectEdgeFaces } from "./helpers/edgeFaces";
 import { loadDaeModel, loadDaeScene } from "./helpers/loadModel";
+
+// S2: totales por material del listado de Sabrina. Constantes documentadas, no leídas de los PDF en el test:
+// la transcripción salió de los PDF de corte (Blanco 18 mm, Cedro 18 mm, Fondo blanco 3 mm) y se cruzó con el .dae
+// (cantidades por código 29/29). Total 105 = instancias del .dae. Si cambia el listado, se actualizan acá a mano.
+const PDF_TOTALS_BY_MATERIAL = { Blanco: 50, Cedro: 42, "Fondo blanco": 13 } as const;
+const PDF_TOTAL = 105;
 
 const ROOT = path.join(__dirname, "..", "Sabrina");
 const DEF_FILE = path.join(ROOT, "data", "sabrina.def.ts");
@@ -41,14 +47,31 @@ describe.skipIf(!available)("Sabrina (modelo real)", () => {
     expect(result.anomalies).toEqual([]); // sin `__` ni nombres raros
   });
 
-  it("A1: la cantidad de instancias por código es la del listado (50 + 42 + 13)", () => {
+  it("A1: la cantidad de instancias por código es la del listado", () => {
     for (const piece of def.pieceTypes) {
       const n = parts.filter((p) => componentCode(p.instanceId) === piece.code).length;
       expect(n, piece.code).toBe(piece.quantity);
     }
-    const byMaterial = (material: string) =>
-      def.pieceTypes.filter((p) => p.material === material).reduce((sum, p) => sum + p.quantity, 0);
-    expect([byMaterial("Blanco"), byMaterial("Cedro"), byMaterial("Fondo blanco")]).toEqual([50, 42, 13]);
+  });
+
+  // S2 -------------------------------------------------------------------------------------------
+  it("S2: los totales por material (50 + 42 + 13 = 105) coinciden con las constantes documentadas", () => {
+    const totals: Record<string, number> = {};
+    for (const piece of def.pieceTypes) totals[piece.material] = (totals[piece.material] ?? 0) + piece.quantity;
+    expect(totals).toEqual(PDF_TOTALS_BY_MATERIAL);
+    expect(Object.values(totals).reduce((sum, n) => sum + n, 0)).toBe(PDF_TOTAL);
+    expect(parts).toHaveLength(PDF_TOTAL);
+  });
+
+  it("S2: en el .dae hay 13 instancias de 3 mm (fondos) y 92 de 18 mm (50 blanco + 42 cedro)", () => {
+    const thicknessMm = (part: (typeof parts)[number]) => {
+      const box = part.geometry.boundingBox;
+      if (!box) throw new Error(`${part.instanceId}: sin caja`);
+      return Math.min(box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z) * 1000;
+    };
+    const near = (value: number, target: number) => Math.abs(value - target) <= (def.toleranceMm ?? 0.5);
+    expect(parts.filter((p) => near(thicknessMm(p), 3))).toHaveLength(PDF_TOTALS_BY_MATERIAL["Fondo blanco"]);
+    expect(parts.filter((p) => near(thicknessMm(p), 18))).toHaveLength(PDF_TOTALS_BY_MATERIAL.Blanco + PDF_TOTALS_BY_MATERIAL.Cedro);
   });
 
   // A2 -------------------------------------------------------------------------------------------

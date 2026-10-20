@@ -161,8 +161,9 @@ describe("I2: errores y advertencias con fila y columna", () => {
 describe("I3: armado del FurnitureDef", () => {
   const IMPORT_ID = "0123456789abcdef";
   const ID8 = "01234567";
+  const DIMS = { x: 1200, y: 750, z: 550 }; // D9: las da el .dae; acá se pasan a mano
   const listing = readListing(m01);
-  const def = buildFurnitureDef(listing.rows, { importId: IMPORT_ID });
+  const def = buildFurnitureDef(listing.rows, { importId: IMPORT_ID, dimsMm: DIMS });
 
   const moduleOf = (code: string) => {
     const piece = def.pieceTypes.find((p) => p.code === code);
@@ -175,12 +176,25 @@ describe("I3: armado del FurnitureDef", () => {
     expect(def.toleranceMm).toBe(2);
   });
 
-  it("el mueble sale de la columna `mueble`, con id y qrId propios de la importación", () => {
-    expect(def.furniture.name).toBe("Escritorio Olmo");
-    expect(def.furniture.qrId).toBe(`prueba-${ID8}-mueble`);
-    // El CSV trae mueble_id = "olmo": el id de la importación no puede ser ese, o chocaría con Olmo.
+  it("D10: id, nombre y qrId del mueble llevan `prueba-<id8>` (el `mueble_id` del CSV, `olmo`, chocaría con Olmo)", () => {
+    expect(def.furniture.id).toBe(`prueba-${ID8}`);
     expect(def.furniture.id).not.toBe(olmoDef.furniture.id);
-    expect(def.furniture.id.startsWith("prueba-")).toBe(true);
+    expect(def.furniture.name).toBe(`prueba-${ID8} Escritorio Olmo`);
+    expect(def.furniture.qrId).toBe(`prueba-${ID8}-mueble`);
+  });
+
+  it("D9: las medidas generales son las que recibe `buildFurnitureDef`, no las del CSV", () => {
+    expect(def.furniture.dimsMm).toEqual(DIMS);
+  });
+
+  it("dos piezas con el mismo último segmento de código (…-M01-C04 y …-M02-C04) no repiten qrId", () => {
+    const rows = listing.rows.slice(0, 2).map((r) => ({ ...r }));
+    rows[1] = { ...rows[1], codigo: rows[0].codigo.replace("M01", "M02") };
+    const qrIds = buildFurnitureDef(rows, { importId: IMPORT_ID, dimsMm: DIMS }).pieceTypes.map((p) => p.qrId);
+    expect(new Set(qrIds).size).toBe(2);
+    expect(() =>
+      createRegistry([{ ...buildFurnitureDef(rows, { importId: IMPORT_ID, dimsMm: DIMS }), modelUrl: "/x" }]),
+    ).not.toThrow();
   });
 
   it("los módulos salen de modulo_nro y modulo_nombre, con qrId `prueba-<id8>-mod-<n>`", () => {
@@ -245,7 +259,7 @@ describe("I3: armado del FurnitureDef", () => {
   });
 
   it("dos importaciones del mismo CSV (distinto importId) también conviven en el registro", () => {
-    const other = buildFurnitureDef(listing.rows, { importId: "fedcba9876543210" });
+    const other = buildFurnitureDef(listing.rows, { importId: "fedcba9876543210", dimsMm: DIMS });
     expect(() => createRegistry([olmoDef, withModel(def), withModel(other)])).not.toThrow();
     expect(other.furniture.qrId).toBe("prueba-fedcba98-mueble");
   });

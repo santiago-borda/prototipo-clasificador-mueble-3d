@@ -3,6 +3,7 @@
 // los códigos en M01 (D6) y el CSV v2 original, con M02/M03 en 14 piezas (caso de desajuste).
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { measureDimsMm } from "@/importer/dims";
 import { buildImportReport } from "@/importer/report";
 import { LISTADO_M01, LISTADO_V2_DESAJUSTE, editCell, readFixture } from "./helpers/csv";
 import { loadDaeModel } from "./helpers/loadModel";
@@ -19,6 +20,14 @@ describe("I4: informe de validación contra el olmo.dae", () => {
     expect(r.issues).toEqual([]);
     expect(r.verification).toMatchObject({ types: 21, instances: 33, distinctCodes: 21, warnings: [] });
     expect(r.association).toEqual({ orphans: [], ambiguous: [], countMismatches: [], ok: true });
+  });
+
+  it("D9: las medidas generales salen de la caja de las piezas del .dae", () => {
+    // Medido: 1200 x 750 x 571. El mock dice 550 de profundidad (la de los cuerpos); la caja de todas las
+    // piezas llega a 571 porque las tapas de los cajones sobresalen del frente.
+    const dims = { x: 1200, y: 750, z: 571 };
+    expect(measureDimsMm(model.parts)).toEqual(dims);
+    expect(report(readFixture(LISTADO_M01)).def?.furniture.dimsMm).toEqual(dims);
   });
 
   it("las anomalías del .dae se informan pero no cambian el estado (el `__` de C01)", () => {
@@ -49,8 +58,7 @@ describe("I4: informe de validación contra el olmo.dae", () => {
 
     it("deja huérfanas las instancias del .dae que ningún tipo reclama", () => {
       // El .dae tiene 33 instancias; solo las 9 de los tipos que conservan M01 se asocian.
-      // Las otras 24 (los mismos 14 tipos, con M01 en el .dae) quedan huérfanas. Ver nota en el informe de la
-      // sesión: la especificación decía 21, que no cierra con 33 − 9.
+      // Las otras 33 − 9 = 24 (los mismos 14 tipos, con M01 en el .dae) quedan huérfanas.
       expect(r.association?.orphans).toHaveLength(24);
       expect(r.association?.orphans.every((id) => id.startsWith("0001-01-M01-C"))).toBe(true);
       expect(r.association?.orphans).toContain("0001-01-M01-C04#1");

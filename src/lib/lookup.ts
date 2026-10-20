@@ -6,10 +6,48 @@ import type { Furniture, FurnitureDef, Module, PieceType } from "@/data/types";
 import { componentCode, shortCode } from "@/model/ids";
 
 // Olmo siempre; los muebles opcionales (carpetas ignoradas por git) solo si están presentes.
-const registry = createRegistry([olmoDef, ...loadOptionalFurniture()]);
+const baseDefs: readonly FurnitureDef[] = [olmoDef, ...loadOptionalFurniture()];
 
+// Fuente adicional: muebles importados (/importar), registrados solo en el navegador al abrir /prueba/<id>.
+// En el servidor queda vacía, así que la generación estática de /p/<qrId> no cambia.
+const importedDefs = new Map<string, FurnitureDef>(); // importId -> mueble
+const importIdByFurniture = new Map<string, string>(); // furniture.id -> importId
+let registry = createRegistry(baseDefs);
+
+/**
+ * Registra un mueble importado (sin modelUrl: el .dae lo sirve /api/importaciones/<id>/modelo). Es inocuo si ya
+ * estaba registrado. Si sus qrId chocan con los existentes lanza Error y el registro queda como estaba.
+ */
+export function registerImportedFurniture(importId: string, imported: Omit<FurnitureDef, "modelUrl">): FurnitureDef {
+  const existing = importedDefs.get(importId);
+  if (existing) return existing;
+  const def: FurnitureDef = { ...imported, modelUrl: `/api/importaciones/${importId}/modelo` };
+  registry = createRegistry([...registry.defs, def]); // si lanza, `registry` no se toca
+  importedDefs.set(importId, def);
+  importIdByFurniture.set(def.furniture.id, importId);
+  return def;
+}
+
+export function getImportedFurnitureDef(importId: string): FurnitureDef | undefined {
+  return importedDefs.get(importId);
+}
+
+/** Todos los muebles registrados, incluidos los importados en esta sesión del navegador. */
 export function listFurniture(): readonly FurnitureDef[] {
   return registry.defs;
+}
+
+/** Solo los muebles fijos de la app (Olmo y, en local, Sabrina): los que llevan QR impresos en /qr. */
+export function listBaseFurniture(): readonly FurnitureDef[] {
+  return baseDefs;
+}
+
+/** Link a la ficha de un qrId: /p/<qrId>, o /prueba/<importId>[/<qrId>] si el mueble es una importación. */
+export function qrHref(qrId: string): string {
+  const def = registry.findDefByQrId(qrId);
+  const importId = def ? importIdByFurniture.get(def.furniture.id) : undefined;
+  if (!def || !importId) return `/p/${qrId}`;
+  return qrId === def.furniture.qrId ? `/prueba/${importId}` : `/prueba/${importId}/${qrId}`;
 }
 
 /** Mueble que se muestra cuando no hay un QR seleccionado. */
@@ -107,7 +145,7 @@ export function listQrEntriesOf(def: FurnitureDef): QrEntry[] {
   ];
 }
 
-/** Todos los QR de todos los muebles registrados. */
+/** Todos los QR de los muebles fijos de la app (los importados no entran: no tienen etiquetas impresas). */
 export function listQrEntries(): QrEntry[] {
-  return registry.defs.flatMap(listQrEntriesOf);
+  return baseDefs.flatMap(listQrEntriesOf);
 }

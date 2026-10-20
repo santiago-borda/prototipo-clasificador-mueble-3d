@@ -50,3 +50,6 @@ next-env.d.ts
 
 # Modelo y datos de Sabrina (clienta de Casa Mueble): titularidad y uso pendientes. NO subir a GitHub.
 /Sabrina/
+
+# importador de prueba: almacenamiento local de desarrollo (IMPORT_STORE=local)
+/.import-data/

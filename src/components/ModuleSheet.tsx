@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Furniture } from "@/data/types";
 import { edgeSummary } from "@/lib/edgeText";
-import type { QrTarget } from "@/lib/lookup";
+import { qrHref, type QrTarget } from "@/lib/lookup";
 import { shortCode } from "@/model/ids";
 import { NewerVersionBanner } from "./NewerVersionBanner";
 
@@ -23,7 +23,7 @@ export function ModuleSheet({ target, furniture }: { target: ModuleTarget; furni
         <p className="text-sm font-semibold tracking-wide text-orange-600">Módulo</p>
         <h1 className="text-2xl font-bold text-slate-900">{target.module.name}</h1>
         <p className="text-sm text-slate-500">
-          <Link href={`/p/${furniture.qrId}`} className="underline decoration-slate-300 underline-offset-2 hover:text-slate-800">
+          <Link href={qrHref(furniture.qrId)} className="underline decoration-slate-300 underline-offset-2 hover:text-slate-800">
             {furniture.name}
           </Link>
         </p>
@@ -42,7 +42,7 @@ export function ModuleSheet({ target, furniture }: { target: ModuleTarget; furni
           {target.pieces.map((piece) => (
             <li key={piece.qrId}>
               <Link
-                href={`/p/${piece.qrId}`}
+                href={qrHref(piece.qrId)}
                 className="flex items-center justify-between gap-3 rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-200 transition hover:ring-orange-400"
               >
                 <span>

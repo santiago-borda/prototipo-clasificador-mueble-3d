@@ -25,6 +25,17 @@ export interface ImportReport {
   def: ImportedFurnitureDef | null;
 }
 
+/** Estado según los problemas del CSV y, si ya se cruzó con el .dae, su verificación y su asociación. */
+export function statusOf(
+  issues: readonly ListingIssue[],
+  verification: Pick<ModelVerification, "warnings"> | null,
+  association: Pick<AssociationReport, "ok"> | null,
+): ImportStatus {
+  if (issues.some((issue) => issue.severity === "error")) return "bloqueado";
+  const clean = issues.length === 0 && (verification?.warnings.length ?? 0) === 0 && (association?.ok ?? true);
+  return clean ? "correcto" : "con-advertencias";
+}
+
 export interface BuildReportInput {
   csvText: string;
   parts: readonly FurniturePart[];
@@ -44,6 +55,5 @@ export function buildImportReport({ csvText, parts, importId }: BuildReportInput
     def.pieceTypes,
   );
 
-  const clean = issues.length === 0 && verification.warnings.length === 0 && association.ok;
-  return { status: clean ? "correcto" : "con-advertencias", issues, verification, association, def };
+  return { status: statusOf(issues, verification, association), issues, verification, association, def };
 }

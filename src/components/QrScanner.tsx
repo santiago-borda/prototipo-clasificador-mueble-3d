@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import jsQR from "jsqr";
-import { listQrEntries } from "@/lib/lookup";
+import { listQrEntries, qrHref } from "@/lib/lookup";
 import { qrIdFromScan } from "@/lib/qrScan";
 
 // Se analiza una versión reducida del cuadro y no todos los cuadros: alcanza para leer un QR de etiqueta.
@@ -60,7 +60,7 @@ export function QrScanner() {
         clearTimeout(timer);
         stopStream();
         navigator.vibrate?.(60);
-        router.push(`/p/${qrId}`);
+        router.push(qrHref(qrId));
         return;
       }
       const now = Date.now();

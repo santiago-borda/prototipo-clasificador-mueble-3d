@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { QrTarget } from "@/lib/lookup";
+import { qrHref, type QrTarget } from "@/lib/lookup";
 import { shortCode } from "@/model/ids";
 import { NewerVersionBanner } from "./NewerVersionBanner";
 
@@ -50,7 +50,7 @@ export function FurnitureSheet({ target }: { target: FurnitureTarget }) {
             return (
               <li key={mod.id}>
                 <Link
-                  href={`/p/${mod.qrId}`}
+                  href={qrHref(mod.qrId)}
                   className="flex items-center justify-between gap-3 rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-200 transition hover:ring-orange-400"
                 >
                   <span>

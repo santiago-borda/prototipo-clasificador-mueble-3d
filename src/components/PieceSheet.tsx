@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Furniture, Module, PieceType } from "@/data/types";
 import { edgeSummary } from "@/lib/edgeText";
+import { qrHref } from "@/lib/lookup";
 import { shortCode } from "@/model/ids";
 import { EdgeBandingDiagram } from "./EdgeBandingDiagram";
 import { NewerVersionBanner } from "./NewerVersionBanner";
@@ -30,12 +31,12 @@ export function PieceSheet({ piece, furniture, module: mod }: { piece: PieceType
         <p className="text-sm font-semibold tracking-wide text-orange-600">{shortCode(piece.code)}</p>
         <h1 className="text-2xl font-bold text-slate-900">{piece.name}</h1>
         <p className="text-sm text-slate-500">
-          <Link href={`/p/${furniture.qrId}`} className="underline decoration-slate-300 underline-offset-2 hover:text-slate-800">
+          <Link href={qrHref(furniture.qrId)} className="underline decoration-slate-300 underline-offset-2 hover:text-slate-800">
             {furniture.name}
           </Link>
           {" · "}
           {mod ? (
-            <Link href={`/p/${mod.qrId}`} className="underline decoration-slate-300 underline-offset-2 hover:text-slate-800">
+            <Link href={qrHref(mod.qrId)} className="underline decoration-slate-300 underline-offset-2 hover:text-slate-800">
               {mod.name}
             </Link>
           ) : (

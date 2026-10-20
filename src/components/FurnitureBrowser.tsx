@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import type { FurnitureDef } from "@/data/types";
 import { edgeSummary } from "@/lib/edgeText";
-import { listFurniture } from "@/lib/lookup";
+import { listFurniture, qrHref } from "@/lib/lookup";
 import { shortCode } from "@/model/ids";
 
 function FurnitureSection({ def }: { def: FurnitureDef }) {
@@ -20,7 +20,7 @@ function FurnitureSection({ def }: { def: FurnitureDef }) {
 
       <div className="mt-4 flex flex-wrap gap-2">
         <Link
-          href={`/p/${furniture.qrId}`}
+          href={qrHref(furniture.qrId)}
           className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
         >
           Ver mueble completo
@@ -51,7 +51,7 @@ function FurnitureSection({ def }: { def: FurnitureDef }) {
             </summary>
             <div className="px-3 pb-3">
               <Link
-                href={`/p/${mod.qrId}`}
+                href={qrHref(mod.qrId)}
                 className="inline-block text-sm font-medium text-orange-600 underline underline-offset-2 hover:text-orange-700"
               >
                 Ver módulo
@@ -60,7 +60,7 @@ function FurnitureSection({ def }: { def: FurnitureDef }) {
                 {modPieces.map((piece) => (
                   <li key={piece.qrId}>
                     <Link
-                      href={`/p/${piece.qrId}`}
+                      href={qrHref(piece.qrId)}
                       className="flex items-center justify-between gap-3 rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-200 transition hover:ring-orange-400"
                     >
                       <span>

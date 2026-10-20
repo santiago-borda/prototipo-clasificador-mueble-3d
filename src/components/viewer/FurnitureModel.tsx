@@ -6,7 +6,7 @@ import { Html } from "@react-three/drei";
 import { useRouter } from "next/navigation";
 import { MeshStandardMaterial } from "three";
 import type { EdgeId } from "@/data/types";
-import { getPieceByInstanceId, isInstanceHot, resolveQr } from "@/lib/lookup";
+import { getPieceByInstanceId, isInstanceHot, qrHref, resolveQr } from "@/lib/lookup";
 import { pieceMatchesInstance } from "@/data/mapping";
 import type { FurnitureDef } from "@/data/types";
 import { shortCode } from "@/model/ids";
@@ -58,7 +58,7 @@ export function FurnitureModel({ def }: { def: FurnitureDef }) {
 
   const handlePick = (instanceId: string) => {
     const piece = getPieceByInstanceId(def, instanceId);
-    if (piece && piece.qrId !== currentPiece?.qrId) router.push(`/p/${piece.qrId}`);
+    if (piece && piece.qrId !== currentPiece?.qrId) router.push(qrHref(piece.qrId));
   };
 
   // Cartel sobre la pieza bajo el cursor (solo si tiene ficha y no es la que ya se está viendo).

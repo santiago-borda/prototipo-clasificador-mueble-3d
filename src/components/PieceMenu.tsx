@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { defaultFurnitureDef, getFurnitureDefByQrId, listFurniture, resolveQr } from "@/lib/lookup";
+import { defaultFurnitureDef, getFurnitureDefByQrId, listFurniture, qrHref, resolveQr } from "@/lib/lookup";
 import { shortCode } from "@/model/ids";
 import { useViewStore } from "@/store/viewStore";
 
@@ -72,7 +72,7 @@ export function PieceMenu() {
           className="absolute left-0 top-full z-30 mt-2 max-h-[min(70dvh,26rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl bg-white p-2 shadow-xl ring-1 ring-slate-200"
         >
           <Link
-            href={`/p/${furniture.qrId}`}
+            href={qrHref(furniture.qrId)}
             aria-current={selectedQrId === furniture.qrId ? "page" : undefined}
             onClick={() => setOpen(false)}
             className={rowClass(selectedQrId === furniture.qrId)}
@@ -86,7 +86,7 @@ export function PieceMenu() {
             return (
               <div key={mod.id} className="mt-2">
                 <Link
-                  href={`/p/${mod.qrId}`}
+                  href={qrHref(mod.qrId)}
                   aria-current={selectedQrId === mod.qrId ? "page" : undefined}
                   onClick={() => setOpen(false)}
                   className={`${rowClass(selectedQrId === mod.qrId)} font-semibold`}
@@ -100,7 +100,7 @@ export function PieceMenu() {
                     return (
                       <li key={piece.qrId}>
                         <Link
-                          href={`/p/${piece.qrId}`}
+                          href={qrHref(piece.qrId)}
                           aria-current={active ? "page" : undefined}
                           onClick={() => setOpen(false)}
                           className={rowClass(active)}
@@ -129,7 +129,7 @@ export function PieceMenu() {
               {otherFurniture.map((other) => (
                 <Link
                   key={other.furniture.id}
-                  href={`/p/${other.furniture.qrId}`}
+                  href={qrHref(other.furniture.qrId)}
                   onClick={() => setOpen(false)}
                   className={rowClass(false)}
                 >

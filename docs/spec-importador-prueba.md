@@ -18,6 +18,8 @@ Es una **prueba**. Los formatos del CSV y del listado definitivo quedan para des
 | D6 | Para la prueba el CSV usa `M01` en todos los códigos, como el .dae. Los cambios de nomenclatura los hará Casa Mueble después. | Usuario |
 | D7 | La clave la guarda el usuario y no se cambia hasta que él decida. | Usuario |
 | D8 | `CLAUDE.md` se matiza (hecho el 20/10): almacenamiento de archivos sí, base de datos no; escritura con clave. | Usuario |
+| D9 | Las medidas generales del mueble (`Furniture.dimsMm`) no vienen en el CSV: salen de la **caja de las piezas del .dae**, calculada en el navegador al validar (mm, redondeadas) y guardadas en `mueble.json`. `buildFurnitureDef` las recibe como parámetro obligatorio, sin valor por defecto. Es el mismo criterio que Sabrina ("medidos del .dae"). El servidor no las recalcula (no valida el .dae). | A propuesta, a confirmar |
+| D10 | El `Furniture.id` y el nombre del mueble importado llevan el prefijo `prueba-<importId8>` (el `mueble_id` del CSV, `olmo`, choca con el Olmo real). Dos importaciones del mismo CSV tienen que poder convivir en un registro. | A propuesta, a confirmar |
 
 ## Reglas del proyecto que cambian
 `CLAUDE.md` hoy dice "Sin CI, DB, auth" y "No agregar middleware/proxy de auth". Esta especificación las matiza, y al implementar se actualiza `CLAUDE.md` (con OK del usuario):
@@ -93,7 +95,7 @@ Una prueba por criterio, en `tests/importador*.test.ts`, con el `ImportStore` en
 | I1 | El CSV de ejemplo v2 se lee: 21 filas, 33 instancias. BOM, `;` y coma decimal funcionan. | automática |
 | I2 | Cada error de R2 se informa con fila y columna; una advertencia no bloquea. | automática |
 | I3 | El `FurnitureDef` armado tiene los módulos y los cantos esperados, qrId con prefijo `prueba-`, y pasa `createRegistry` junto a Olmo. | automática |
-| I4 | Con el CSV de prueba con todos los códigos en `M01` (D6) y el `olmo.dae` actual, el informe queda **correcto**. Con el CSV v2 original (`M02`/`M03` en 14 piezas), el informe señala 14 tipos sin instancias y 21 instancias huérfanas: es el fixture del caso de desajuste. | automática, dos fixtures |
+| I4 | Con el CSV de prueba con todos los códigos en `M01` (D6) y el `olmo.dae` actual, el informe queda **correcto**. Con el CSV v2 original (`M02`/`M03` en 14 piezas), el informe señala 14 tipos sin instancias y 24 instancias huérfanas (el .dae tiene 33 y solo 9 pertenecen a los 7 tipos que siguen en `M01`: C01–C03 y C16–C19): es el fixture del caso de desajuste. | automática, dos fixtures |
 | I5 | Olmo sin regresiones: pasan A1–A9, `olmo.test.ts` y `registry.test.ts`. | existentes |
 | I6 | Sin clave, o con clave incorrecta, las rutas con clave devuelven 401. Con clave, la importación se guarda y se lee por id. | automática |
 | I7 | Un id inexistente devuelve 404 en lectura y en modelo. | automática |

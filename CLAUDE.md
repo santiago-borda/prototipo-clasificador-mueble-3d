@@ -46,11 +46,22 @@ npm run typecheck && npm run lint && npm test && npm run build
 ```
 
 ## Despliegue (Vercel)
-- Vercel desde GitHub (`main`, Next.js autodetectado). Sin CI, DB, auth ni dominio propio.
+- Vercel desde GitHub (`main`, Next.js autodetectado). Sin CI, base de datos, cuentas de usuario ni dominio propio. Desde el importador de prueba hay **almacenamiento de archivos** (Vercel Blob privado), no base de datos (ver "Importador de prueba").
 - `NEXT_PUBLIC_BASE_URL` (ver `.env.example`): URL estable de producción, sin `/` final. `QrSheet.tsx` la usa como base de los QR y cae a `window.location.origin` si falta. Se inlinea en build: cambiarla exige redesplegar. `.env*` está en `.gitignore` salvo `.env.example`.
 - Sabrina no se despliega (ver "Varios muebles"): en Vercel la variable `NEXT_PUBLIC_ENABLE_SABRINA` queda sin definir y la carpeta `Sabrina/` no existe (está en `.gitignore`).
 - **No renombrar el proyecto de Vercel una vez impresos los QR** (cambia la URL y rompe los impresos).
-- Acceso abierto a propósito (sin login). `public/models/olmo.dae` es público para quien tenga la URL. `src/app/robots.ts` (`Disallow: /`) y `X-Robots-Tag: noindex, nofollow` (`next.config.ts`) evitan la indexación, no dan control de acceso. No agregar middleware/proxy de auth.
+- Lectura abierta a propósito (sin login). `public/models/olmo.dae` es público para quien tenga la URL. `src/app/robots.ts` (`Disallow: /`) y `X-Robots-Tag: noindex, nofollow` (`next.config.ts`) evitan la indexación, no dan control de acceso. No agregar middleware/proxy de auth ni cuentas de usuario.
+- **Excepción acotada: escritura del importador.** Subir, listar y borrar importaciones exige la clave compartida `IMPORT_UPLOAD_KEY`, comprobada **dentro de cada handler de ruta** (encabezado `x-import-key`, comparación en tiempo constante, nunca en la URL). No es un sistema de usuarios ni un middleware; leer una importación sigue siendo por link con id no adivinable. La clave la guarda y la cambia solo el responsable del proyecto.
+
+## Importador de prueba (.dae + CSV, guardado en el servidor)
+**Estado: especificado, sin implementar.** Especificación y criterios I1–I13 en `docs/spec-importador-prueba.md`; las pruebas se escriben en un chat aparte. Lo que dice el código hoy no incluye todavía nada de esto.
+- Qué es: Casa Mueble sube un .dae y un CSV con el listado de piezas (`/importar`), ve el informe de validación y obtiene un link (`/prueba/<id>`) con el mismo visor 3D y fichas. **Es una prueba**: el formato definitivo del CSV y del listado se decide después con Casa Mueble, y el importador real se especifica aparte.
+- Almacenamiento: **Vercel Blob privado**, sin base SQL. Cuatro archivos por importación (`importaciones/<importId>/modelo.dae`, `listado.csv`, `mueble.json`, `informe.json`); nunca se sobrescribe. La subida va directo del navegador al Blob (`@vercel/blob`, dependencia nueva). Plan gratuito: 1 GB de almacenamiento, 10 GB de transferencia al mes, 10.000 operaciones simples al mes (cifras informadas por el usuario el 20/10, no verificadas en la documentación); tope provisorio de 50 importaciones.
+- Variables de entorno (solo en Vercel y en `.env.local`, nunca en el repo): `BLOB_READ_WRITE_TOKEN` (la crea Vercel al conectar el store) e `IMPORT_UPLOAD_KEY`. Sin ellas la app funciona como siempre (solo Olmo) y `/importar` dice "importación no configurada".
+- Los qrId importados llevan prefijo `prueba-<importId8>-` y no pueden chocar con Olmo ni Sabrina (`createRegistry`). El mueble importado se registra solo en el navegador (`lookup.ts` tendrá una fuente adicional vacía en el servidor): la generación estática de `/p/<qrId>` no cambia.
+- El .dae se valida solo en el navegador; el servidor revalida el CSV con los mismos módulos puros. Las pruebas usan un almacenamiento en memoria (sin red) y solo fixtures de Olmo: **ningún archivo importado ni dato de Sabrina entra al repo**.
+- Códigos: el CSV de prueba trae un solo `codigo` por pieza y tiene que coincidir con el del .dae. Mientras tanto se usa `M01` en todas las piezas; los cambios de nomenclatura los hará Casa Mueble después. Si no coinciden, el informe lo dice (no hay tabla de equivalencias).
+- Importaciones de otros clientes: la titularidad de esos archivos sigue pendiente. Acceso privado, borrado disponible y `noindex`.
 
 ## Notas
 - Next 16: leer `node_modules/next/dist/docs/` antes de usar APIs de Next (ver AGENTS.md).

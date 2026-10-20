@@ -21,6 +21,69 @@ function linkFor(importId: string) {
   return `${base}/prueba/${importId}`;
 }
 
+const formatSize = (bytes: number) => (bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`);
+
+/** Zona para elegir un archivo: se toca o se arrastra el archivo encima. El input real queda oculto pero accesible. */
+function FileField({
+  label,
+  extension,
+  accept,
+  file,
+  onFile,
+}: {
+  label: string;
+  extension: string;
+  accept: string;
+  file: File | null;
+  onFile: (file: File | null) => void;
+}) {
+  const [dragging, setDragging] = useState(false);
+  const accepts = (candidate: File) => candidate.name.toLowerCase().endsWith(extension);
+  return (
+    <div className="grid gap-1">
+      <span className="font-medium text-slate-800">{label}</span>
+      <label
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          const dropped = e.dataTransfer.files?.[0];
+          if (dropped && accepts(dropped)) onFile(dropped);
+        }}
+        className={`flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed px-4 py-4 transition-colors focus-within:ring-2 focus-within:ring-orange-400 ${
+          dragging
+            ? "border-orange-500 bg-orange-50"
+            : file
+              ? "border-emerald-300 bg-emerald-50"
+              : "border-slate-300 bg-slate-50 hover:border-orange-400 hover:bg-orange-50"
+        }`}
+      >
+        <input type="file" accept={accept} className="sr-only" onChange={(e) => onFile(e.target.files?.[0] ?? null)} />
+        <svg aria-hidden="true" viewBox="0 0 24 24" className="h-7 w-7 shrink-0 text-slate-500" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
+        </svg>
+        <span className="min-w-0 flex-1">
+          {file ? (
+            <>
+              <span className="block truncate font-medium text-slate-900">{file.name}</span>
+              <span className="text-xs text-slate-500">{formatSize(file.size)} · tocá para cambiarlo</span>
+            </>
+          ) : (
+            <>
+              <span className="block font-medium text-slate-800">Elegir archivo {extension}</span>
+              <span className="text-xs text-slate-500">o arrastralo hasta acá</span>
+            </>
+          )}
+        </span>
+      </label>
+    </div>
+  );
+}
+
 function Warnings({ title, items }: { title: string; items: readonly string[] }) {
   if (items.length === 0) return null;
   return (
@@ -226,14 +289,20 @@ export function ImportForm({ configured }: { configured: boolean }) {
       </p>
 
       <div className="mt-4 grid gap-3 text-sm">
-        <label className="grid gap-1">
-          <span className="font-medium text-slate-800">Modelo 3D (.dae, hasta {mb(MAX_DAE_BYTES)})</span>
-          <input type="file" accept=".dae" onChange={(e) => pick(setDaeFile, e.target.files?.[0] ?? null)} />
-        </label>
-        <label className="grid gap-1">
-          <span className="font-medium text-slate-800">Listado de piezas (.csv, hasta 1 MB)</span>
-          <input type="file" accept=".csv,text/csv" onChange={(e) => pick(setCsvFile, e.target.files?.[0] ?? null)} />
-        </label>
+        <FileField
+          label={`Modelo 3D (.dae, hasta ${mb(MAX_DAE_BYTES)})`}
+          extension=".dae"
+          accept=".dae"
+          file={daeFile}
+          onFile={(file) => pick(setDaeFile, file)}
+        />
+        <FileField
+          label="Listado de piezas (.csv, hasta 1 MB)"
+          extension=".csv"
+          accept=".csv,text/csv"
+          file={csvFile}
+          onFile={(file) => pick(setCsvFile, file)}
+        />
         <label className="grid gap-1">
           <span className="font-medium text-slate-800">Clave de importación</span>
           <input

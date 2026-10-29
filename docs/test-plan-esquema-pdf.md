@@ -120,7 +120,7 @@ Por criterio, no por porcentaje de líneas:
 |---|---|---|---|
 | TP-70 | Casillas de R4 (supuesto PROVISORIO, spec §9) | tablero Gaudi del Olmo | 10 casillas `(pdfId, 1, letra, n)`; dos por letra A–D, una por E y F |
 | TP-71 | Segundo fixture | `Sabrina/fixtures/sabrina.json` (si existe) | INV-0 a INV-13 cumplen; se saltea si falta la carpeta |
-| TP-72 | Nada privado en el repo | `git ls-files` | ningún archivo bajo `Sabrina/` ni ningún `.pdf` bajo `public/models/` |
+| TP-72 | Nada privado en el repo | `git ls-files` | ningún archivo bajo `Sabrina/` ni `Olmo/`, y ningún `.pdf` en todo el repo |
 
 ## Fuera de este plan
 

@@ -22,7 +22,7 @@ QR en tres niveles: `olmo-mueble`, `olmo-mod-escritorio` / `olmo-mod-cajones`, `
 ## Datos
 
 - **Mock** (`src/data/furniture.mock.ts`): Escritorio Olmo 1200 × 750 × 550 mm, **21 tipos de pieza / 33 instancias**, con nombres, medidas, cantidades y materiales del listado de Casa Mueble del 9/10.
-- **Modelo 3D real** (`public/models/olmo.dae`, export de SketchUp): 21 componentes, 33 instancias, sin herrajes, ~700 triángulos (696).
+- **Modelo 3D real** (`public/models/Olmo/olmo.dae`, export de SketchUp): 21 componentes, 33 instancias, sin herrajes, ~700 triángulos (696).
 - **Código de pieza**: nombre del componente sin `_` inicial/final, formato `0001-01-M01-C04`. `instanceId` = `<código>#<n>`.
 - **Asociación simulada** (`src/data/mapping.ts`): un tipo se asocia a las instancias con su mismo código (regla exacta por código, sin tabla a mano).
 - **Verificación de desarrollo** (`src/model/verifyModel.ts`, solo fuera de producción, salida por consola): cantidad de instancias, caja de la geometría vs. medidas (tolerancia 2 mm) y formato del código. Esperado: 21 tipos, 33 instancias, 0 advertencias, 1 anomalía.

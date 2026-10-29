@@ -51,5 +51,9 @@ next-env.d.ts
 # Modelo y datos de Sabrina (clienta de Casa Mueble): titularidad y uso pendientes. NO subir a GitHub.
 /Sabrina/
 
+# PDF de Casa Mueble (optimizaciones de OpenCutList, planilla, plano): locales, no se suben.
+# Solo se commitea su transcripción (tests/fixtures/pdf/, ver docs/spec-esquema-pdf.md).
+/public/models/**/*.pdf
+
 # importador de prueba: almacenamiento local de desarrollo (IMPORT_STORE=local)
 /.import-data/

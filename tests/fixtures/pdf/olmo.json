@@ -1,0 +1,247 @@
+{
+  "_nota": "Transcripcion manual (28/10/2026) de los PDF del Escritorio Olmo (OpenCutList, 9/10) y de la planilla 'Nombres con codigos'. Esquema: docs/spec-esquema-pdf.md (cutlist-pdf/1). Los PDF de OpenCutList no tienen capa de texto (Microsoft: Print To PDF, 0 fuentes): se leyeron como imagen. No se corrigio nada; las diferencias con el mock estan en el anexo de la spec. Los PDF originales no se commitean.",
+  "documents": [
+    {
+      "schema": "cutlist-pdf/1",
+      "source": {
+        "fileName": "1) Optimizacion Blanco Nature (echo con CutList).pdf",
+        "pdfId": null,
+        "reader": "transcripcion-manual",
+        "readerVersion": "manual/2026-10-28",
+        "producer": "Microsoft: Print To PDF",
+        "hasTextLayer": false
+      },
+      "header": {
+        "material": "Blanco nature",
+        "thicknessMm": 18,
+        "generatedAt": "09/10/2026 5:47pm",
+        "unit": "mm",
+        "project": "Escritorio Oslo - Gaudi + blanco nature.skp - Escena1"
+      },
+      "summary": {
+        "settings": {
+          "Tipo": "Guillotina (auto / auto)",
+          "Espaciado": "3 mm",
+          "Margen": "10 mm",
+          "Tipo de corte": "No exacto",
+          "Dirección primer corte": "Cualquier",
+          "Número de niveles": "3"
+        },
+        "fillRatePct": 56.16,
+        "cutCount": 40,
+        "cutLengthM": 25.17,
+        "boards": [
+          { "material": "Blanco nature", "thicknessMm": 18, "count": 1, "lengthMm": 2750, "widthMm": 1830, "areaM2": 5.03, "parts": 20 }
+        ]
+      },
+      "columns": { "adjusted": false, "edgeStrips": false },
+      "boards": [
+        {
+          "index": 1,
+          "total": 1,
+          "material": "Blanco nature",
+          "thicknessMm": 18,
+          "lengthMm": 2750,
+          "widthMm": 1830,
+          "kind": "Tablero estándar",
+          "pieceCount": 20,
+          "cutLengthM": 25.17,
+          "efficiencyPct": 55.14,
+          "pieces": [
+            { "letter": "A", "code": "0001-01-M01-C01", "name": "Mesa/Techo escritorio", "quantity": 1, "finalL": 980, "finalA": 550, "edges": "columna-ausente" },
+            { "letter": "B", "code": "0001-01-M01-C02", "name": "Lateral escritorio", "quantity": 1, "finalL": 732, "finalA": 550, "edges": "columna-ausente" },
+            { "letter": "C", "code": "0001-01-M01-C03", "name": "Faja grande medio escritorio", "quantity": 1, "finalL": 742, "finalA": 200, "edges": "columna-ausente" },
+            { "letter": "D", "code": "0001-01-M01-C04", "name": "Laterales sector cajones", "quantity": 2, "finalL": 550, "finalA": 494, "edges": "columna-ausente" },
+            { "letter": "E", "code": "0001-01-M01-C05", "name": "Piso y techo sector cajones", "quantity": 2, "finalL": 550, "finalA": 404, "edges": "columna-ausente" },
+            { "letter": "F", "code": "0001-01-M01-C06", "name": "Gola Vertical", "quantity": 1, "finalL": 404, "finalA": 50, "edges": "columna-ausente" },
+            { "letter": "G", "code": "0001-01-M01-C07", "name": "Gola horizontal", "quantity": 2, "finalL": 404, "finalA": 36, "edges": "columna-ausente" },
+            { "letter": "H", "code": "0001-01-M01-C08", "name": "Cajon 1", "quantity": 2, "finalL": 400, "finalA": 100, "edges": "columna-ausente" },
+            { "letter": "I", "code": "0001-01-M01-C09", "name": "Cajon 1", "quantity": 2, "finalL": 342, "finalA": 100, "edges": "columna-ausente" },
+            { "letter": "J", "code": "0001-01-M01-C10", "name": "Cajon 2", "quantity": 2, "finalL": 400, "finalA": 200, "edges": "columna-ausente" },
+            { "letter": "K", "code": "0001-01-M01-C11", "name": "Cajon 2", "quantity": 2, "finalL": 342, "finalA": 200, "edges": "columna-ausente" },
+            { "letter": "L", "code": "0001-01-M01-C12", "name": "Tapa cajon 1", "quantity": 1, "finalL": 440, "finalA": 165, "edges": "columna-ausente" },
+            { "letter": "M", "code": "0001-01-M01-C13", "name": "Tapa cajon 2", "quantity": 1, "finalL": 440, "finalA": 296, "edges": "columna-ausente" }
+          ],
+          "diagram": [
+            { "letter": "A", "count": 1 }, { "letter": "B", "count": 1 }, { "letter": "C", "count": 1 },
+            { "letter": "D", "count": 2 }, { "letter": "E", "count": 2 }, { "letter": "F", "count": 1 },
+            { "letter": "G", "count": 2 }, { "letter": "H", "count": 2 }, { "letter": "I", "count": 2 },
+            { "letter": "J", "count": 2 }, { "letter": "K", "count": 2 }, { "letter": "L", "count": 1 },
+            { "letter": "M", "count": 1 }
+          ]
+        }
+      ],
+      "pending": []
+    },
+    {
+      "schema": "cutlist-pdf/1",
+      "source": {
+        "fileName": "2) Optimizacion Gaudi (echo con CutList).pdf",
+        "pdfId": null,
+        "reader": "transcripcion-manual",
+        "readerVersion": "manual/2026-10-28",
+        "producer": "Microsoft: Print To PDF",
+        "hasTextLayer": false
+      },
+      "header": {
+        "material": "GAUDI",
+        "thicknessMm": 18,
+        "generatedAt": "09/10/2026 5:54pm",
+        "unit": "mm",
+        "project": "Escritorio Oslo - Gaudi + blanco nature.skp - Escena1"
+      },
+      "summary": {
+        "settings": {
+          "Tipo": "Guillotina (auto / auto)",
+          "Espaciado": "3 mm",
+          "Margen": "10 mm",
+          "Tipo de corte": "No exacto",
+          "Dirección primer corte": "Cualquier",
+          "Número de niveles": "3"
+        },
+        "fillRatePct": 16.95,
+        "cutCount": 19,
+        "cutLengthM": 16.17,
+        "boards": [
+          { "material": "GAUDI", "thicknessMm": 18, "count": 1, "lengthMm": 2750, "widthMm": 1830, "areaM2": 5.03, "parts": 10 }
+        ]
+      },
+      "columns": { "adjusted": false, "edgeStrips": false },
+      "boards": [
+        {
+          "index": 1,
+          "total": 1,
+          "material": "GAUDI",
+          "thicknessMm": 18,
+          "lengthMm": 2750,
+          "widthMm": 1830,
+          "kind": "Tablero estándar",
+          "pieceCount": 10,
+          "cutLengthM": 16.17,
+          "efficiencyPct": 16.65,
+          "pieces": [
+            { "letter": "A", "code": "0001-01-M01-C14", "name": "Techo y piso estante abierto", "quantity": 2, "finalL": 550, "finalA": 440, "edges": "columna-ausente" },
+            { "letter": "B", "code": "0001-01-M01-C15", "name": "Laterales estante abierto", "quantity": 2, "finalL": 550, "finalA": 102, "edges": "columna-ausente" },
+            { "letter": "C", "code": "0001-01-M01-C16", "name": "Fajas verticales", "quantity": 2, "finalL": 682, "finalA": 50, "edges": "columna-ausente" },
+            { "letter": "D", "code": "0001-01-M01-C17", "name": "Fajas horizontales grandes", "quantity": 2, "finalL": 962, "finalA": 50, "edges": "columna-ausente" },
+            { "letter": "E", "code": "0001-01-M01-C18", "name": "Faja horizontal chica", "quantity": 1, "finalL": 514, "finalA": 50, "edges": "columna-ausente" },
+            { "letter": "F", "code": "0001-01-M01-C19", "name": "Faja donde apoya mesa", "quantity": 1, "finalL": 514, "finalA": 100, "edges": "columna-ausente" }
+          ],
+          "diagram": [
+            { "letter": "A", "count": 2 }, { "letter": "B", "count": 2 }, { "letter": "C", "count": 2 },
+            { "letter": "D", "count": 2 }, { "letter": "E", "count": 1 }, { "letter": "F", "count": 1 }
+          ]
+        }
+      ],
+      "pending": []
+    },
+    {
+      "schema": "cutlist-pdf/1",
+      "source": {
+        "fileName": "3) Optimizacion fondo de 3 mm Blanco Nature (echo con cutlist).pdf",
+        "pdfId": null,
+        "reader": "transcripcion-manual",
+        "readerVersion": "manual/2026-10-28",
+        "producer": "Microsoft: Print To PDF",
+        "hasTextLayer": false
+      },
+      "header": {
+        "material": "Blanco nature",
+        "thicknessMm": 3,
+        "generatedAt": "09/10/2026 5:59pm",
+        "unit": "mm",
+        "project": "Escritorio Oslo - Gaudi + blanco nature.skp - Escena1"
+      },
+      "summary": {
+        "settings": {
+          "Tipo": "Guillotina (auto / auto)",
+          "Espaciado": "3 mm",
+          "Margen": "10 mm",
+          "Tipo de corte": "No exacto",
+          "Dirección primer corte": "Cualquier",
+          "Número de niveles": "3"
+        },
+        "fillRatePct": 12.02,
+        "cutCount": 8,
+        "cutLengthM": 9.08,
+        "boards": [
+          { "material": "Blanco nature", "thicknessMm": 3, "count": 1, "lengthMm": 2600, "widthMm": 1830, "areaM2": 4.76, "parts": 3 }
+        ]
+      },
+      "columns": { "adjusted": false, "edgeStrips": false },
+      "boards": [
+        {
+          "index": 1,
+          "total": 1,
+          "material": "Blanco nature",
+          "thicknessMm": 3,
+          "lengthMm": 2600,
+          "widthMm": 1830,
+          "kind": "Tablero estándar",
+          "pieceCount": 3,
+          "cutLengthM": 9.08,
+          "efficiencyPct": 11.8,
+          "pieces": [
+            { "letter": "A", "code": "0001-01-M01-C20", "name": "Fondo cajones", "quantity": 2, "finalL": 400, "finalA": 378, "edges": "columna-ausente" },
+            { "letter": "B", "code": "0001-01-M01-C21", "name": "Fondo sector cajones", "quantity": 1, "finalL": 614, "finalA": 422, "edges": "columna-ausente" }
+          ],
+          "diagram": [
+            { "letter": "A", "count": 2 }, { "letter": "B", "count": 1 }
+          ]
+        }
+      ],
+      "pending": []
+    }
+  ],
+  "excel": {
+    "_nota": "Planilla 'Escritorio Olmo - Nombres con codigos (Excel con datos de canteado)'. Tiene capa de texto (Skia/PDF) pero NO es salida de OpenCutList: no entra al esquema cutlist-pdf/1. 'cantos' es el texto tal cual: dice cuantos largos y cortos, no cuales. 'medida' es el texto tal cual (en el Olmo coincide con L x A del PDF de OpenCutList).",
+    "fileName": "4) Escritorio Olmo - Nombres con codigos (Excel con datos de canteado).pdf",
+    "header": "Escritorio Olmo : 1200 mm (Largo) - 750 mm (Alto) - 550 mm (Profundidad)",
+    "sections": [
+      {
+        "title": "MDF 18 mm - Color Blanco Nature",
+        "rows": [
+          { "code": "0001-01-M01-C01", "quantity": 1, "medida": "980x550", "cantos": "2 largos 2 cortos", "name": "Mesa/Techo escritorio" },
+          { "code": "0001-01-M01-C02", "quantity": 1, "medida": "732x550", "cantos": "2 largos 1 corto", "name": "Lateral escritorio" },
+          { "code": "0001-01-M01-C03", "quantity": 1, "medida": "742x200", "cantos": "1 largo 1 corto", "name": "Faja grande medio escritorio" },
+          { "code": "0001-01-M01-C04", "quantity": 2, "medida": "550x494", "cantos": "1 largo 1 corto", "name": "Laterales sector cajones" },
+          { "code": "0001-01-M01-C05", "quantity": 2, "medida": "550x404", "cantos": "1 corto", "name": "Piso y techo sector cajones" },
+          { "code": "0001-01-M01-C06", "quantity": 1, "medida": "404x50", "cantos": "-", "name": "Gola Vertical" },
+          { "code": "0001-01-M01-C07", "quantity": 2, "medida": "404x36", "cantos": "1 largo", "name": "Gola Horizontal" },
+          { "code": "0001-01-M01-C08", "quantity": 2, "medida": "400x100", "cantos": "1 largo", "name": "Cajon 1" },
+          { "code": "0001-01-M01-C09", "quantity": 2, "medida": "342x100", "cantos": "1 largo", "name": "Cajon 1" },
+          { "code": "0001-01-M01-C10", "quantity": 2, "medida": "400x200", "cantos": "1 largo", "name": "Cajon 2" },
+          { "code": "0001-01-M01-C11", "quantity": 2, "medida": "342x200", "cantos": "1 largo", "name": "Cajon 2" },
+          { "code": "0001-01-M01-C12", "quantity": 1, "medida": "440x165", "cantos": "2 largos 2 cortos", "name": "Tapa cajon 1" },
+          { "code": "0001-01-M01-C13", "quantity": 1, "medida": "440x296", "cantos": "2 largos 2 cortos", "name": "Tapa cajon 2" }
+        ]
+      },
+      {
+        "title": "MDF 18 mm - Gaudi",
+        "rows": [
+          { "code": "0001-01-M01-C14", "quantity": 2, "medida": "550x440", "cantos": "2 largos 1 corto", "name": "Techo y piso estante abierto" },
+          { "code": "0001-01-M01-C15", "quantity": 2, "medida": "550x102", "cantos": "1 corto", "name": "Laterales estante abierto" },
+          { "code": "0001-01-M01-C16", "quantity": 2, "medida": "682x50", "cantos": "1 largo 1 corto", "name": "Fajas verticales" },
+          { "code": "0001-01-M01-C17", "quantity": 2, "medida": "962x50", "cantos": "1 largo 1 corto", "name": "Fajas horizontales grandes" },
+          { "code": "0001-01-M01-C18", "quantity": 1, "medida": "514x50", "cantos": "1 largo", "name": "Faja horizontal chica" },
+          { "code": "0001-01-M01-C19", "quantity": 1, "medida": "514x100", "cantos": "2 cortos", "name": "Faja donde apoya mesa" }
+        ]
+      },
+      {
+        "title": "MDF 3 mm - Color blanco",
+        "rows": [
+          { "code": "0001-01-M01-C20", "quantity": 2, "medida": "400x378", "cantos": "-", "name": "Fondo cajones" },
+          { "code": "0001-01-M01-C21", "quantity": 1, "medida": "614x422", "cantos": "-", "name": "Fondo sector cajones" }
+        ]
+      }
+    ],
+    "compra": [
+      { "linea": "1 placa de 2750 x 1830 MDF 18 mm - Placa Blanco Nature Faplac", "grupo": "Blanco Nature" },
+      { "linea": "16 mts de Canto de 0.22 - Color Blanco Nature 0.22 mm", "grupo": "Blanco Nature" },
+      { "linea": "1/4 placa de 2750 x 1830 MDF 18 mm - Placa Gaudi", "grupo": "Gaudi" },
+      { "linea": "8 mts de Canto de 0.22 - Color Gaudi", "grupo": "Gaudi" },
+      { "linea": "1/2 de 2600x1830 MDF 3 mm Blanco", "grupo": "Fondo 3 mm" },
+      { "linea": "2 Correderas telescopicas de 400 mm", "grupo": null }
+    ]
+  }
+}

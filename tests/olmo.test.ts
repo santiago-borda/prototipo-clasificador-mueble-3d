@@ -6,7 +6,7 @@ import { checkAssociation } from "@/data/mapping";
 import { verifyModel } from "@/model/verifyModel";
 import { loadDaeModel } from "./helpers/loadModel";
 
-const model = loadDaeModel(path.join(__dirname, "..", "public", "models", "olmo.dae"));
+const model = loadDaeModel(path.join(__dirname, "..", "public", "models", "Olmo", "olmo.dae"));
 const result = verifyModel(model.parts, olmoDef.pieceTypes, { toleranceMm: olmoDef.toleranceMm });
 
 describe("A6: Olmo sin regresiones", () => {

@@ -8,7 +8,7 @@ import type { FurnitureModel } from "./types";
 import { verifyModel } from "./verifyModel";
 
 // PUNTO DE REEMPLAZO del modelo 3D: de dónde sale el mueble.
-// Hoy: el .dae de cada mueble registrado (`FurnitureDef.modelUrl`): Olmo en public/models/olmo.dae;
+// Hoy: el .dae de cada mueble registrado (`FurnitureDef.modelUrl`): Olmo en public/models/Olmo/olmo.dae;
 // Sabrina (solo local) por /api/private-models/sabrina.
 // Suspende mientras carga: el llamador debe estar dentro de <Suspense> (ver FurnitureCanvas).
 // Las geometrías generadas viven lo que dura la app (prototipo): no se liberan a mano.

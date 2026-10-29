@@ -6,7 +6,7 @@ import { createMemoryStore, type ImportStore } from "@/importer/store";
 import { LISTADO_M01, readFixture } from "./csv";
 
 export const KEY = "clave-de-prueba";
-export const OLMO_DAE = fs.readFileSync(path.join(__dirname, "..", "..", "public", "models", "olmo.dae"));
+export const OLMO_DAE = fs.readFileSync(path.join(__dirname, "..", "..", "public", "models", "Olmo", "olmo.dae"));
 export const DIMS_MM = { x: 1200, y: 750, z: 571 };
 
 /** importId de 16 hex distinto para cada número; `n` va en los primeros 8 dígitos, que forman el prefijo del qrId. */

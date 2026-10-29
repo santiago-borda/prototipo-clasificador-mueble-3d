@@ -8,7 +8,7 @@ import { buildImportReport } from "@/importer/report";
 import { LISTADO_M01, LISTADO_V2_DESAJUSTE, editCell, readFixture } from "./helpers/csv";
 import { loadDaeModel } from "./helpers/loadModel";
 
-const model = loadDaeModel(path.join(__dirname, "..", "public", "models", "olmo.dae"));
+const model = loadDaeModel(path.join(__dirname, "..", "public", "models", "Olmo", "olmo.dae"));
 const IMPORT_ID = "0123456789abcdef";
 
 const report = (csvText: string) => buildImportReport({ csvText, parts: model.parts, importId: IMPORT_ID });

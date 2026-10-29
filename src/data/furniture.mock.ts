@@ -106,6 +106,6 @@ export const olmoDef: FurnitureDef = {
   furniture,
   modules,
   pieceTypes,
-  modelUrl: "/models/olmo.dae",
+  modelUrl: "/models/Olmo/olmo.dae",
   toleranceMm: 2,
 };

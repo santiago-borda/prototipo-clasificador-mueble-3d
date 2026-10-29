@@ -21,7 +21,7 @@ Ambigüedades y contradicciones encontradas al planificar. **No están resueltas
 | Q1 | "Olmo u Oslo" | El encargo dice preguntar a Casa Mueble "Olmo u Oslo" antes de etiquetar. El spec §2.2 y §15 dicen que **Olmo está confirmado** (consulta 34, cerrada el 16/10) y que lo pendiente es la **reexportación** (consulta 48). | Sigo el spec: el punto de parada es la consulta 48 (reexportación), no la 34. | T23, parada CM-48 |
 | Q2 | Herramienta de etiquetado "solo de desarrollo" | El encargo la llama entrada solo de desarrollo. El spec §10.3 dice explícitamente que **cambió**: la usa personal de Casa Mueble desde afuera, con **despliegue aparte, no indexado**, y sigue fuera del bundle de producción. | Sigo el spec: app estática aparte (`tools/etiquetado/`, `output: "export"`), que el build de la app no compila; verificación contra la salida de los dos builds. | T17, T18 |
 | Q3 | Orden de la fase 1 | El encargo pone el etiquetado (3) antes que motor y harness (4). El spec §2.2 y el cronograma §2.3 ponen motor y harness en el paso 3 y la herramienta en paralelo (paso 4), y el etiquetado espera la reexportación. | Dos pistas: **A** (adapter → motor → harness → visor, el mínimo de la pre-entrega) y **B** (herramienta de etiquetado, en paralelo desde T3, con meta 13/11). | Orden de tareas |
-| Q4 | `modelId` y fines de línea | §3: `modelId = sha256` de los **bytes**. M1: "mismo `modelId` con fin de línea LF y CRLF". Son incompatibles si se hashean bytes crudos. Además, **en esta copia `public/models/olmo.dae` está en CRLF en disco y LF en el índice** (`git ls-files --eol`: `i/lf w/crlf`): hoy el hash en Windows y en Linux da distinto. | `modelId = sha256` de los bytes **con `\r\n` → `\n`** antes de hashear; `.gitattributes` + re-checkout igual (defensa doble). Alternativa: bytes crudos y M1 verifica que el disco quede en LF tras el re-checkout. | T1 |
+| Q4 | `modelId` y fines de línea | §3: `modelId = sha256` de los **bytes**. M1: "mismo `modelId` con fin de línea LF y CRLF". Son incompatibles si se hashean bytes crudos. Además, **en esta copia `public/models/Olmo/olmo.dae` está en CRLF en disco y LF en el índice** (`git ls-files --eol`: `i/lf w/crlf`): hoy el hash en Windows y en Linux da distinto. | `modelId = sha256` de los bytes **con `\r\n` → `\n`** antes de hashear; `.gitattributes` + re-checkout igual (defensa doble). Alternativa: bytes crudos y M1 verifica que el disco quede en LF tras el re-checkout. | T1 |
 | Q5 | "Sin CI" | El spec §1 dice "lo que pasó G1–G5 en CI"; el proyecto no tiene CI (CLAUDE.md). | El gate se corre a mano (`npm run eval`) y `--publicar` solo escribe si el gate aprueba. Nada de CI. | T11 |
 | Q6 | Cambios sin commitear del 16/10 | El encargo dice que hay cambios sin commitear en `CLAUDE.md`, `docs/spec-siguiente-paso.md` y `tests/sabrina.test.ts`. `git status` está limpio: esos cambios están en el commit `4eb8f04` ("actualizacion de archivo de spec"). | Nada que excluir. Igual, T12 tiene que tocar `tests/sabrina.test.ts` (A4 reescrito, spec §11). | T12 |
 | Q7 | "Sabrina" en el spec | Cuento **15** líneas con "Sabrina" (no 13): 5, 153, 399, 403, 405, 482, 497, 511, 512, 573, 579, 621, 641, 642, 752. Cuatro son rutas o el nombre de la carpeta (5, 153 en parte, 405, 512). | Recomiendo homogeneizar el texto a "segundo modelo local" y dejar las rutas `Sabrina/`. **No toqué el spec**: espero tu OK. | ninguna (documento) |
@@ -189,7 +189,7 @@ it("modelId: CRLF y LF dan el mismo hash", () => {
   expect(modelId(lf)).toBe("sha256:" + createHash("sha256").update("<a>\n<b/>\n</a>\n").digest("hex"));
 });
 it("modelId de olmo.dae no depende de cómo git dejó el archivo en disco", () => {
-  const bytes = fs.readFileSync("public/models/olmo.dae");
+  const bytes = fs.readFileSync("public/models/Olmo/olmo.dae");
   const lfOnly = Buffer.from(bytes.toString("latin1").replace(/\r\n/g, "\n"), "latin1");
   expect(modelId(bytes)).toBe(modelId(lfOnly));
 });
@@ -211,7 +211,7 @@ it("un campo ausente se serializa como null y qrId/moduleId quedan fuera", () =>
 
 - [ ] **Paso 2:** `npx vitest run tests/engine/hash.test.ts` → FAIL (`hash.ts` no existe, `.gitattributes` no existe).
 - [ ] **Paso 3: implementar `src/engine/hash.ts`** con `node:crypto` (`createHash("sha256")`). Números con `String(n)`; cadenas con `.normalize("NFC")`; comparación de `code` binaria.
-- [ ] **Paso 4: crear `.gitattributes`** con `*.dae binary`; correr `git add --renormalize .`; luego `git checkout -- public/models/olmo.dae` para que el archivo en disco quede igual al índice (LF). Verificar: `git ls-files --eol public/models/olmo.dae` → `i/-text w/-text attr/-text` (binario) y `git status` limpio salvo los archivos nuevos.
+- [ ] **Paso 4: crear `.gitattributes`** con `*.dae binary`; correr `git add --renormalize .`; luego `git checkout -- public/models/Olmo/olmo.dae` para que el archivo en disco quede igual al índice (LF). Verificar: `git ls-files --eol public/models/Olmo/olmo.dae` → `i/-text w/-text attr/-text` (binario) y `git status` limpio salvo los archivos nuevos.
 - [ ] **Paso 5:** `npx vitest run tests/engine/hash.test.ts` → PASS; `npm test` → todo en verde (A6 sigue igual).
 - [ ] **Paso 6: proponer commit** (`.gitattributes` + renormalize + `hash.ts` + test en **un** commit: "Congelar entradas: .gitattributes, modelId y listadoId (M1)").
 
@@ -320,7 +320,7 @@ it("componente anidado → DaeStructureError", () => { /* nestedComponent: true 
 it("taggedXml: cada nodo-instancia lleva name = @key:<instanceKey>", () => { /* DOMParser sobre taggedXml */ });
 it("unitMeters lee <unit meter>", () => { /* 0.0254 en minimo.dae, 0.01 con unit cm */ });
 it("olmo.dae: 33 componentes + 6 mallas sueltas + 0 líneas, instanceKey únicos", () => {
-  const idx = indexDae(read("public/models/olmo.dae"));
+  const idx = indexDae(read("public/models/Olmo/olmo.dae"));
   expect(idx.entries.filter((e) => e.kind === "componente")).toHaveLength(33);
   expect(idx.entries.filter((e) => e.kind === "malla-suelta")).toHaveLength(6);
   expect(idx.lineObjects).toBe(0);
@@ -382,7 +382,7 @@ it("centerRel y crossesMidplane respecto de la caja de referencia", () => {
   // dos paneles: uno a la izquierda, otro que cruza el medio en X → centerRel[0] < 0.5 y crossesMidplane [false,…] / [true,…]
 });
 it("olmo.dae: 39 observaciones, 6 con rawName null, ninguna con Canto_, todas alineadas, ninguna espejada", () => {
-  const obs = observeDae(fs.readFileSync("public/models/olmo.dae"));
+  const obs = observeDae(fs.readFileSync("public/models/Olmo/olmo.dae"));
   expect(obs.observations).toHaveLength(39);
   expect(obs.observations.filter((o) => o.rawName === null)).toHaveLength(6);
   expect(obs.observations.every((o) => o.edgeRunsMm === "no-disponible" && o.axisAligned && !o.mirrored)).toBe(true);
@@ -628,7 +628,7 @@ it("results ordenados por instanceKey con comparación binaria ('ID10' < 'ID9')"
 - Test: `tests/eval/gate.test.ts`, `tests/eval/m13.test.ts`
 
 **Interfaces:**
-- `modelSources.ts` (servidor/Node, usa `node:fs`): `modelSourceFor(furnitureId: string, opts?: { sabrinaDir?: string }): { daePath: string; runsDir: string; esperadosPath: string } | null` — Olmo: `public/models/olmo.dae`, `eval/runs`, `eval/esperados.json`; Sabrina: el único `.dae` de `<sabrinaDir>/Archivo Collada`, `<sabrinaDir>/eval/runs`, `<sabrinaDir>/eval/esperados.json`, o `null` si la carpeta no existe.
+- `modelSources.ts` (servidor/Node, usa `node:fs`): `modelSourceFor(furnitureId: string, opts?: { sabrinaDir?: string }): { daePath: string; runsDir: string; esperadosPath: string } | null` — Olmo: `public/models/Olmo/olmo.dae`, `eval/runs`, `eval/esperados.json`; Sabrina: el único `.dae` de `<sabrinaDir>/Archivo Collada`, `<sabrinaDir>/eval/runs`, `<sabrinaDir>/eval/esperados.json`, o `null` si la carpeta no existe.
 - `cases.ts`: `loadRealCases(opts: { sabrinaDir: string }): RealCase[]` con `type RealCase = { furnitureId: string; status: "ok"; def: FurnitureDef; dae: DaeObservation; run: AssociationRun } | { furnitureId: string; status: "no-ejecutado"; motivo: string }`. Sabrina se carga con el mismo `import()` dinámico que `tests/sabrina.test.ts`.
 - En `gate.ts`: `projectRun(run: AssociationRun): ExpectedRun` (ver "Proyección para G2"), `type EsperadosFile = Record<string /* modelId */, ExpectedRun>` y `readEsperados(file: string): EsperadosFile` (`{}` si no existe).
 - `report.ts`: `buildReport(x: { real: RealCase[]; synthetic: VariantOutcome[]; gate: GateResult; timing: { medianMs: number; repeticiones: number; node: string; maquina: string } }): Report` y `writeReport(report: Report, outDir: string): void` (`reporte.json` + `reporte.md`). Tiempo (§9.5): `harness` corre el motor M = 5 veces por caso real y guarda la mediana; anota `process.version` y `os.cpus()[0].model`; no gatea. La versión de Node también va junto a G3.
@@ -675,7 +675,7 @@ La prueba M13 necesita `eval/esperados.json` de Olmo: queda `it.todo` hasta T12 
 
 ```ts
 it("A4: cada instancia con exactamente un nivel, igual a eval/esperados.json", () => {
-  const dae = observeDae(fs.readFileSync("public/models/olmo.dae"));
+  const dae = observeDae(fs.readFileSync("public/models/Olmo/olmo.dae"));
   const run = associate({ furnitureId: "olmo", modelId: dae.modelId, observations: dae.observations, listado: olmoDef.pieceTypes, params: { ...DEFAULT_PARAMS, toleranceMm: olmoDef.toleranceMm } });
   expect(new Set(run.results.map((r) => r.instanceKey)).size).toBe(dae.observations.length);
   expect(projectRun(run)).toEqual(readEsperados("eval/esperados.json")[dae.modelId]);
@@ -826,12 +826,12 @@ it("kappa de Cohen con dos etiquetadores (valor calculado a mano)", () => {});
 - [ ] **Paso 1: pruebas (fallan).**
 
 ```ts
-const { xml, tokens } = sanitizeDae(read("public/models/olmo.dae"), 7);
+const { xml, tokens } = sanitizeDae(read("public/models/Olmo/olmo.dae"), 7);
 it("sin nombres de componente ni códigos en el modelo saneado", () => {
   expect(xml).not.toMatch(/\d{4}-\d{2}-M\d{2}-C\d{2}/);
 });
 it("sin instanceKey del original", () => {
-  for (const key of indexDae(read("public/models/olmo.dae")).entries.map((e) => e.instanceKey.split("/").pop()!))
+  for (const key of indexDae(read("public/models/Olmo/olmo.dae")).entries.map((e) => e.instanceKey.split("/").pop()!))
     expect(xml).not.toMatch(new RegExp(`id="${key}"`));
 });
 it("ningún instance_node del modelo saneado comparte url (foco de revisión 4)", () => {});
@@ -958,7 +958,7 @@ it("importar: token → instanceKey, ref → código, valida con el esquema", ()
 
 **Parada CM-48 (y CM-49 si cambia el nombre de C01).** No se edita el .dae a mano.
 
-**Archivos:** Reemplazar `public/models/olmo.dae`; regenerar `eval/esperados.json`, `eval/runs/<hash nuevo>.json` (el viejo se borra), `tools/etiquetado/public/*`, `tools/etiquetado/tokens.json`; revisar `tests/olmo.test.ts` (A6), `tests/model/daeIndex.test.ts` y `observe.test.ts` (conteos 33 / 6 / 0).
+**Archivos:** Reemplazar `public/models/Olmo/olmo.dae`; regenerar `eval/esperados.json`, `eval/runs/<hash nuevo>.json` (el viejo se borra), `tools/etiquetado/public/*`, `tools/etiquetado/tokens.json`; revisar `tests/olmo.test.ts` (A6), `tests/model/daeIndex.test.ts` y `observe.test.ts` (conteos 33 / 6 / 0).
 
 - [ ] **Paso 1:** copiar el .dae nuevo; `npm test` → anotar qué falla (conteos, nombre de C01, `instanceKey`). Si las rutas de textura ya no dicen "Oslo", anotarlo.
 - [ ] **Paso 2:** `npm run eval` → G2 falla por hash distinto (esperado por diseño).

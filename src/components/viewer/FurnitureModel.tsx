@@ -13,19 +13,21 @@ import { shortCode } from "@/model/ids";
 import { useFurnitureModel } from "@/model/useFurnitureModel";
 import { useViewStore } from "@/store/viewStore";
 import { ACCENT_COLOR, NEUTRAL_COLOR, PartMesh } from "./PartMesh";
+import { useSurfaceTextures } from "./surfaceTextures";
 
 const NO_EDGES: readonly EdgeId[] = [];
 
 export function FurnitureModel({ def }: { def: FurnitureDef }) {
   const router = useRouter();
   const model = useFurnitureModel(def);
+  const textures = useSurfaceTextures(def, model.parts);
   const invalidate = useThree((state) => state.invalidate);
   const selectedQrId = useViewStore((s) => s.selectedQrId);
   const viewMode = useViewStore((s) => s.viewMode);
   const showLinked = useViewStore((s) => s.showLinked);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
-  // Material base único; PartMesh lo clona una vez por pieza.
+  // Material base único; PartMesh lo clona una vez por superficie de cada pieza.
   const baseMaterial = useMemo(
     () =>
       new MeshStandardMaterial({
@@ -77,6 +79,7 @@ export function FurnitureModel({ def }: { def: FurnitureDef }) {
           key={part.instanceId}
           part={part}
           baseMaterial={baseMaterial}
+          textures={textures}
           hot={isInstanceHot(target, part.instanceId)}
           linked={getPieceByInstanceId(def, part.instanceId) !== undefined}
           current={currentPiece ? pieceMatchesInstance(currentPiece, part.instanceId) : false}

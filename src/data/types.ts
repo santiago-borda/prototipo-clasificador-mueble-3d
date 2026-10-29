@@ -66,6 +66,11 @@ export interface FurnitureDef {
   pieceTypes: readonly PieceType[];
   /** URL del .dae de este mueble. */
   modelUrl: string;
+  /**
+   * Carpeta (URL) con texturas propias de este mueble, buscadas por el nombre de archivo que trae el .dae.
+   * Opcional: las placas comunes salen de la biblioteca compartida (`model/textureLibrary.ts`).
+   */
+  textureBaseUrl?: string;
   /** Tolerancia (mm) al comparar la caja de la geometría con el listado (ver `model/verifyModel.ts`). */
   toleranceMm: number;
 }

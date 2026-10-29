@@ -9,11 +9,23 @@
 //  - sabrina.dae (verificado): mismo formato, instancias anidadas en grupos de hasta 3 niveles (ColladaLoader
 //    compone las transformaciones) y 24 objetos de líneas sueltos (aristas) que tampoco son piezas.
 //  - Lo que queda afuera se cuenta en `FurnitureModel.excluded` (líneas y mallas sin código).
+//  - Cada pieza conserva sus UV y un grupo por material (`FurniturePart.surfaces`), para dibujar las texturas.
 
-import { Box3, Line, LineSegments, Mesh, Vector3, type BufferGeometry, type Object3D } from "three";
+import {
+  Box3,
+  BufferAttribute,
+  BufferGeometry,
+  Line,
+  LineSegments,
+  Loader,
+  Mesh,
+  Vector3,
+  type Material,
+  type Object3D,
+} from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { PIECE_NAME, canonicalCode } from "./ids";
-import type { FurnitureModel, FurniturePart } from "./types";
+import type { FurnitureModel, FurniturePart, PartSurface } from "./types";
 
 /** Componente (con código) más cercano hacia arriba, o null si el mesh no pertenece a una pieza. */
 function findPieceNode(mesh: Object3D): Object3D | null {
@@ -23,32 +35,76 @@ function findPieceNode(mesh: Object3D): Object3D | null {
   return null;
 }
 
-/** Geometría con la transformada de mundo "horneada", solo position + normal, sin índice. */
-function bakeGeometry(mesh: Mesh): BufferGeometry | null {
-  let geometry = mesh.geometry.clone();
-  if (geometry.index) geometry = geometry.toNonIndexed();
-  for (const name of Object.keys(geometry.attributes)) {
-    if (name !== "position" && name !== "normal") geometry.deleteAttribute(name);
+const KEPT_ATTRIBUTES = ["position", "normal", "uv"] as const;
+
+function surfaceOf(material: Material | undefined, images: Record<string, string>): PartSurface {
+  if (!material || material.name === Loader.DEFAULT_MATERIAL_NAME) return { material: "", image: null };
+  return { material: material.name, image: images[material.name] ?? null };
+}
+
+/** Vértices [start, start + count) de una geometría sin índice, con position + normal + uv. */
+function slice(source: BufferGeometry, start: number, count: number): BufferGeometry {
+  const geometry = new BufferGeometry();
+  for (const name of KEPT_ATTRIBUTES) {
+    const attribute = source.getAttribute(name);
+    if (!attribute) continue;
+    const size = attribute.itemSize;
+    geometry.setAttribute(name, new BufferAttribute(attribute.array.slice(start * size, (start + count) * size), size));
   }
-  geometry.clearGroups();
-  const position = geometry.getAttribute("position");
-  if (!position || position.count === 0) return null;
-  if (!geometry.getAttribute("normal")) geometry.computeVertexNormals();
-  geometry.applyMatrix4(mesh.matrixWorld);
+  // mergeGeometries exige los mismos atributos en todas: sin coordenadas de textura van en cero.
+  if (!geometry.getAttribute("uv")) geometry.setAttribute("uv", new BufferAttribute(new Float32Array(count * 2), 2));
   return geometry;
 }
 
-function merge(geometries: BufferGeometry[]): BufferGeometry | null {
-  if (geometries.length === 1) return geometries[0];
-  return mergeGeometries(geometries, false);
+/**
+ * Geometría con la transformada de mundo "horneada", sin índice, partida por material (un trozo por grupo del
+ * mesh; varios materiales en Sabrina: cara del panel y cantos `Canto_*`).
+ */
+function bakeGeometry(mesh: Mesh, images: Record<string, string>): { surface: PartSurface; geometry: BufferGeometry }[] {
+  let geometry = mesh.geometry.clone();
+  if (geometry.index) geometry = geometry.toNonIndexed();
+  const position = geometry.getAttribute("position");
+  if (!position || position.count === 0) return [];
+  if (!geometry.getAttribute("normal")) geometry.computeVertexNormals();
+  geometry.applyMatrix4(mesh.matrixWorld);
+
+  const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+  const groups = geometry.groups.length > 0 ? geometry.groups : [{ start: 0, count: position.count, materialIndex: 0 }];
+  return groups
+    .filter((group) => group.count > 0)
+    .map((group) => ({
+      surface: surfaceOf(materials[group.materialIndex ?? 0], images),
+      geometry: slice(geometry, group.start, Math.min(group.count, position.count - group.start)),
+    }));
+}
+
+function merge(geometries: BufferGeometry[], useGroups = false): BufferGeometry | null {
+  if (geometries.length === 1 && !useGroups) return geometries[0];
+  return mergeGeometries(geometries, useGroups);
+}
+
+/** Une los trozos de una pieza: uno por material, en el orden en que aparecen, con un grupo cada uno. */
+function mergePiece(pieces: { surface: PartSurface; geometry: BufferGeometry }[]) {
+  const byMaterial = new Map<string, { surface: PartSurface; geometries: BufferGeometry[] }>();
+  for (const { surface, geometry } of pieces) {
+    const entry = byMaterial.get(surface.material);
+    if (entry) entry.geometries.push(geometry);
+    else byMaterial.set(surface.material, { surface, geometries: [geometry] });
+  }
+  const entries = [...byMaterial.values()];
+  const perMaterial = entries.map((entry) => merge(entry.geometries));
+  if (perMaterial.some((g) => g === null)) return null;
+  const geometry = merge(perMaterial as BufferGeometry[], true);
+  return geometry ? { geometry, surfaces: entries.map((entry) => entry.surface) } : null;
 }
 
 export function buildFurnitureModel(scene: Object3D): FurnitureModel {
   scene.updateMatrixWorld(true);
 
   // Map conserva el orden de inserción = orden de recorrido del .dae.
-  const byPieceNode = new Map<Object3D, BufferGeometry[]>();
+  const byPieceNode = new Map<Object3D, { surface: PartSurface; geometry: BufferGeometry }[]>();
   const excluded = { lineObjects: 0, meshesWithoutCode: 0 };
+  const images: Record<string, string> = scene.userData.materialImages ?? {};
 
   scene.traverse((object) => {
     if (object instanceof Line || object instanceof LineSegments) excluded.lineObjects += 1;
@@ -58,22 +114,22 @@ export function buildFurnitureModel(scene: Object3D): FurnitureModel {
       excluded.meshesWithoutCode += 1; // geometría suelta sin código: ni siquiera se procesa
       return;
     }
-    const geometry = bakeGeometry(object);
-    if (!geometry) return;
+    const baked = bakeGeometry(object, images);
+    if (baked.length === 0) return;
     const list = byPieceNode.get(pieceNode);
-    if (list) list.push(geometry);
-    else byPieceNode.set(pieceNode, [geometry]);
+    if (list) list.push(...baked);
+    else byPieceNode.set(pieceNode, baked);
   });
 
   const parts: FurniturePart[] = [];
   const counters = new Map<string, number>();
-  for (const [node, geometries] of byPieceNode) {
-    const geometry = merge(geometries);
-    if (!geometry) continue;
+  for (const [node, pieces] of byPieceNode) {
+    const merged = mergePiece(pieces);
+    if (!merged) continue;
     const code = canonicalCode(node.name);
     const n = (counters.get(code) ?? 0) + 1;
     counters.set(code, n);
-    parts.push({ instanceId: `${code}#${n}`, componentName: node.name, geometry });
+    parts.push({ instanceId: `${code}#${n}`, componentName: node.name, ...merged });
   }
 
   // Centrar en x/z y apoyar en y = 0 para que OrbitControls orbite alrededor del mueble.

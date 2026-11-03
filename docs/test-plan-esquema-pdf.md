@@ -1,6 +1,8 @@
 # Plan de pruebas — Esquema de la salida del PDF de OpenCutList
 
-Estado: **borrador** (28/10/2026). Sin implementar. Spec: `docs/spec-esquema-pdf.md` (las referencias INV-, RP- y § son de ahí).
+Estado: **en implementación** (3/11/2026). Spec: `docs/spec-esquema-pdf.md` (las referencias INV-, RP- y § son de ahí).
+
+**Sesión 1:** todo salvo lo que necesita código de otra sesión, que queda como `it.todo` en `tests/pdf.todo.test.ts`: TP-11 y TP-40 a TP-46 (cruce con el .dae) y TP-60 (conversión de §6), **sesión 2b**; TP-61 (necesita la función de `listadoId` del motor; `src/engine/` no existe); TP-70 (casillas de R4, spec aparte); TP-23 (pendiente de PDF-2) y TP-55 (pendiente de la consulta 58). Alcance reducido: TP-52 se prueba con entrada vacía (la lectura de bytes es de la extracción); TP-50 compara sin `source`; TP-62 y TP-63 prueban el estado del listado (`bloqueado`, `borrador`, `publicable`), no la conversión; TP-10 y TP-20 a TP-22 prueban INV-7 y el mapeo a `EdgeId`, sin `PieceType`.
 
 ## Alcance y entorno
 
@@ -15,7 +17,7 @@ Estado: **borrador** (28/10/2026). Sin implementar. Spec: `docs/spec-esquema-pdf
 
 Por criterio, no por porcentaje de líneas:
 
-1. Cada invariante INV-0 a INV-14: al menos **un caso que cumple y uno que falla**.
+1. Cada invariante INV-0 a INV-15: al menos **un caso que cumple y uno que falla**.
 2. Cada razón del catálogo (spec §7.3): al menos **un caso** que la produce, y ningún caso que la produzca sin motivo.
 3. Cada fila de las tablas §7.1 y §7.2: un caso.
 4. Los dos fixtures reales completos: 0 razones en el Olmo salvo las esperadas (abajo).
@@ -104,6 +106,31 @@ Por criterio, no por porcentaje de líneas:
 | TP-53 | `OcrLlm` nunca es segura | salida simulada de OCR idéntica al fixture | todas las filas `dudosa` con `origen-ocr` |
 | TP-54 | `OcrLlm` con JSON inválido | salida simulada sin `boards` | rechazo `esquema-invalido`; no se repara |
 | TP-55 | Extracción real de `TextoPdf` | PDF de OpenCutList **con** texto | **PENDIENTE**: no hay ninguno (consulta 58) |
+
+### Hoja multipágina (INV-15) y marcas de canto (§8.2)
+
+| Id | Caso | Entrada | Resultado esperado |
+|---|---|---|---|
+| TP-80 | INV-15 (a) cumple | fixture con hoja en `pages: [2, 3]` y otra en `[4]` | ninguna razón |
+| TP-81 | INV-15 (a) falla: no consecutivas | `pages: [2, 4]` | documento rechazado, `hoja-incompleta` |
+| TP-82 | INV-15 (a) falla: resumen o solape | `pages: [1, 2]`; dos hojas que comparten una página | documento rechazado, `hoja-incompleta` (los dos subcasos) |
+| TP-83 | Parser une páginas | hoja partida en dos páginas, la segunda sin encabezado de tabla | un `Board`, `pages: [2, 3]`, filas en orden, pie de la última |
+| TP-84 | Parser: sin pie | última página de la hoja sin pie | `{ ok: false, reason: "hoja-incompleta" }` |
+| TP-85 | Parser: pie en página intermedia | pie en la primera de dos páginas | `hoja-incompleta` |
+| TP-86 | Parser: encabezados que no coinciden | continuación con otro espesor; continuación sin "i / N"; páginas de una hoja no consecutivas | `hoja-incompleta` (los tres subcasos) |
+| TP-87 | Parser: diagrama en continuación | letras de diagrama en la segunda página | `hoja-incompleta` |
+| TP-88 | Canto: columnas desiguales y sin fila adyacente en la página | hoja con columnas desiguales (como en §8.2): una página con marcas contiguas y otra solo con marcas en s1 y s4 | todas las marcas en su subcolumna; con la regla por página fallaría |
+| TP-89 | Canto: constante | hoja sin ninguna fila con 2 marcas; distancia entre marcas mayor que el tope | usa 0,066 × ancho de página; subcolumnas correctas |
+| TP-90 | Canto: conservador | marca fuera de la banda; dos marcas en una subcolumna; sin ancho de página | `pending` en `edges`, fila `dudosa` por `campo-pendiente` |
+
+### Filas con campos no leídos
+
+| Id | Caso | Entrada | Resultado esperado |
+|---|---|---|---|
+| TP-91 | `null` con su `pending` | `finalA: null` con entrada en `pending` | no rechaza; la fila `dudosa` por `campo-pendiente`; INV-1 y INV-8 no fallan por ese `null` |
+| TP-92 | `pending` fuera de una fila | `summary.cutCount: null` con su `pending`; `diagram: "pendiente"` con su `pending` | ninguna fila `dudosa`; INV-3 sin verificar |
+| TP-93 | Excepciones de INV-0 | s1–s4 `null`, `producer: null`, `pdfId: null` con transcripción (sin `pending`); `pdfId: null` con `texto-pdf` | los primeros válidos; el último `esquema-invalido` |
+| TP-94 | Alcance de las razones | razón de tablero (INV-1) en un documento con dos hojas | todas las filas de esa hoja `dudosa`; las de la otra, `segura` |
 
 ### Listado y `listadoId`
 

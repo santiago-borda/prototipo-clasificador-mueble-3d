@@ -39,6 +39,7 @@
         {
           "index": 1,
           "total": 1,
+          "pages": [2, 3],
           "material": "Blanco nature",
           "thicknessMm": 18,
           "lengthMm": 2750,
@@ -111,6 +112,7 @@
         {
           "index": 1,
           "total": 1,
+          "pages": [2],
           "material": "GAUDI",
           "thicknessMm": 18,
           "lengthMm": 2750,
@@ -173,6 +175,7 @@
         {
           "index": 1,
           "total": 1,
+          "pages": [2],
           "material": "Blanco nature",
           "thicknessMm": 3,
           "lengthMm": 2600,

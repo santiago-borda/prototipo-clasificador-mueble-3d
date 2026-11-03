@@ -1,9 +1,9 @@
 # Especificación — Esquema de la salida del PDF de OpenCutList
 
-Estado: **borrador para revisión** (28/10/2026). Sesión de solo especificación: sin código de producción ni de pruebas.
+Estado: **borrador para revisión** (28/10/2026; revisado el 3/11/2026 con los PDF de Sabrina y la revisión página por página de los del Olmo; ver §13). Sesión de solo especificación: sin código de producción ni de pruebas.
 Antecedentes: `docs/contexto-casa-mueble-pdf.md` (reunión del 20/10 y análisis del PDF de ejemplo del 23/10), `docs/spec-motor-asociacion.md` (contratos §5, normalización §6.1, canto §8), `docs/spec-importador-prueba.md` (validación pura con fila y columna).
 Plan de pruebas: `docs/test-plan-esquema-pdf.md`. Fixture de referencia: `tests/fixtures/pdf/olmo.json`.
-Como en la spec del motor, **este documento no cita códigos ni cifras del segundo fixture** (local): se lo nombra "segundo fixture".
+Como en la spec del motor, **este documento no cita códigos ni cifras del segundo fixture** (local): se lo nombra "segundo fixture". **Actualización 3/11:** Casa Mueble aprobó el uso de los archivos de Sabrina sin restricciones de titularidad (informado por el equipo; falta la confirmación escrita) y el repo es público por acuerdo con Casa Mueble. Las observaciones nuevas del 3/11 nombran a Sabrina; qué parte de sus archivos se commitea sigue siendo decisión del equipo (RP11).
 
 ---
 
@@ -38,6 +38,8 @@ Principios (los del motor, sin cambios): **la IA nunca decide sola**; **conserva
 
 Por eso el esquema registra **qué columnas trae** cada documento (`columns`, §4) y distingue "columna ausente" de "columna presente sin marcas".
 
+**Estructura de páginas (verificada el 3/11 en los 6 PDF de optimización).** La primera página de cada PDF es el **resumen**. Cada hoja de tablero ("i / N") empieza en la página siguiente con el diagrama y las primeras filas del listado; si el listado no entra, **continúa en la página siguiente con el encabezado de la hoja repetido (el mismo "i / N")** y el pie ("N piezas", "Longitud de cortes", "Eficiencia") aparece **solo en la última página de la hoja**. Páginas por PDF: Olmo Blanco nature 18 = 3 (resumen; A–G; H–M con el pie), Olmo Gaudi 18 = 2, Olmo fondo 3 mm = 2; Sabrina Blanco 18 = 3, Sabrina Cedro 18 = 5 (resumen; hoja 1/2 en dos páginas; hoja 2/2 en dos páginas), Sabrina fondo 3 mm = 2. Una hoja **no** equivale a una página: el lector tiene que unir las páginas de la misma hoja (INV-15).
+
 ## 3. Reglas confirmadas y pendientes
 
 | Id | Regla | Origen | Estado |
@@ -52,7 +54,7 @@ Por eso el esquema registra **qué columnas trae** cada documento (`columns`, §
 | RP8 | `TextoPdf` es determinista y sin IA; `OcrLlm` solo hace análisis previo, se valida con el esquema y contra el .dae, y **nunca decide** | Pedido del equipo (28/10); principios del motor | Decisión del equipo |
 | RP9 | Se reutilizan `PieceType` y la serialización de `listadoId` (motor §5.1) | Pedido del equipo | Decisión del equipo |
 | RP10 | R4: el "listado de cortes" es la **lista de piezas por tablero** (no una secuencia de cortes) | Equipo, 28/10 | **Supuesto PROVISORIO**, a confirmar con Casa Mueble (§9); formato de Gabriel PENDIENTE (consultas 35–37) |
-| RP11 | Nada del segundo fixture entra al repo | `CLAUDE.md` | Vigente |
+| RP11 | Nada del segundo fixture entra al repo | `CLAUDE.md` | Vigente hasta que el equipo decida qué se commitea. **3/11:** Casa Mueble aprobó el uso de los archivos de Sabrina sin restricciones de titularidad (confirmación escrita pendiente) y el repo es público por acuerdo con Casa Mueble: la titularidad ya no lo impide |
 
 ## 4. Esquema tipado
 
@@ -80,7 +82,7 @@ interface CutListPdf {
     boards: SummaryBoardRow[];         // tabla "Tablero" del resumen
   };
   columns: { adjusted: boolean; edgeStrips: boolean };  // qué columnas trae el listado (§2)
-  boards: Board[];                     // uno por hoja de tablero ("1 / 2", "2 / 2")
+  boards: Board[];                     // uno por hoja de tablero ("1 / 2", "2 / 2"); una hoja puede ocupar varias páginas del PDF (§2, INV-15)
   pending: PendingField[];             // todo lo no leído con certeza (ver abajo)
 }
 
@@ -106,6 +108,7 @@ interface SummaryBoardRow {
 interface Board {
   index: number;               // 1..total, de "i / N" del encabezado de la hoja
   total: number;
+  pages: number[];             // páginas del PDF que ocupa la hoja (1-based; la 1 es el resumen), consecutivas; el pie está solo en la última
   material: string;
   thicknessMm: number;
   lengthMm: number;            // dimensiones del tablero
@@ -160,7 +163,7 @@ interface PendingField {
 
 ## 5. Invariantes
 
-Se verifican sobre un `CutListPdf` (INV-1 a INV-9, INV-13), sobre el conjunto de PDF de un mismo mueble (INV-10 a INV-12) o al convertir al listado (INV-14). Violar una invariante **no corrige nada**: produce una razón del catálogo (§7) y la fila queda `dudosa`, o el documento se rechaza si es estructural.
+Se verifican sobre un `CutListPdf` (INV-1 a INV-9, INV-13, INV-15), sobre el conjunto de PDF de un mismo mueble (INV-10 a INV-12) o al convertir al listado (INV-14). Violar una invariante **no corrige nada**: produce una razón del catálogo (§7) y la fila queda `dudosa`, o el documento se rechaza si es estructural.
 
 | Id | Invariante | Si falla |
 |---|---|---|
@@ -179,6 +182,7 @@ Se verifican sobre un `CutListPdf` (INV-1 a INV-9, INV-13), sobre el conjunto de
 | INV-12 | **Total por código** = Σ `quantity` en todos los tableros de todos los PDF del mueble. Es la cantidad que se compara con el .dae y la que va a `PieceType.quantity` | (definición; se prueba con un código en dos tableros) |
 | INV-13 | Porcentajes en [0, 100]. `fillRatePct` (resumen) y `efficiencyPct` (pie de tablero) son **cifras distintas** y no se relacionan entre sí (en el Olmo difieren); qué mide cada una queda PENDIENTE | `porcentaje-invalido` |
 | INV-14 | **Conversión al listado** (§6): solo con 0 rechazos; las filas `dudosa` impiden publicar el listado sin revisión humana | — |
+| INV-15 | **Hoja completa:** las páginas de una hoja (`pages`) son consecutivas; todas repiten el encabezado "i / N", el material y el espesor de la hoja; el pie (`pieceCount`, `cutLengthM`, `efficiencyPct`) está en la última y en ninguna otra; el diagrama solo en la primera. Una hoja sin pie, con pie en una página intermedia o con encabezados que no coinciden indica una página faltante o mal unida: el listado de esa hoja no es confiable | `hoja-incompleta` (se rechaza el documento) |
 
 **Mapeo de cantos a `EdgeId`** (reutiliza la convención ya asumida en `CLAUDE.md` para el segundo fixture):
 
@@ -208,7 +212,7 @@ Se reutilizan `PieceType` (`src/data/types.ts`) y la serialización canónica de
 | `notes` | `null` |
 | `qrId`, `moduleId` | no salen del PDF; los asigna el sistema (quedan fuera de `listadoId`, motor §5.1) |
 
-**ABIERTO — columna de cantos ausente (decisión del equipo, 28/10).** `CLAUDE.md` y la tabla local del segundo fixture tratan sus fondos de 3 mm como `[]` ("dato real"), pero su PDF **no trae** la columna "Tiras de cantos". `null` ("sin dato") sería lo coherente con "nada no confirmado se inventa", pero cambiaría el `listadoId` del segundo fixture. **No se toca ese `listadoId`** y la conversión de una columna ausente queda sin definir hasta que Casa Mueble responda la pregunta PDF-2 (§11): si la columna ausente significa "sin canto", va `[]`; si significa "columna oculta", va `null`.
+**ABIERTO — columna de cantos ausente (decisión del equipo, 28/10).** `CLAUDE.md` y la tabla local del segundo fixture tratan sus fondos de 3 mm como `[]` ("dato real"), pero su PDF **no trae** la columna "Tiras de cantos". `null` ("sin dato") sería lo coherente con "nada no confirmado se inventa", pero cambiaría el `listadoId` del segundo fixture. **No se toca ese `listadoId`** y la conversión de una columna ausente queda sin definir hasta que Casa Mueble responda la pregunta PDF-2 (§11): si la columna ausente significa "sin canto", va `[]`; si significa "columna oculta", va `null`. **Propuesta (3/11, a decidir):** que lo resuelva el cruce con el .dae, pieza por pieza: columna ausente y sin caras `Canto_*` en el .dae = sin canto (`[]`); columna ausente con caras `Canto_*` = canto no exportado (`null`). Observado en Sabrina: el fondo de 3 mm no trae la columna y su modelo no tiene caras de canto (A8); el Olmo no trae la columna y su modelo tampoco tiene caras `Canto_*`, así que ese criterio no distingue su caso (queda `no-disponible`, §7.2).
 
 **Olmo con la variante corta.** Ningún PDF de OpenCutList del Olmo trae "Tiras de cantos": su canteado **no se puede leer del PDF** (con `null` o `[]` según PDF-2; en ningún caso con los lados que eligió el mock). Se pide a Casa Mueble reexportar el Olmo con todas las columnas (PDF-1). Los conteos "2 largos 1 corto" salen de **otra fuente** (la planilla del Excel) y no dicen qué lado: no alcanzan para llenar s1–s4. El fixture los guarda aparte (`excel`), sin mezclarlos con el esquema.
 
@@ -245,9 +249,9 @@ Entrada: el listado (§6) y las `Observation` del adapter del motor (§5.2), sin
 
 - `segura`: leída por `TextoPdf` o por transcripción manual revisada, sin ninguna razón de §5 ni §7.
 - `dudosa`: cualquier razón, **o** leída por `OcrLlm` (siempre, sin excepción: RP8).
-- Un documento con `esquema-invalido`, `unidad-no-soportada` o `estructura-no-reconocida` se **rechaza** entero: no hay filas.
+- Un documento con `esquema-invalido`, `unidad-no-soportada`, `estructura-no-reconocida` o `hoja-incompleta` se **rechaza** entero: no hay filas.
 
-Catálogo cerrado de razones: `esquema-invalido`, `estructura-no-reconocida`, `unidad-no-soportada`, `sin-capa-de-texto`, `codigo-ausente`, `nombre-anomalo`, `formato-invalido`, `codigo-duplicado-en-tablero`, `letra-duplicada-en-tablero`, `letra-inconsistente`, `suma-tablero-no-coincide`, `suma-resumen-no-coincide`, `diagrama-no-coincide`, `pieza-mayor-que-tablero`, `cantos-inconsistentes`, `codigo-con-distinto-material`, `codigo-con-distintas-medidas`, `codigo-con-distinto-canteado`, `codigo-con-distinto-nombre`, `porcentaje-invalido`, `origen-ocr`, `codigo-sin-instancias`, `instancias-sin-fila`, `cantidad-no-coincide`, `medida-no-coincide`, `canteado-no-coincide`.
+Catálogo cerrado de razones: `esquema-invalido`, `estructura-no-reconocida`, `unidad-no-soportada`, `sin-capa-de-texto`, `codigo-ausente`, `nombre-anomalo`, `formato-invalido`, `codigo-duplicado-en-tablero`, `letra-duplicada-en-tablero`, `letra-inconsistente`, `suma-tablero-no-coincide`, `suma-resumen-no-coincide`, `diagrama-no-coincide`, `hoja-incompleta`, `pieza-mayor-que-tablero`, `cantos-inconsistentes`, `codigo-con-distinto-material`, `codigo-con-distintas-medidas`, `codigo-con-distinto-canteado`, `codigo-con-distinto-nombre`, `porcentaje-invalido`, `origen-ocr`, `codigo-sin-instancias`, `instancias-sin-fila`, `cantidad-no-coincide`, `medida-no-coincide`, `canteado-no-coincide`.
 
 ## 8. `FuenteDePdf` y adaptadores
 
@@ -273,6 +277,7 @@ type PdfReading =
 - Dos partes: **extracción** (bytes → elementos de texto con posición; necesita una librería de PDF) y **parser** (elementos de texto → `CutListPdf`; función pura).
 - **Extracción: PENDIENTE.** Requiere una dependencia nueva (por ejemplo pdf.js) y no hay hoy ningún PDF de OpenCutList con texto para validarla (§2). Se decide cuando llegue la respuesta a la consulta 58.
 - **Parser: se especifica y se prueba ya**, con elementos de texto sintéticos escritos a mano a partir de los fixtures (`docs/test-plan-esquema-pdf.md`). Lee las marcas de canto **por la columna en la que caen** (posición x), no por el ícono.
+- El parser recibe los elementos de texto de **todas las páginas** y une las de una misma hoja antes de armar el `Board` (§2, INV-15); la celda de la designación puede partirse en 2 o 3 renglones (§7.1).
 - Sin capa de texto (`/Font` ausente o texto vacío) → `{ ok: false, reason: "sin-capa-de-texto" }`. **No** cae a OCR en silencio.
 
 ### 8.3 `OcrLlm` (visión / LLM, solo análisis previo)
@@ -280,10 +285,11 @@ type PdfReading =
 - Uso: prellenar una transcripción o contrastar contra `TextoPdf`. **Nunca** produce el listado por sí solo: todas sus filas son `dudosa` con `origen-ocr` (§7.3) hasta que una persona las confirme (la pantalla de revisión queda fuera de esta spec, como la C del motor).
 - Su salida pasa por el mismo validador y el mismo cruce con el .dae. Un JSON que no cumple el esquema se rechaza; no se "repara".
 - No determinista: se guarda la salida con `readerVersion` (modelo y versión del prompt) y `pdfId`; no se vuelve a correr en silencio.
-- **Privacidad (PENDIENTE):** usarlo manda el PDF a un servicio externo. Con el segundo fixture **no se usa** mientras la titularidad esté pendiente; con el Olmo, solo con OK explícito del equipo. Proveedor, costo y modelo: a decidir; no se fija acá.
+- **Privacidad (PENDIENTE):** usarlo manda el PDF a un servicio externo. Con el Olmo, solo con OK explícito del equipo. **Actualización 3/11:** la titularidad de Sabrina ya no impide usarlo con sus PDF (Casa Mueble aprobó el uso de sus archivos; confirmación escrita pendiente), pero la aprobación del envío a APIs externas es **otra** confirmación y sigue PENDIENTE: debe ser escrita y mencionar que la capa gratis de algunos proveedores puede usar el contenido para mejorar sus productos. Proveedor, costo y modelo: a decidir; no se fijan acá. El diseño de `OcrLlm` (proveedores, doble pasada, reconciliación y Eval Harness) se desarrolla en un documento aparte (`spec-extraccion-pdf`, borrador del 3/11, a incorporar a `docs/` y alinear con esta spec).
 - No-Wrapper LLM (motor §1): el LLM no puntúa ni decide asociaciones; solo transcribe.
 - **Camino crítico:** mientras no haya PDF con texto (consulta 58), la lectura real de los PDF depende de `OcrLlm` (`CLAUDE.md`).
-- **ABIERTO:** si una fila de `OcrLlm` cuyos valores coinciden exactamente con el .dae (código, cantidad, medidas y, si hay caras `Canto_*`, canteado) puede pasar a un nivel "verificada por el modelo". La verificación la haría el validador de reglas (§7.2), no el LLM. Hasta decidirlo, rige §7.3: siempre `dudosa`.
+- **ABIERTO:** si una fila de `OcrLlm` cuyos valores coinciden exactamente con el .dae (código, cantidad, medidas y, si hay caras `Canto_*`, canteado) puede pasar a un nivel "verificada por el modelo". La verificación la haría el validador de reglas (§7.2), no el LLM. Hasta decidirlo, rige §7.3: siempre `dudosa`. **Alternativa propuesta el 3/11 (a decidir, no vigente):** que un campo del OCR pueda salir sin razón cuando al menos dos fuentes independientes (OCR, LLM, marca de color) coinciden y ninguna discrepa; cualquier desacuerdo o fuente única sigue siendo `dudosa`.
+- **Propuesta (3/11):** el parser de `TextoPdf` es puro y recibe elementos de texto con posición; las palabras con posición que devuelve un OCR podrían alimentar el mismo parser, de modo que `TextoPdf` y `OcrLlm` compartan la lectura de la tabla y solo difiera la extracción. Las filas siguen siendo `dudosa` por `origen-ocr`.
 
 ## 9. Sección de cortes (R4)
 
@@ -324,6 +330,7 @@ Datos que R4 necesita del esquema (todos ya están en §4):
 | Diagrama | INV-3, INV-5 | TP-08, TP-09, TP-16 |
 | Tablero | INV-8, INV-13 | TP-17, TP-18 |
 | Material | INV-10 | TP-36 |
+| Hoja multipágina (§2) | INV-15 | TP a agregar en `docs/test-plan-esquema-pdf.md` |
 
 ## 11. Inconsistencias que esta spec deja a la vista (sin resolver)
 
@@ -339,10 +346,10 @@ Llevan una numeración provisoria; al pasarlas al archivo de consultas se les as
 
 | Id | Pregunta | Afecta |
 |---|---|---|
-| PDF-1 | ¿Pueden exportar siempre con todas las columnas ("Ajustadas" y "Tiras de cantos") y con texto seleccionable? Pedido concreto: reexportar el Olmo así. Se suma a la consulta 58 | §2, §6, `TextoPdf` |
+| PDF-1 | ¿Pueden exportar siempre con todas las columnas ("Ajustadas" y "Tiras de cantos") y con texto seleccionable? Pedido concreto: reexportar el Olmo así. Se suma a la consulta 58. *Hipótesis (3/11, sin confirmar):* en Sabrina las columnas aparecen solo en los tableros con piezas que tienen canto definido en el modelo; si es así, reexportar el Olmo exige definir el canto en el .skp, no solo activar una opción | §2, §6, `TextoPdf` |
 | PDF-2 | Si un PDF no trae la columna de cantos (como los fondos de 3 mm), ¿significa "sin canto" o que la columna está oculta? | §6 (`[]` o `null`) |
-| PDF-3 | ¿La letra (No.) de una pieza es la misma en todos los tableros del mismo PDF? | INV-6 |
-| PDF-4 | ¿Qué mide la "Tasa de llenado" del resumen y qué la "Eficiencia" del tablero? | INV-13 |
+| PDF-3 | ¿La letra (No.) de una pieza es la misma en todos los tableros del mismo PDF? *Observado (3/11):* en Sabrina Cedro, M, N y S figuran en las hojas 1/2 y 2/2 con el mismo código, y las letras de una hoja pueden saltear (J, K, L, M, N, S); INV-6 se cumple, falta confirmación de Casa Mueble | INV-6 |
+| PDF-4 | ¿Qué mide la "Tasa de llenado" del resumen y qué la "Eficiencia" del tablero? *Observado (3/11):* en el fondo de 3 mm de Sabrina la eficiencia del pie (71,47 %) es exactamente Σ(L × A × cantidad) / área de la placa; en el Blanco 18 de Sabrina el mismo cálculo da 82,70 % contra 82,40 % del pie (0,3 puntos de diferencia sin explicar). La tasa de llenado del resumen no coincide con ninguna (Olmo fondo: 12,02 % contra 11,80 %) | INV-13 |
 | PDF-5 | ¿El canto del Olmo es de 22 mm de ancho y ABS? (el espesor 0,22 ya está confirmado) | anexo D2 |
 | PDF-6 | ¿El fondo de 3 mm del Olmo es Blanco nature, como dice el PDF, o blanco, como dice la planilla? | anexo D5 |
 | PDF-7 | Para R4, ¿se corta la placa entera, como en la optimización, o una fracción, como en la planilla de compra? | §9, anexo D10 |
@@ -374,3 +381,4 @@ Transcripción en `tests/fixtures/pdf/olmo.json`. **No se corrigió ni el mock n
 ## 13. Historial
 
 - **28/10:** borrador inicial (sesión de solo especificación).
+- **3/11:** revisión con los PDF de Sabrina y la lectura página por página de los 6 PDF de optimización. Agregado: estructura de páginas (§2), `Board.pages`, INV-15 y la razón `hoja-incompleta` (una hoja puede ocupar varias páginas); propuesta de resolver PDF-2 con el cruce con el .dae (§6); alternativa a "siempre dudosa" para `OcrLlm` y parser compartido (§8.3, propuestas, sin cambiar lo vigente); actualización de privacidad y de RP11 por la aprobación de Casa Mueble sobre los archivos de Sabrina (el envío a APIs externas sigue pendiente); observaciones en PDF-1, PDF-3 y PDF-4. Pendiente de esta revisión: agregar los casos de INV-15 al plan de pruebas y aprobar la spec.

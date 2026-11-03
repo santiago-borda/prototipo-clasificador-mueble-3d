@@ -1,0 +1,352 @@
+# SPEC-B — Extracción del PDF de OpenCutList
+
+| Campo | Valor |
+|---|---|
+| Proyecto | PFG-Muebles-3D (Casa Mueble) |
+| Módulo | B — Extracción de datos del PDF de OpenCutList (OCR + LLM) |
+| Versión | 0.2 (borrador para aprobación; ajustada con los PDFs de Sabrina y la revisión completa de los del Olmo) |
+| Fecha | 03/11/2026 |
+| Autores | Santiago Borda, Lautaro Salina |
+| Estado | **Borrador.** No se programa hasta que se apruebe (SDD) |
+| Depende de | Parser del .dae (índice de componentes), definido en otro spec |
+| Lo consume | Motor de asociación A (`spec-motor-asociacion-v3.md`), detector de inconsistencias C, sección de cortes (R4) |
+
+---
+
+## 1. Propósito y alcance
+
+B convierte el PDF que genera OpenCutList en un JSON estructurado, versionado y validado. B **no decide**: propone valores con su evidencia y marca como `dudosa` toda fila que no pueda respaldar. La revisión humana resuelve las dudosas.
+
+**Dentro del alcance**
+- Encabezado de cada tablero: material, espesor, medidas de la placa, n/N.
+- Filas de la tabla: letra, código, nombre, cantidad, medidas Finales L y A, tiras de cantos (4 subcolumnas).
+- Pie de cada tablero: cantidad de piezas, longitud de cortes, eficiencia.
+- Consolidación por código entre tableros.
+- Validación determinista (interna y contra el .dae, si se provee).
+
+**Fuera del alcance (v0.1)**
+- El dibujo del despiece. Se ignora: el esquema de canteado lo arma el sistema (regla del 20/10).
+- El listado de cortes para R4: no figura en los PDFs disponibles (ver P-07).
+- La asociación PDF ↔ .dae, que es responsabilidad de A.
+- Formulario y API de OT, previstos para la segunda etapa.
+- Carga manual completa cuando no hay OCR (ver §9).
+- La página de Resumen de cada PDF, salvo la "Tasa de llenado" como dato informativo (H-12).
+
+## 2. Hechos de entrada (fuente: Casa Mueble, 20/10, salvo que se indique otra)
+
+| ID | Hecho |
+|---|---|
+| H-01 | El PDF **no tiene texto seleccionable**: se requiere OCR o visión. |
+| H-02 | Medidas: se usa la columna **Finales**. "Ajustadas" descuenta 1 mm del canto y no se usa. |
+| H-03 | **L y A no son largo y corto.** La veta puede dejar L más corto que A, así que nunca se reordenan. |
+| H-04 | "Tiras de cantos" tiene 4 subcolumnas con íconos: 1 = inferior, 2 = superior (lados L), 3 = izquierdo, 4 = derecho (lados A). Confirmación escrita pendiente (consulta 56). |
+| H-05 | Un mismo código puede aparecer en varios tableros. La cantidad informada es **por tablero**. |
+| H-06 | La letra de "No." es **local de cada material** (A = C01 en Blanco, A = C14 en Gaudi) y se **repite** entre los tableros del mismo material para el mismo código (Sabrina, Cedro: M, N y S aparecen en 1/2 y en 2/2). Puede saltar letras dentro de un tablero (J, K, L, M, N, S). La clave de la fila es la Designación (código), nunca la letra. |
+| H-07 | Formato del código: `PPPP-MM-Mmm-Ccc` = proyecto-mueble-módulo-corte (confirmado el 20/10). El número de corte es continuo dentro del proyecto. |
+| H-08 | **Un tablero ocupa varias páginas.** Cada PDF empieza con una página de Resumen. Después, la página del tablero lleva el diagrama y las primeras filas de la tabla, y las filas siguientes continúan en páginas con el encabezado repetido (mismo "n/N"). El pie (piezas, longitud de cortes, eficiencia) está solo en la última página del tablero. Olmo Blanco 18 mm: 3 páginas (Resumen, A–G, H–M + pie). Sabrina Cedro: 5 páginas (Resumen, 1/2 en 2 páginas, 2/2 en 2 páginas). |
+| H-09 | Las columnas "Ajustadas" y "Tiras de cantos" **solo aparecen en los tableros con piezas que tienen canto definido en el modelo**. Sabrina Blanco 18 mm y Cedro 18 mm las traen; Sabrina Fondo 3 mm y todos los PDFs del Olmo no (solo No., Designación, Cant., Finales L/A). Ausente = "no exportado", no "sin canto" (ver I-02). |
+| H-10 | La celda de Designación se parte en 2–3 renglones (p. ej. `0001-` / `01-M01-` / `C11`), con íconos de pieza en el medio y el nombre abajo en letra chica. El código se reconstruye uniendo los renglones. |
+| H-11 | Cada celda de canto marcada lleva un punto de color (azul = Blanco, rojo = Cedro) y el texto "Canto <material> ~0 mm x 22 mm". El punto y el texto indican el material del canto. |
+| H-12 | El PDF informa **dos cifras distintas**: "Tasa de llenado" en el Resumen y "Eficiencia" en el pie del tablero (Olmo 3 mm: 12,02 % y 11,80 %; Sabrina Blanco 18 mm: 83,92 % y 82,40 %). B extrae la Eficiencia del pie. |
+| H-13 | Un mismo PDF puede contener **más de un mueble** (Sabrina: 0001-01-M01 comoda y 0001-02-M02 mesa de luz). Olmo y Sabrina comparten proyecto 0001 y mueble 01. |
+
+## 3. Contrato
+
+### 3.1 Entrada
+
+```ts
+interface SolicitudExtraccion {
+  pdf: { blobUrl: string; nombreArchivo: string };   // subido a Vercel Blob privado
+  contexto: { proyecto: string; muebles: string[] };   // p. ej. "0001", ["01", "02"] (H-13)
+  dae?: IndiceDae;                                    // opcional: habilita las validaciones V-20 a V-24
+  opciones?: { iaLlmActiva?: boolean };               // R5; por defecto true
+}
+
+/** Lo produce el parser del .dae (otro spec). Medidas ya convertidas a mm. */
+interface IndiceDae {
+  componentes: Array<{
+    codigoNormalizado: string;   // sin "_" inicial ni "_" finales
+    codigoOriginal: string;      // tal cual el .dae, p. ej. "_0001-01-M01-C01__"
+    instancias: number;
+    medidasMm: [number, number, number];   // las 3 dimensiones del bounding box local, ordenadas
+    material: string;
+  }>;
+}
+```
+
+Precondiciones (si no se cumplen, se lanza una excepción tipada; ver §7):
+- `mimeType === "application/pdf"`, con al menos 1 página.
+- El tamaño entra en el límite de la vía elegida. El límite de cuerpo de Vercel está sin verificar (P-05).
+
+### 3.2 Salida — esquema `extraccion.v1`
+
+Se valida siempre con zod. Cualquier cambio incompatible sube la versión mayor del esquema.
+
+```ts
+type Estado = "ok" | "dudosa";
+type Fuente = "ocr" | "llm" | "pixeles" | "ambas" | "ninguna";
+
+interface Campo<T> {
+  valor: T | null;
+  fuente: Fuente;
+  crudo: { ocr?: string; llm?: string };   // evidencia textual
+  bbox?: { pagina: number; x: number; y: number; w: number; h: number };  // para resaltar en la revisión
+}
+
+interface Cantos {            // H-04
+  inferior: Campo<boolean>;   // subcolumna 1, lado L
+  superior: Campo<boolean>;   // subcolumna 2, lado L
+  izquierdo: Campo<boolean>;  // subcolumna 3, lado A
+  derecho: Campo<boolean>;    // subcolumna 4, lado A
+}
+
+interface Fila {
+  letra: Campo<string>;       // no es clave (H-06)
+  codigo: Campo<string>;      // tal cual se leyó; NO se autocorrige
+  nombre: Campo<string>;
+  cantidad: Campo<number>;    // por tablero (H-05)
+  finalL: Campo<number>;      // mm, entero
+  finalA: Campo<number>;      // mm, entero
+  cantos: Cantos | null;      // null si el tablero no trae la columna (H-09)
+  materialCanto: Campo<string>;   // H-11; valor null si no hay marcas o no hay columna
+  estado: Estado;
+  motivos: Motivo[];          // vacío si el estado es "ok"
+}
+
+interface Tablero {
+  paginas: number[];          // páginas del tablero (H-08), sin contar el Resumen
+  indice: { n: number; total: number };
+  material: Campo<string>;
+  espesorMm: Campo<number>;
+  placaMm: { largo: Campo<number>; ancho: Campo<number> };
+  pie: { piezas: Campo<number>; longitudCortesM: Campo<number>; eficienciaPct: Campo<number> };   // eficiencia del PIE (H-12)
+  tasaLlenadoResumenPct: Campo<number>;   // informativa: no se valida ni se consolida
+  filas: Fila[];
+  motivos: Motivo[];          // problemas del tablero (p. ej. V-11)
+}
+
+interface PiezaConsolidada {  // una por código
+  codigo: string;
+  nombre: string;
+  material: string;
+  espesorMm: number;
+  cantidadTotal: number;      // suma de las apariciones
+  apariciones: Array<{ tablero: { n: number; total: number; material: string }; letra: string; cantidad: number }>;
+  finalL: number; finalA: number;
+  cantos: { inferior: boolean | null; superior: boolean | null; izquierdo: boolean | null; derecho: boolean | null };
+  estado: Estado;             // "dudosa" si alguna fila de origen es dudosa o falla V-2x
+  motivos: Motivo[];
+}
+
+interface ResultadoExtraccion {
+  schemaVersion: "extraccion.v1";
+  documento: { sha256: string; nombreArchivo: string; paginas: number };
+  proveedores: { ocr: string; llm: string | null; llmModeloId: string | null };
+  tableros: Tablero[];
+  piezas: PiezaConsolidada[];
+  resumen: { codigos: number; instancias: number; dudosas: number };
+  generadoEn: string;         // ISO 8601
+}
+```
+
+### 3.3 Catálogo de motivos (`Motivo = { codigo: string; detalle: string }`)
+
+El `detalle` explica el problema en lenguaje claro y siempre cita los valores leídos.
+
+| Código | Cuándo se usa |
+|---|---|
+| `DISCREPANCIA_FUENTES` | OCR y LLM (o píxeles) leen valores distintos para el mismo campo. |
+| `FUENTE_UNICA` | Solo una fuente produjo el campo (la otra falló o está apagada). |
+| `CAMPO_ILEGIBLE` | Ninguna fuente produjo el campo. |
+| `CODIGO_FORMATO_INVALIDO` | El código no cumple V-01. |
+| `CODIGO_DUPLICADO_EN_TABLERO` | El mismo código aparece dos veces en un tablero. |
+| `CONFLICTO_ENTRE_TABLEROS` | Mismo código con distinta medida, cantos, material o espesor en tableros distintos. |
+| `SUMA_PIEZAS_NO_CIERRA` | La suma de las cantidades ≠ "N piezas" del pie (V-11). |
+| `MEDIDA_FUERA_DE_PLACA` | L o A mayor que la placa (V-04). |
+| `COLUMNA_AUSENTE` | No se encontró "Finales" (V-12). Error. |
+| `CANTOS_NO_EXPORTADOS` | El tablero no trae "Tiras de cantos" (H-09). Advertencia: `cantos = null`, la pieza sigue sin canto conocido (ver V-12). |
+| `NO_EN_DAE` / `CANTIDAD_DISTINTA_DAE` / `MEDIDA_DISTINTA_DAE` / `ESPESOR_DISTINTO_DAE` | Validaciones contra el .dae (V-20 a V-23). |
+| `EFICIENCIA_NO_CIERRA` | Advertencia de tablero (V-13). No vuelve dudosas las piezas. |
+
+## 4. Pipeline
+
+```
+PDF ─► 1. Ingesta (sha256, caché idempotente)
+    ├► 2a. OCR: Vision files:annotate ─► 3a. Parser de tabla determinista (por posición)
+    ├► 2b. LLM: Gemini con PDF nativo y responseSchema ─► 3b. zod
+    └► 2c. Detector de marcas de canto por píxeles (punto de color; usa las celdas de 3a)
+       ─► 4. Reconciliación campo a campo ─► 5. Validación determinista ─► 6. Consolidación por código
+       ─► ResultadoExtraccion (dudosas con motivo) ─► revisión humana (imagen al lado)
+```
+
+1. **Ingesta.** Se calcula el sha256. Si el mismo hash y la misma configuración (proveedores, modelo, versión del esquema) ya se procesaron, se devuelve el resultado en caché. Así, reenviar el mismo archivo no genera duplicados.
+2. **OCR (2a).** Se usa Vision `files:annotate` síncrono con contenido inline y `DOCUMENT_TEXT_DETECTION`. Procesa hasta 5 páginas por pedido: si el PDF tiene más de 5, se parte en lotes indicando siempre `pages` (si no se indica, la cuota cuenta 5 páginas por archivo).
+3. **Parser de tabla (3a).** Es determinista y no usa el LLM:
+   - Clasifica cada página: Resumen, inicio de tablero (diagrama + tabla) o continuación.
+   - En cada página ubica los títulos de columna disponibles ("No.", "Designación", "Cant.", "Ajustadas", "Finales" L/A, "Tiras de cantos" ×4) por su bounding box. Las columnas pueden faltar (H-09).
+   - Delimita las filas con la letra de "No." y asigna cada palabra a su celda por posición.
+   - Reconstruye el código uniendo los renglones de la celda (H-10).
+   - Agrupa las páginas por "n/N" y material para formar el tablero; el pie se toma de su última página.
+4. **LLM (2b).** Gemini (`GEMINI_MODEL_ID` en variable de entorno) recibe el PDF nativo y un `responseSchema` equivalente a `Tablero[]`. Se le indica que transcriba el contenido y no corrija nada. La respuesta se valida con zod; si falla, se reintenta una vez y después se toma como fallo de la pasada.
+5. **Detector de marcas (2c).** Recorta cada celda de las subcolumnas 1–4 (coordenadas de 3a sobre la página rasterizada) y decide si hay marca por presencia de un punto de color saturado (H-11); devuelve también el color. Así, los cantos tienen tres fuentes independientes: el texto "Canto <material>" que lee el OCR en la celda, el punto de color y el LLM. Los íconos de los títulos de subcolumna (que definen el lado) no se leen: el orden 1–4 es fijo (H-04). **El umbral se calibra con los PDFs de Sabrina** (P-01).
+6. **Reconciliación (4).** Ver §5.
+7. **Validación (5).** Ver §6.
+8. **Consolidación (6).** Agrupa por código. Las medidas, los cantos, el material y el espesor tienen que coincidir entre apariciones; si no, se aplica `CONFLICTO_ENTRE_TABLEROS`. La cantidad total es la suma de las apariciones.
+
+## 5. Reglas de reconciliación (conservadoras)
+
+| Campo | Fuentes | Regla |
+|---|---|---|
+| Código, nombre, letra | OCR, LLM | Iguales después de normalizar espacios y guiones tipográficos (–, —) → `ambas`, ok. Distintos → `DISCREPANCIA_FUENTES`. Solo uno → `FUENTE_UNICA`. |
+| Cantidad, L, A, espesor, placa | OCR, LLM | Enteros iguales → ok. Cualquier diferencia → dudosa. **No hay tolerancia.** |
+| Cantos (×4) y material del canto | OCR (texto "Canto X" en la celda), píxeles (punto), LLM | Se necesitan **al menos 2 fuentes que coincidan** y ninguna en desacuerdo → ok. Cualquier desacuerdo, o una sola fuente → dudosa. |
+| Material | OCR, LLM | Igualdad sin distinguir mayúsculas ni tildes. |
+| Pie | OCR, LLM | Igual que los números. Un pie dudoso marca el tablero, no las filas. |
+
+Principio: **ante la duda, `dudosa`**. Ninguna regla elige "la fuente más confiable" para resolver un desacuerdo.
+
+## 6. Validación determinista (siempre activa, también con IA apagada)
+
+**Internas**
+
+| ID | Regla | Si falla |
+|---|---|---|
+| V-01 | `codigo` cumple `^\d{4}-\d{2}-M\d{2}-C\d{2}$` (sin autocorrección) | `CODIGO_FORMATO_INVALIDO` |
+| V-02 | El proyecto del código coincide con `contexto.proyecto` y el mueble está en `contexto.muebles` | `CODIGO_FORMATO_INVALIDO` |
+| V-03 | Cantidad entera ≥ 1; L y A enteros > 0 | `CAMPO_ILEGIBLE` |
+| V-04 | L ≤ largo de la placa y A ≤ ancho de la placa (o al revés, por rotación en el despiece) | `MEDIDA_FUERA_DE_PLACA` |
+| V-05 | No hay dos filas con el mismo código en un tablero | `CODIGO_DUPLICADO_EN_TABLERO` |
+| V-10 | Mismo código en varios tableros ⇒ mismas medidas, cantos, material y espesor (la cantidad puede variar: H-05) | `CONFLICTO_ENTRE_TABLEROS` |
+| V-11 | Σ cantidades del tablero (todas sus páginas) = "N piezas" del pie | `SUMA_PIEZAS_NO_CIERRA` (dudosas todas las filas del tablero) |
+| V-12 | Existen las columnas Finales (L, A). Si falta "Tiras de cantos" → cantos = `null`, **sin** error (H-09) | `COLUMNA_AUSENTE` (Finales) / `CANTOS_NO_EXPORTADOS` (advertencia) |
+| V-13 | La eficiencia recalculada (Σ Finales L·A·cant / área de la placa) coincide con la del pie, con tolerancia **±0,5 pp** (provisoria: Sabrina Fondo 3 mm da exacto, 71,47 %, pero Sabrina Blanco 18 mm da 82,70 % contra 82,40 % del pie; ver P-08) | `EFICIENCIA_NO_CIERRA` (advertencia) |
+
+**Contra el .dae (solo si se envía `dae`)**
+
+| ID | Regla | Si falla |
+|---|---|---|
+| V-20 | Cada código del PDF existe en el .dae (comparado con el código normalizado) | `NO_EN_DAE` |
+| V-21 | `cantidadTotal` = instancias del componente en el .dae | `CANTIDAD_DISTINTA_DAE` |
+| V-22 | {L, A} como conjunto (sin orden, por H-03) = las 2 dimensiones mayores del .dae, ±0,5 mm (redondeo de pulgadas) | `MEDIDA_DISTINTA_DAE` |
+| V-23 | El espesor del tablero = la dimensión menor del .dae, ±0,5 mm. **Distingue 3 mm de 18 mm**, porque en el .dae del Olmo C20 y C21 tienen el mismo material `Blanco_nature` que las piezas de 18 mm | `ESPESOR_DISTINTO_DAE` |
+| V-24 | Códigos del .dae que no están en el PDF | Se informan en `resumen` y no afectan a las filas (los evalúan A y C) |
+
+B informa estas discrepancias, pero no corrige los datos del PDF con el .dae ni al revés.
+
+## 7. Errores y excepciones (tipados)
+
+| Excepción | Causa | Comportamiento |
+|---|---|---|
+| `EntradaInvalidaError` | No es un PDF, tiene 0 páginas o excede el tamaño | Se rechaza sin llamar a proveedores. |
+| `FormatoNoReconocidoError` | Ninguna página tiene los títulos de tabla de OpenCutList | Se rechaza con mensaje claro. |
+| `ProveedorError` (timeout, 429, 5xx) | OCR o LLM | Hasta 2 reintentos con backoff exponencial. Si se agotan, se continúa en modo degradado con la otra pasada: todos los campos quedan `FUENTE_UNICA` → dudosa. |
+| `ExtraccionFallidaError` | Fallaron ambas pasadas | No se entrega ningún resultado parcial. |
+| `EsquemaInvalidoError` | La salida final no valida contra `extraccion.v1` | Error interno: se registra y no se entrega (es un bug). |
+
+Aserciones internas (fallan rápido): ningún campo `ok` puede tener `fuente === "ninguna"`, y el `estado` de una pieza consolidada nunca puede ser mejor que el de sus filas.
+
+## 8. Adaptadores y configuración
+
+```ts
+interface OcrAdapter  { nombre: string; leer(pdf: Uint8Array, paginas: number[]): Promise<OcrPagina[]> }
+interface LlmAdapter  { nombre: string; modeloId: string; extraer(pdf: Uint8Array, esquema: object): Promise<unknown> }
+```
+
+- Implementaciones v1:
+  - `VisionFilesAnnotateAdapter`: producción; verificar si acepta API key o exige cuenta de servicio (P-02).
+  - `TesseractAdapter`: solo para el Eval Harness offline.
+  - `GeminiAdapter`.
+- Cambiar a Anthropic o a Gemini pago implica solo un adaptador nuevo.
+- Variables de entorno: `GEMINI_MODEL_ID`, credenciales de Google, `OCR_PROVIDER`, `LLM_PROVIDER`, `PERMITIR_DATOS_REALES` (por defecto `false`).
+
+## 9. R5 — IA desactivable
+
+- Con `iaLlmActiva = false` no se llama a Gemini. Los campos quedan con fuente OCR y los cantos con fuentes OCR y píxeles (pueden dar `ok` si coinciden), todos con `FUENTE_UNICA` → dudosa. Las validaciones §6 siguen activas.
+- El OCR no se puede apagar: sin texto seleccionable (H-01), es la única forma de leer el PDF. **Pendiente (P-06):** confirmar con la cátedra si apagar el OCR implica carga manual (fuera de alcance v0.1).
+
+## 10. Privacidad
+
+- En la capa gratis de Gemini, Google puede usar el contenido y revisores humanos pueden leerlo. Por eso, **solo se procesan PDFs de prueba del Olmo** mientras `PERMITIR_DATOS_REALES = false`. Si la bandera es `false` y el adaptador está en capa gratis, el sistema rechaza los PDFs que no figuren en una lista blanca por sha256.
+- El envío de PDFs a APIs externas tiene acuerdo verbal y le falta confirmación escrita de Casa Mueble, que tiene que mencionar este punto. Los términos de Vision no están verificados.
+
+## 11. Eval Harness
+
+**Dataset v0** (decisión del equipo, 03/11: **Sabrina es el dataset principal**, porque sus PDFs son los más nuevos —exportados el 14/10 contra el 09/10 del Olmo— y los únicos con canto)
+- **Olmo** (secundario; sin columnas de canto): 3 PDFs (Blanco nature 18 mm, Gaudi 18 mm, Blanco nature 3 mm) más el .dae. Sirve para medidas, cantidades, tableros de varias páginas y consolidación.
+- **Sabrina** (principal; con canto): 3 PDFs (Blanco liso 18 mm, Cedro 18 mm con 2 tableros, Fondo blanco 3 mm) más el .dae. Sirve para cantos, material del canto, columnas ausentes en el Fondo, letras repetidas entre tableros y dos muebles en un PDF.
+- Sin bloqueantes para arrancar. La evaluación de cantos del Olmo queda pendiente hasta reexportarlo con canto (P-10).
+
+**Ground truth**
+- Archivo `eval/olmo/ground-truth.json` en formato `extraccion.v1`, armado a mano por los dos integrantes por separado y conciliado.
+- **Olmo:** medidas y cantidades verificadas contra el .dae (21 códigos, 33 instancias, todas las medidas coinciden). Sin ground truth de cantos: el listado del Excel solo da cantidades por lado L/A, no qué lado (ver I-03).
+- **Sabrina:** cantidades verificadas contra el .dae (29 códigos, 105 instancias): Blanco 18 mm = 50, Fondo 3 mm = 13, Cedro = 17 (1/2) + 25 (2/2) = 42, total 105. Las medidas contra el .dae **no** se verificaron todavía. Los cantos (subcolumnas 1–4 y material) se transcriben a mano del PDF.
+
+**Casos adversarios sintéticos** (variantes del ground truth): omitir una página de continuación, quitar la columna de cantos, intercambiar los puntos de color, código con `__` final, código con `_` inicial, código duplicado en un tablero, fila omitida, cantidad alterada, PDF rasterizado a menor resolución, rotación leve (±1°) y ruido.
+
+**Métricas**
+
+| Métrica | Definición | Umbral |
+|---|---|---|
+| **Errores seguros** | Campos con valor incorrecto y estado `ok` | **= 0 (bloqueante)** |
+| Cobertura de dudas | Errores marcados `dudosa` / errores totales | = 100 % (equivale a lo anterior por pieza) |
+| Exactitud por campo | Correctos / total, por tipo de campo | Se informa; el umbral se fija después de la primera medición |
+| Tasa de dudosas | Piezas dudosas / piezas | Se informa; el umbral se fija después de la primera medición (carga de revisión) |
+| Detección de adversarios | Casos adversarios marcados con el motivo esperado | = 100 % |
+| Latencia y costo por página | Medidos por proveedor | Sin umbral; se informan |
+
+**Modos de ejecución**
+- *Replay*: se usan respuestas de los proveedores guardadas como fixtures. Es determinista y corre en CI con vitest.
+- *Live*: llama a las APIs. Es manual y se corre antes de cada entrega semanal.
+
+## 12. Pruebas unitarias (vitest)
+
+- Parser de tabla:
+  - Fixtures de salida de Vision por página.
+  - Asignación de palabras a columnas.
+  - Filas de dos renglones (código + nombre).
+- Reconciliación: cada fila de la tabla §5.
+- Validaciones: cada regla V-xx con un caso que pasa y uno que falla.
+- Consolidación: mismo código en dos tableros, con y sin conflicto.
+- Esquema: el round-trip con zod rechaza versiones y campos desconocidos.
+- Cobertura: se propone ≥ 90 % de líneas en reconciliación, validación y consolidación. Falta confirmarla con la cátedra.
+
+## 13. Trazabilidad
+
+| Requisito / regla | Sección | Pruebas / eval |
+|---|---|---|
+| IA B: extraer, no decidir | §1, §5 | Métrica de errores seguros |
+| H-02 Finales | §3.2, §4 | Ground truth |
+| H-03 L/A sin reordenar | §3.2, V-22 | Prueba unitaria: L < A se conserva |
+| H-04 Cantos 1–4 | §3.2, §4 (2c) | Exactitud de cantos |
+| H-05/H-06 Cantidad por tablero, letra local | §4 (8), V-05, V-10 | Prueba de consolidación |
+| H-07 Formato de código | V-01, V-02 | Casos adversarios `__` y `_` |
+| R5 IA desactivable | §9 | Ejecución de eval con `iaLlmActiva=false` |
+| QR sin duplicados al reenviar | §4 (1) idempotencia | Prueba: mismo sha256 → mismo resultado |
+| R4 Sección de cortes | Fuera del alcance (P-07) | — |
+
+## 14. Inconsistencias de insumos (Olmo)
+
+| ID | Inconsistencia | Acción |
+|---|---|---|
+| I-01 | **Retirada.** En v0.1 se dio por incompleto el PDF de Blanco nature 18 mm del Olmo por no revisar su tercera página: está completo (A–G en la página 2, H–M y el pie en la 3; 20 piezas, eficiencia 55,14 %). El error de lectura es mío; de ahí sale H-08. | Ninguna. |
+| I-02 | Los PDFs del Olmo no traen "Tiras de cantos" ni "Ajustadas". Los únicos con esas columnas son los de Sabrina (confirmado por el equipo el 03/11). | Usar Sabrina para cantos. Reexportar el Olmo con canto (P-10). |
+| I-03 | El listado del Excel (descartado el 20/10) expresa los cantos como "2 largos 1 corto" y usa "Color blanco" para el fondo de 3 mm (el PDF y el .dae dicen Blanco nature). | Usarlo solo como contraste, no como insumo ni como verdad de lado. |
+| I-04 | Resuelta en parte: el 12,02 % del fondo de 3 mm es la **Tasa de llenado** del Resumen y el 11,80 % es la **Eficiencia** del pie; los dos salen del mismo PDF de OpenCutList. El "Estado del proyecto" atribuye el 11,80 % al optimizador online. | Revisar esa atribución y el criterio de cada cifra (¿Resumen o pie?), también para 55,14 % y 16,65 %. |
+| I-05 | En el .dae, C20 y C21 (3 mm) usan el material `Blanco_nature` de 18 mm. | Resuelto por V-23 (espesor). |
+| I-06 | Sabrina y Olmo comparten `0001-01`; Sabrina tiene además `0001-02` en el mismo PDF (H-13). | Resuelto en el contrato (`muebles[]`). La numeración única de proyectos sigue pendiente con Casa Mueble. |
+
+## 15. Pendientes y preguntas abiertas
+
+| ID | Pendiente |
+|---|---|
+| P-01 | Calibrar el detector de marcas por color con los PDFs de Sabrina (¿hay más colores de canto además de azul y rojo?). |
+| P-02 | Si Vision `files:annotate` acepta API key o exige cuenta de servicio. |
+| P-03 | Límites vigentes de la capa gratis de Gemini (AI Studio) y del modelo elegido. |
+| P-04 | Confirmación escrita de la leyenda del canteado (consulta 56) y del envío a APIs externas. |
+| P-05 | Límite de cuerpo de las funciones de Vercel con subida a Blob. |
+| P-06 | Alcance de R5 para B (¿apagar también el OCR?), con la cátedra. |
+| P-07 | Origen del listado de cortes para R4: el PDF actual no lo trae. ¿Otra exportación de OpenCutList? |
+| P-08 | Umbrales de exactitud, de tasa de dudosas y la tolerancia de V-13, a fijar después de la primera medición. |
+| P-09 | Numeración de módulos con más de uno (V-02 hoy solo valida el formato `Mmm`). |
+| P-10 | Reexportar el Olmo desde OpenCutList con canto definido en el modelo, para tener su ground truth de cantos. |
+| P-11 | Verificar las medidas del .dae de Sabrina contra el PDF (solo se contrastaron cantidades). |

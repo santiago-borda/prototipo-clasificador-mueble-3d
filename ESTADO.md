@@ -61,6 +61,16 @@ QR en tres niveles: `olmo-mueble`, `olmo-mod-escritorio` / `olmo-mod-cajones`, `
 - La cámara del escáner exige **https o localhost**. Con `npm run dev:lan` por `http://<IP>:3000` el navegador la bloquea (usar la cámara nativa del celular o la URL `/p/<qrId>`).
 - Datos de ficha en mock; no hay API ni persistencia.
 
+## Extracción OCR (Cloud Vision, 5/11)
+
+- Prueba de humo OK (246 caracteres, 33 palabras, imagen sin datos de clientes). Valida credenciales y conectividad; **no** valida la calidad del OCR.
+- Clave: cuenta de servicio con clave JSON, solo en `credentials/` y por variable de entorno. Salidas solo en `.ocr-data/`. Ambas ignoradas por git.
+- P-02: **parcial**. Credenciales y conectividad OK en local (5/11); no se probó API key; falta la prueba con una página de Sabrina (depende de P-04).
+- `@google-cloud/vision`: aprobada por el equipo (commit `18daa6a`). P-12 (rasterizado) sigue abierta.
+- El spike `scripts/vision-smoke.mjs` no se commitea en `pdf-esquema-sesion-1`; la versión real irá en una rama de extracción (B); la spec v0.3 está aprobada; falta resolver P-02 y P-12.
+- Abiertas: P-04 (confirmación escrita de Casa Mueble), P-12, P-15; P-02 parcial.
+- Siguiente (solo anotado): fixture sintético que imite una página de OpenCutList (datos falsos) con aserciones sobre tokens conocidos; verificar en la documentación de Vision si procesa PDF directo (impacta P-12).
+
 ## Fuera de alcance
 
 Autenticación, base de datos, API, motor de asociación real, etiquetas, guía de armado y asociación automática de piezas.

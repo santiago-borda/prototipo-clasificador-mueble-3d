@@ -59,4 +59,5 @@ next-env.d.ts
 
 # importador de prueba: almacenamiento local de desarrollo (IMPORT_STORE=local)
 /.import-data/
-credentials/vision-key.json
+# credenciales (claves de cuenta de servicio de Google Cloud)
+/credentials/

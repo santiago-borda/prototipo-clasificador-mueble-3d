@@ -5,9 +5,9 @@
 | Proyecto | PFG-Muebles-3D (Casa Mueble) |
 | Módulo | B, apoyo de IA: extracción de datos del PDF (OCR + LLM) |
 | Versión | 0.3 (aprobada el 3/11; reemplaza a la 0.2) |
-| Fecha | 03/11/2026 (ajustes del 05/11 en §8, §9, §12, §14 y P-02/P-15: credenciales y salidas del OCR) |
+| Fecha | 03/11/2026 (ajustes del 05/11 en §8, §9, §12, §14 y P-02/P-15: credenciales y salidas del OCR). 05/11: prueba de humo de Cloud Vision, credenciales y conectividad OK en local; no valida calidad del OCR |
 | Autores | Santiago Borda, Lautaro Salina |
-| Estado | **Aprobada el 3/11** (informado por el equipo). Siguen abiertos los puntos de §15 y la decisión de §5.3; el adaptador de OCR no se programa antes de resolver P-02 y P-12 |
+| Estado | **Aprobada el 3/11** (por el equipo y el profesor). Siguen abiertos los puntos de §15 y la decisión de §5.3; el adaptador de OCR no se programa antes de resolver P-02 y P-12. P-02 está **parcial** (no resuelta): se resuelve con la prueba con una página de Sabrina (depende de P-04) |
 | Contrato del que depende | `docs/spec-esquema-pdf.md` (aprobada el 3/11): `CutListPdf`, `FuenteDePdf`, INV-0 a INV-15, catálogo cerrado de razones. **Si esta spec y aquella chocan, manda aquella.** |
 | Lo consume | Motor de asociación A (`spec-motor-asociacion.md`), detector de inconsistencias C, sección de cortes (R4) |
 
@@ -242,7 +242,7 @@ interface LlmAdapter { readonly name: string; readonly modelId: string; extract(
 | ID | Pendiente |
 |---|---|
 | P-01 | Calibrar el detector de marcas por color con Sabrina (¿hay colores de canto además de azul y rojo?). Sesión 3. |
-| P-02 | Si Cloud Vision acepta API key o exige cuenta de servicio. Para la sesión 2 se creó una cuenta de servicio con clave JSON (5/11); el uso de API key no está verificado. Falta la prueba de humo con una página de Sabrina. |
+| P-02 | Si Cloud Vision acepta API key o exige cuenta de servicio. Para la sesión 2 se creó una cuenta de servicio con clave JSON (5/11); el uso de API key no está verificado. **Parcial:** credenciales y conectividad verificadas en local (5/11); falta la prueba con una página de Sabrina (depende de P-04). |
 | P-03 | Límites vigentes de la capa gratis de Gemini y del modelo elegido. |
 | P-04 | Guardar la captura de la confirmación escrita de Casa Mueble: envío de PDF a APIs externas (con la aclaración sobre la capa gratis), uso y envío de los archivos de Sabrina. Pendiente de respuesta: consulta 56 (orden 1 a 4 informado; falta cara de referencia, espejadas y la confirmación escrita). |
 | P-05 | Límite de cuerpo de las funciones de Vercel con subida a Blob (si B se despliega allí). |

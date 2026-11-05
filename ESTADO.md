@@ -81,7 +81,7 @@ QR del prototipo en tres niveles: `olmo-mueble`, `olmo-mod-escritorio` / `olmo-m
 
 - Prueba de humo OK (246 caracteres, 33 palabras, imagen sin datos de clientes). Valida credenciales y conectividad; **no** valida la calidad del OCR.
 - Clave: cuenta de servicio con clave JSON, solo en `credentials/` y por variable de entorno. Salidas solo en `.ocr-data/`. Ambas ignoradas por git.
-- **[Pendiente] Seguridad de la clave:** mover el JSON fuera de la carpeta del repo (apuntarlo con `GOOGLE_APPLICATION_CREDENTIALS`); pasar la exclusión de `.git/info/exclude` (solo local) al `.gitignore` versionado (`credentials/`, `.ocr-data/`, `*-credentials*.json`, `service-account*.json`, `.env*` con `!.env.example`); no armar zips hasta hacerlo. Verificado el 5/11: el historial local no contiene `private_key` ni archivos con nombre de credencial. Falta `git fetch --all` con la misma búsqueda y buscar `private_key` en GitHub web.
+- Verificado el 5/11: ningún commit de las ramas locales contiene `BEGIN PRIVATE KEY` ni archivos con nombre de credencial. Falta `git fetch --all` con la misma búsqueda y buscar esa marca en GitHub web.
 - **[Pendiente]** Revisar los roles de la cuenta de servicio (solo lo necesario para Vision), alerta de presupuesto y confirmar si Cloud Vision usa el contenido enviado.
 - P-02: **parcial**. Credenciales y conectividad OK en local (5/11); no se probó API key; falta la prueba con una página de Sabrina (depende de P-04).
 - `@google-cloud/vision`: aprobada por el equipo (commit `18daa6a`). P-12 (rasterizado) sigue abierta.

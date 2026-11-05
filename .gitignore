@@ -63,3 +63,10 @@ next-env.d.ts
 /.ocr-data/
 # credenciales (claves de cuenta de servicio de Google Cloud)
 /credentials/
+# claves fuera del repo ($HOME\.secrets\gcp); red de seguridad por si alguna cae acá
+.secrets/
+*-key.json
+*service-account*.json
+*.p12
+# PDF del fixture sintético: se regeneran (docs/spec-fixture-sintetico.md §7), no se commitean
+/.fixtures-gen/

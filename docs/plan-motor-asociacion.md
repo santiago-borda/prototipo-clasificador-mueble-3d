@@ -18,13 +18,13 @@ Ambigüedades y contradicciones encontradas al planificar. **No están resueltas
 
 | # | Tema | Qué encontré | Por defecto en el plan | Tareas afectadas |
 |---|---|---|---|---|
-| Q1 | "Olmo u Oslo" | El encargo dice preguntar a Casa Mueble "Olmo u Oslo" antes de etiquetar. El spec §2.2 y §15 dicen que **Olmo está confirmado** (consulta 34, cerrada el 16/10) y que lo pendiente es la **reexportación** (consulta 48). | Sigo el spec: el punto de parada es la consulta 48 (reexportación), no la 34. | T23, parada CM-48 |
+| Q1 | "el nombre confirmado u Oslo" | El encargo dice preguntar a Casa Mueble "el nombre confirmado u Oslo" antes de etiquetar. El spec §2.2 y §15 dicen que **el nombre del primer fixture está confirmado** (consulta 34, cerrada el 16/10) y que lo pendiente es la **reexportación** (consulta 48). | Sigo el spec: el punto de parada es la consulta 48 (reexportación), no la 34. | T23, parada CM-48 |
 | Q2 | Herramienta de etiquetado "solo de desarrollo" | El encargo la llama entrada solo de desarrollo. El spec §10.3 dice explícitamente que **cambió**: la usa personal de Casa Mueble desde afuera, con **despliegue aparte, no indexado**, y sigue fuera del bundle de producción. | Sigo el spec: app estática aparte (`tools/etiquetado/`, `output: "export"`), que el build de la app no compila; verificación contra la salida de los dos builds. | T17, T18 |
 | Q3 | Orden de la fase 1 | El encargo pone el etiquetado (3) antes que motor y harness (4). El spec §2.2 y el cronograma §2.3 ponen motor y harness en el paso 3 y la herramienta en paralelo (paso 4), y el etiquetado espera la reexportación. | Dos pistas: **A** (adapter → motor → harness → visor, el mínimo de la pre-entrega) y **B** (herramienta de etiquetado, en paralelo desde T3, con meta 13/11). | Orden de tareas |
 | Q4 | `modelId` y fines de línea | §3: `modelId = sha256` de los **bytes**. M1: "mismo `modelId` con fin de línea LF y CRLF". Son incompatibles si se hashean bytes crudos. Además, **en esta copia `public/models/Olmo/olmo.dae` está en CRLF en disco y LF en el índice** (`git ls-files --eol`: `i/lf w/crlf`): hoy el hash en Windows y en Linux da distinto. | `modelId = sha256` de los bytes **con `\r\n` → `\n`** antes de hashear; `.gitattributes` + re-checkout igual (defensa doble). Alternativa: bytes crudos y M1 verifica que el disco quede en LF tras el re-checkout. | T1 |
 | Q5 | "Sin CI" | El spec §1 dice "lo que pasó G1–G5 en CI"; el proyecto no tiene CI (CLAUDE.md). | El gate se corre a mano (`npm run eval`) y `--publicar` solo escribe si el gate aprueba. Nada de CI. | T11 |
 | Q6 | Cambios sin commitear del 16/10 | El encargo dice que hay cambios sin commitear en `CLAUDE.md`, `docs/spec-siguiente-paso.md` y `tests/sabrina.test.ts`. `git status` está limpio: esos cambios están en el commit `4eb8f04` ("actualizacion de archivo de spec"). | Nada que excluir. Igual, T12 tiene que tocar `tests/sabrina.test.ts` (A4 reescrito, spec §11). | T12 |
-| Q7 | "Sabrina" en el spec | Cuento **15** líneas con "Sabrina" (no 13): 5, 153, 399, 403, 405, 482, 497, 511, 512, 573, 579, 621, 641, 642, 752. Cuatro son rutas o el nombre de la carpeta (5, 153 en parte, 405, 512). | Recomiendo homogeneizar el texto a "segundo modelo local" y dejar las rutas `Sabrina/`. **No toqué el spec**: espero tu OK. | ninguna (documento) |
+| Q7 | "segundo fixture" en el spec | Cuento **15** líneas con "segundo fixture" (no 13): 5, 153, 399, 403, 405, 482, 497, 511, 512, 573, 579, 621, 641, 642, 752. Cuatro son rutas o el nombre de la carpeta (5, 153 en parte, 405, 512). | Recomiendo homogeneizar el texto a "segundo modelo local" y dejar las rutas `Sabrina/`. **No toqué el spec**: espero tu OK. | ninguna (documento) |
 
 ---
 
@@ -34,13 +34,13 @@ Cada tarea las incluye implícitamente.
 
 - `src/engine/` **no importa three ni usa el DOM** (ni `DOMParser`, `document`, `window`). Puede usar `node:crypto` (el motor nunca corre en el cliente, spec §1).
 - **Sin dependencias nuevas.** El eval corre con `vite-node` (ya en `node_modules` por vitest 3) e inyecta `DOMParser` desde `jsdom` 24.1.3, el mismo que usa vitest.
-- **Privacidad:** nada de Sabrina en el repo — ni .dae, ni listado, ni esperados, ni baseline, ni etiquetas, ni reportes, ni códigos o cifras en documentos versionados. Todo lo de Sabrina vive en `Sabrina/` (ignorada). Sin `Sabrina/`, todo corre y el reporte dice **"no ejecutado"** (no es falla del gate).
-- Los conteos de Olmo **32 seguras + 1 dudosa (C01) + 6 sin asociar son una estimación**: ninguna prueba los escribe a mano. Los fija la primera corrida real, revisada a mano, en `eval/esperados.json` (T12).
-- La C01 de Olmo queda `dudosa` (`nombre-anomalo`) y **sin vincular** en la fase 1: efecto esperado, no regresión.
+- **Privacidad:** nada del segundo fixture en el repo — ni .dae, ni listado, ni esperados, ni baseline, ni etiquetas, ni reportes, ni códigos o cifras en documentos versionados. Todo lo del segundo fixture vive en `Sabrina/` (ignorada). Sin `Sabrina/`, todo corre y el reporte dice **"no ejecutado"** (no es falla del gate).
+- Los conteos del primer fixture **32 seguras + 1 dudosa (C01) + 6 sin asociar son una estimación**: ninguna prueba los escribe a mano. Los fija la primera corrida real, revisada a mano, en `eval/esperados.json` (T12).
+- La C01 del primer fixture queda `dudosa` (`nombre-anomalo`) y **sin vincular** en la fase 1: efecto esperado, no regresión.
 - `.gitattributes` con `*.dae binary` va en el **mismo commit** que `git add --renormalize .`.
 - Nunca editar un .dae a mano. Un .dae nuevo y su `esperados.json` regenerado van en el mismo commit.
 - `AssociationRun` sin fechas ni tiempos; `results` ordenados por `instanceKey` con comparación binaria (`a < b ? -1 : a > b ? 1 : 0`, nunca `localeCompare`).
-- Parámetros: `ε = 1e-6` mm, `tupleRoundingMm = 0.01` (por defecto), tolerancia = `FurnitureDef.toleranceMm` (Olmo 2 mm).
+- Parámetros: `ε = 1e-6` mm, `tupleRoundingMm = 0.01` (por defecto), tolerancia = `FurnitureDef.toleranceMm` (primer fixture 2 mm).
 - `modelId` y `listadoId` llevan prefijo `sha256:`; en nombres de archivo va el hash **sin** prefijo.
 - Sin CI, sin base de datos, sin auth. No tocar `ESTADO.md`. **No commitear sin pedido explícito del usuario**: los pasos "Commit" de este plan son "proponer el commit y esperar el OK".
 - Next 16: antes de usar una API de Next, leer `node_modules/next/dist/docs/` (AGENTS.md).
@@ -51,16 +51,16 @@ Cada tarea las incluye implícitamente.
 |---|---|---|
 | Correlación XML ↔ malla (spec §4a) | `daeIndex.ts` recorre el XML, arma la tabla de instancias y devuelve un XML **etiquetado**: el `name` de cada nodo-instancia pasa a `@key:<instanceKey>`. three conserva ese nombre; el adapter y el visor buscan el ancestro `@key:` de cada malla. `NamedColladaLoader` usa el mismo índice (deja de depender de `PIECE_NAME`). | Un solo recorrido del XML para adapter y visor; no depende de que three exponga el `id` (sin verificar, §19). |
 | Instancia con componente | Nodo de `visual_scene` con exactamente un `<instance_node>` y sin contenido propio. `rawName` = `name` del nodo de `library_nodes` apuntado, tal cual. | Igual a lo verificado en §19. |
-| Malla suelta | Nodo de `visual_scene` (fuera de un componente) con `<instance_geometry>` cuya geometría tiene triángulos. Una `Observation` por nodo, `rawName: null`. | Olmo: 6 nodos `group_6…group_11`, uno por malla. |
+| Malla suelta | Nodo de `visual_scene` (fuera de un componente) con `<instance_geometry>` cuya geometría tiene triángulos. Una `Observation` por nodo, `rawName: null`. | Primer fixture: 6 nodos `group_6…group_11`, uno por malla. |
 | Líneas | Geometría con solo `<lines>`/`<linestrips>`: se cuenta como línea, **no** como malla suelta. | El segundo modelo local tiene objetos de líneas y ninguna malla sin código (cifras en el anexo local). |
 | Fallar fuerte | `DaeStructureError { nodeId }` si un nodo tiene >1 `instance_node`, o `instance_node` + contenido propio, o si un componente de la biblioteca contiene otro `instance_node` (componente anidado: no lo cubre el spec; se falla en vez de adivinar). | §4a "el adapter no adivina". |
 | Caja de referencia del mueble | Unión de las cajas de **todas** las observaciones del modelo sin perturbar (con y sin componente). | §5.2 "geometría del modelo". |
-| Marco v1 (`frameVersion = "marco/1"`, AS2) | Escena de three tras `ColladaLoader` (Y arriba). Eje 0 = X (izquierda 0 → derecha 1), eje 1 = Y (abajo → arriba), eje 2 = Z (atrás → **frente**, +Z). Frente = lado desde el que mira la cámara inicial del visor (`BASE_CAMERA = [1.8, 1.2, 2.15]`). Se documenta en `docs/marco-referencia.md` y se verifica con las tapas de cajón de Olmo. | §4a pide documentarlo. |
+| Marco v1 (`frameVersion = "marco/1"`, AS2) | Escena de three tras `ColladaLoader` (Y arriba). Eje 0 = X (izquierda 0 → derecha 1), eje 1 = Y (abajo → arriba), eje 2 = Z (atrás → **frente**, +Z). Frente = lado desde el que mira la cámara inicial del visor (`BASE_CAMERA = [1.8, 1.2, 2.15]`). Se documenta en `docs/marco-referencia.md` y se verifica con las tapas de cajón del primer fixture. | §4a pide documentarlo. |
 | Tupla (`ScoreTuple`) | 7 números, **menor = mejor**, comparación lexicográfica. e1–e3: 0/1; e4–e6: 0 cumple, 1 neutral o no disponible, 2 no cumple; e7: desvío total en mm redondeado a `tupleRoundingMm`. | Un único orden ascendente; el primer elemento distinto es la explicación. |
 | Proyección para G2 | `esperados.json` guarda por `modelId`: `furnitureId`, `listadoId`, y por instancia `instanceKey`, `level`, `pieceCode`, `reasons`, códigos del top-3. La evidencia (texto) no entra. | Evita que un cambio de redacción rompa G2; lo que decide el nivel sí entra. |
-| Publicación | `npm run eval -- --publicar` escribe `eval/runs/<hash>.json` solo si el gate aprueba y el `furnitureId` está en `eval/publico.json`. Sabrina publica en `Sabrina/eval/runs/`. La primera publicación de un `modelId` escribe `eval/primera-corrida.json`. | §1, §9.7, §10.6. |
+| Publicación | `npm run eval -- --publicar` escribe `eval/runs/<hash>.json` solo si el gate aprueba y el `furnitureId` está en `eval/publico.json`. Segundo fixture publica en `Sabrina/eval/runs/`. La primera publicación de un `modelId` escribe `eval/primera-corrida.json`. | §1, §9.7, §10.6. |
 | Lectura en la app | En build, un módulo de servidor (`src/lib/publishedRuns.ts`) lee el .dae del disco, calcula su `modelId` y busca el run. A los componentes cliente solo llega `SafeLinks` (mapa de seguras). | El motor no corre en el cliente (RF11); `crypto.subtle` no existe en http por LAN. |
-| Sabrina presente sin esperados | G2 **falla** con "falta Sabrina/eval/esperados.json" (salvo con `--escribir-esperados`). Sabrina **ausente** = "no ejecutado". | Presente y sin referencia no es "no ejecutado". |
+| Segundo fixture presente sin esperados | G2 **falla** con "falta Sabrina/eval/esperados.json" (salvo con `--escribir-esperados`). Segundo fixture **ausente** = "no ejecutado". | Presente y sin referencia no es "no ejecutado". |
 | Herramienta de etiquetado | App Next aparte en `tools/etiquetado/` (`output: "export"`, build con `next build tools/etiquetado`). No importa nada de `src/`: consume `public/modelo.dae` (saneado) y `public/listado.json` (sin códigos: refs opacas). Tabla token ↔ `instanceKey` y ref ↔ código en `tools/etiquetado/tokens.json`, fuera de `public/`. | §10.3; Turbopack autodetecta la raíz por `package-lock.json`, así que resuelve `node_modules` del repo. |
 
 ## Foco de revisión
@@ -80,10 +80,10 @@ Entradas que el spec implica y que ninguna tarea probaría por sí sola; cada un
 | Parada | Qué se espera | De quién | Bloquea | No bloquea |
 |---|---|---|---|---|
 | **P-0** | Respuestas a Q1–Q7 | Usuario | T1 (Q4), T17–T18 (Q2) | — |
-| **CM-48** | Reexportación del .dae de Olmo con el nombre corregido | Casa Mueble | T23 (cambio controlado), etiquetado real | T1–T22 (se trabaja con el .dae provisorio) |
+| **CM-48** | Reexportación del .dae del primer fixture con el nombre corregido | Casa Mueble | T23 (cambio controlado), etiquetado real | T1–T22 (se trabaja con el .dae provisorio) |
 | **CM-55** | Quién etiqueta, cuándo, desde qué dispositivo | Casa Mueble | Sesión de etiquetado (T18 paso final) | Construir la herramienta |
 | **CM-49** | ¿El `__` de C01 es error? | Casa Mueble | Nada (cambia la expectativa en T23) | Todo |
-| **U-esperados** | Revisión a mano de la primera corrida de Olmo | Usuario | Escribir `eval/esperados.json` y publicar (T12) | T13 |
+| **U-esperados** | Revisión a mano de la primera corrida del primer fixture | Usuario | Escribir `eval/esperados.json` y publicar (T12) | T13 |
 | **U-vercel** | Crear el proyecto de Vercel de la herramienta (acción externa) | Usuario | Despliegue de T18 | Build local de T18 |
 | **PROF-IA** | ¿El motor de reglas cumple como "IA obligatoria"? (§17) | Profesor | T15, T19, T20 (catálogo completo, sombra, baseline) | T1–T14 (mínimo de pre-entrega) |
 | **PROF-RF** | Validar RF1–RF11; metas numéricas tras el baseline | Profesor | Fijar metas (fuera de este plan) | Todo |
@@ -241,15 +241,15 @@ Sin dependencia de Casa Mueble.
 ```ts
 it.each([
   [null, { kind: "sin-componente" }],
-  ["0001-01-M01-C04", { kind: "canonico", code: "0001-01-M01-C04" }],
-  ["_0001-01-M01-C04", { kind: "canonico", code: "0001-01-M01-C04" }],
-  ["__0001-01-M01-C04", { kind: "anomalo", code: "0001-01-M01-C04" }],    // solo inicial
-  ["_0001-01-M01-C01__", { kind: "anomalo", code: "0001-01-M01-C01" }],   // solo final (C01 de Olmo)
-  ["0001-01-M01-C04_", { kind: "anomalo", code: "0001-01-M01-C04" }],     // solo final, sin _ inicial
-  ["___0001-01-M01-C04__", { kind: "anomalo", code: "0001-01-M01-C04" }], // ambos
+  ["9999-01-M01-C04", { kind: "canonico", code: "9999-01-M01-C04" }],
+  ["_9999-01-M01-C04", { kind: "canonico", code: "9999-01-M01-C04" }],
+  ["__9999-01-M01-C04", { kind: "anomalo", code: "9999-01-M01-C04" }],    // solo inicial
+  ["_9999-01-M01-C01__", { kind: "anomalo", code: "9999-01-M01-C01" }],   // solo final (C01 de Olmo)
+  ["9999-01-M01-C04_", { kind: "anomalo", code: "9999-01-M01-C04" }],     // solo final, sin _ inicial
+  ["___9999-01-M01-C04__", { kind: "anomalo", code: "9999-01-M01-C04" }], // ambos
   ["instance_3", { kind: "formato-invalido" }],
-  ["_0001-01-M01-C4", { kind: "formato-invalido" }],
-  ["x_0001-01-M01-C04", { kind: "formato-invalido" }],
+  ["_9999-01-M01-C4", { kind: "formato-invalido" }],
+  ["x_9999-01-M01-C04", { kind: "formato-invalido" }],
   ["", { kind: "formato-invalido" }],
 ])("normalizeName(%j)", (raw, expected) => expect(normalizeName(raw)).toEqual(expected));
 ```
@@ -325,7 +325,7 @@ it("olmo.dae: 33 componentes + 6 mallas sueltas + 0 líneas, instanceKey únicos
   expect(idx.entries.filter((e) => e.kind === "malla-suelta")).toHaveLength(6);
   expect(idx.lineObjects).toBe(0);
   expect(new Set(idx.entries.map((e) => e.instanceKey)).size).toBe(39);
-  expect(idx.entries.filter((e) => e.rawName === "_0001-01-M01-C01__")).toHaveLength(1);
+  expect(idx.entries.filter((e) => e.rawName === "_9999-01-M01-C01__")).toHaveLength(1);
 });
 ```
 
@@ -357,7 +357,7 @@ Sin dependencia de Casa Mueble (el marco es AS2, consulta 53, no bloquea).
 
 ```ts
 it("panel 500x300 con canto en los dos lados largos → [500, 500]", () => {
-  const obs = observeDae(enc(buildDae({ panels: [{ name: "_0001-01-M01-C01", sizeMm: [500, 300, 18], atMm: [0, 0, 0], cantoFaces: ["y-", "y+"] }] })));
+  const obs = observeDae(enc(buildDae({ panels: [{ name: "_9999-01-M01-C01", sizeMm: [500, 300, 18], atMm: [0, 0, 0], cantoFaces: ["y-", "y+"] }] })));
   expect(obs.observations[0].edgeRunsMm).toEqual([500, 500].map((v) => expect.closeTo(v, 3)));
 });
 it("largo < ancho (300 de largo, 500 de ancho): devuelve largos crudos, sin clasificar", () => { /* edgeRunsMm [300] */ });
@@ -433,7 +433,7 @@ it("package.json no suma dependencias", () => {
 });
 ```
 
-`eval/alias-check.ts`: `installDom()`, importa `observeDae` por `@/model/observe`, imprime `observaciones: <n>` para Olmo.
+`eval/alias-check.ts`: `installDom()`, importa `observeDae` por `@/model/observe`, imprime `observaciones: <n>` para el primer fixture.
 - [ ] **Paso 2:** correr → FAIL. Comprobar también que sin `installDom()` falla con `DOMParser is not defined` (deja el motivo escrito en el comentario de `dom.ts`).
 - [ ] **Paso 3:** implementar.
 - [ ] **Paso 4:** `npx vitest run tests/eval/runner.test.ts` → PASS; `npm run eval` → imprime `jsdom 24.1.3`, código 0.
@@ -450,10 +450,10 @@ AS3. Sin dependencia de Casa Mueble.
 **Interfaces:**
 - Produce:
   - `interface VocabRule { id: string; words: string[]; orientation?: Observation["orientation"]; half?: { axis: 0 | 1 | 2; side: "low" | "high" } }`
-  - `VOCABULARY_VERSION = "vocab/1"`, `VOCABULARY: readonly VocabRule[]`, `VOCABULARY_SOURCES = ["olmo", "segundo modelo local"]` (registro de qué listados se usaron, §7; sin nombres de piezas de Sabrina en el archivo, solo palabras genéricas).
+  - `VOCABULARY_VERSION = "vocab/1"`, `VOCABULARY: readonly VocabRule[]`, `VOCABULARY_SOURCES = ["olmo", "segundo modelo local"]` (registro de qué listados se usaron, §7; sin nombres de piezas del segundo fixture en el archivo, solo palabras genéricas).
   - `rulesFor(name: string, vocab?: readonly VocabRule[]): VocabRule[]` — palabra completa, sin mayúsculas ni tildes (`normalize("NFD")` + quitar marcas).
   - `vocabularyCoverage(rows: readonly ListadoRow[], vocab?: readonly VocabRule[]): { byRule: { id: string; fired: number; total: number }[]; withoutRule: string[] }`
-- Reglas iniciales (palabras del §7; el ejecutor completa la tabla con los nombres del listado de Olmo y el del modelo local, sin copiar nombres de Sabrina al repo): `piso` (horizontal, y low), `techo` (horizontal, y high), `mesa` (horizontal), `estante` (horizontal), `lateral`/`laterales` (vertical-lateral), `tapa`/`frente` (vertical-frontal, z high), `fondo` (vertical-frontal, z low), `zocalo` (y low), `faja` (sin expectativa propia), `adelante` (z high), `atras` (z low), `arriba` (y high), `abajo` (y low).
+- Reglas iniciales (palabras del §7; el ejecutor completa la tabla con los nombres del listado del primer fixture y el del modelo local, sin copiar nombres del segundo fixture al repo): `piso` (horizontal, y low), `techo` (horizontal, y high), `mesa` (horizontal), `estante` (horizontal), `lateral`/`laterales` (vertical-lateral), `tapa`/`frente` (vertical-frontal, z high), `fondo` (vertical-frontal, z low), `zocalo` (y low), `faja` (sin expectativa propia), `adelante` (z high), `atras` (z low), `arriba` (y high), `abajo` (y low).
 
 - [ ] **Paso 1: pruebas (fallan), incluidas las del foco de revisión 5 y la tabla M19 escrita a mano.**
 
@@ -552,7 +552,7 @@ it("código duplicado en el listado: dudosa codigo-duplicado y sin faltante ni s
 it("segura con orientación que no coincide → sigue segura con advertencia", () => {});
 ```
 
-(Los nombres `"_C01"` son abreviaturas del helper `obs`, que arma el código completo `0001-01-M01-C01`.)
+(Los nombres `"_C01"` son abreviaturas del helper `obs`, que arma el código completo `9999-01-M01-C01`.)
 - [ ] **Paso 2–4:** FAIL → implementar pasada 1 → PASS.
 - [ ] **Paso 5: proponer commit** ("Motor: pasada 1 y verificación dura (M5, M15)").
 
@@ -628,8 +628,8 @@ it("results ordenados por instanceKey con comparación binaria ('ID10' < 'ID9')"
 - Test: `tests/eval/gate.test.ts`, `tests/eval/m13.test.ts`
 
 **Interfaces:**
-- `modelSources.ts` (servidor/Node, usa `node:fs`): `modelSourceFor(furnitureId: string, opts?: { sabrinaDir?: string }): { daePath: string; runsDir: string; esperadosPath: string } | null` — Olmo: `public/models/Olmo/olmo.dae`, `eval/runs`, `eval/esperados.json`; Sabrina: el único `.dae` de `<sabrinaDir>/Archivo Collada`, `<sabrinaDir>/eval/runs`, `<sabrinaDir>/eval/esperados.json`, o `null` si la carpeta no existe.
-- `cases.ts`: `loadRealCases(opts: { sabrinaDir: string }): RealCase[]` con `type RealCase = { furnitureId: string; status: "ok"; def: FurnitureDef; dae: DaeObservation; run: AssociationRun } | { furnitureId: string; status: "no-ejecutado"; motivo: string }`. Sabrina se carga con el mismo `import()` dinámico que `tests/sabrina.test.ts`.
+- `modelSources.ts` (servidor/Node, usa `node:fs`): `modelSourceFor(furnitureId: string, opts?: { sabrinaDir?: string }): { daePath: string; runsDir: string; esperadosPath: string } | null` — primer fixture: `public/models/Olmo/olmo.dae`, `eval/runs`, `eval/esperados.json`; segundo fixture: el único `.dae` de `<sabrinaDir>/Archivo Collada`, `<sabrinaDir>/eval/runs`, `<sabrinaDir>/eval/esperados.json`, o `null` si la carpeta no existe.
+- `cases.ts`: `loadRealCases(opts: { sabrinaDir: string }): RealCase[]` con `type RealCase = { furnitureId: string; status: "ok"; def: FurnitureDef; dae: DaeObservation; run: AssociationRun } | { furnitureId: string; status: "no-ejecutado"; motivo: string }`. Segundo fixture se carga con el mismo `import()` dinámico que `tests/sabrina.test.ts`.
 - En `gate.ts`: `projectRun(run: AssociationRun): ExpectedRun` (ver "Proyección para G2"), `type EsperadosFile = Record<string /* modelId */, ExpectedRun>` y `readEsperados(file: string): EsperadosFile` (`{}` si no existe).
 - `report.ts`: `buildReport(x: { real: RealCase[]; synthetic: VariantOutcome[]; gate: GateResult; timing: { medianMs: number; repeticiones: number; node: string; maquina: string } }): Report` y `writeReport(report: Report, outDir: string): void` (`reporte.json` + `reporte.md`). Tiempo (§9.5): `harness` corre el motor M = 5 veces por caso real y guarda la mediana; anota `process.version` y `os.cpus()[0].model`; no gatea. La versión de Node también va junto a G3.
 - `gate.ts`: `evaluateGate(x: { real: RealCase[]; esperados: (furnitureId: string) => EsperadosFile | null; synthetic: VariantOutcome[]; determinism: { a: string; b: string }; permutations: { ok: boolean; detail: string } }): GateResult` con `GateResult = { passed: boolean; checks: { id: "G1" | "G2" | "G3" | "G4" | "G5"; status: "ok" | "falla" | "no-ejecutado"; detail: string }[] }`. G5 queda `"no-ejecutado"` hasta T20. `VariantOutcome` se define en T13; en esta tarea `synthetic: []`.
@@ -656,12 +656,12 @@ it("M13: npm run eval con --sabrina-dir inexistente sale con 0 y el reporte dice
 }, 120_000);
 ```
 
-La prueba M13 necesita `eval/esperados.json` de Olmo: queda `it.todo` hasta T12 y se activa ahí.
+La prueba M13 necesita `eval/esperados.json` del primer fixture: queda `it.todo` hasta T12 y se activa ahí.
 - [ ] **Paso 2–4:** FAIL → implementar → PASS (salvo el `todo`).
-- [ ] **Paso 5:** `npm run eval` → hoy G2 falla para Olmo ("falta esperados"): esperado hasta T12.
+- [ ] **Paso 5:** `npm run eval` → hoy G2 falla para el primer fixture ("falta esperados"): esperado hasta T12.
 - [ ] **Paso 6: proponer commit** ("Eval: casos reales, gate G1–G4, reporte y publicación").
 
-### Tarea 12: Primera corrida de Olmo → `esperados.json`, run publicado, A4
+### Tarea 12: Primera corrida del primer fixture → `esperados.json`, run publicado, A4
 
 **Parada U-esperados.** Sin dependencia de Casa Mueble (el .dae es el provisorio).
 
@@ -670,7 +670,7 @@ La prueba M13 necesita `eval/esperados.json` de Olmo: queda `it.todo` hasta T12 
 - Modificar: `tests/olmo.test.ts`, `tests/sabrina.test.ts` (A4 reescrito), `tests/eval/m13.test.ts` (activar)
 
 - [ ] **Paso 1:** `npm run eval -- --escribir-esperados`. Mostrar al usuario un resumen de la proyección: conteo por nivel, por razón, la lista de dudosas y sin asociar con su `instanceKey`, nombre crudo y razones, y los candidatos. Comparar con la **estimación** (32 + 1 + 6): toda diferencia se explica antes de seguir, no se ajusta el motor para que coincida.
-- [ ] **Paso 2: PARAR** hasta que el usuario apruebe la proyección revisada a mano. Si Sabrina está presente, hacer lo mismo en local con `Sabrina/eval/esperados.json` (nada de eso al repo) y anotar en `Sabrina/docs/anexo-motor.md` los conteos de la corrida.
+- [ ] **Paso 2: PARAR** hasta que el usuario apruebe la proyección revisada a mano. Si el segundo fixture está presente, hacer lo mismo en local con `Sabrina/eval/esperados.json` (nada de eso al repo) y anotar en `Sabrina/docs/anexo-motor.md` los conteos de la corrida.
 - [ ] **Paso 3: reescribir A4** (spec §11): en `tests/olmo.test.ts`, "cada instancia recibe exactamente un nivel y el resultado es igual a `eval/esperados.json`":
 
 ```ts
@@ -681,7 +681,7 @@ it("A4: cada instancia con exactamente un nivel, igual a eval/esperados.json", (
   expect(projectRun(run)).toEqual(readEsperados("eval/esperados.json")[dae.modelId]);
 });
 it("la C01 anómala queda dudosa por nombre-anomalo (efecto esperado, §6.1)", () => {
-  const c01 = run.results.find((r) => dae.observations.find((o) => o.instanceKey === r.instanceKey)?.rawName === "_0001-01-M01-C01__");
+  const c01 = run.results.find((r) => dae.observations.find((o) => o.instanceKey === r.instanceKey)?.rawName === "_9999-01-M01-C01__");
   expect(c01).toMatchObject({ level: "dudosa", pieceCode: null });
   expect(c01?.reasons[0]).toBe("nombre-anomalo");
 });
@@ -690,7 +690,7 @@ it("la C01 anómala queda dudosa por nombre-anomalo (efecto esperado, §6.1)", (
 Quitar el `it` que usa `checkAssociation` (se borra `mapping.ts` en T14). En `tests/sabrina.test.ts`, A4 igual contra `Sabrina/eval/esperados.json`, salteado si falta. Mantener A6 de `verifyModel` (21 tipos, 33 instancias, 1 anomalía, 6 + 0 excluidos) sin cambios.
 - [ ] **Paso 4:** `npm run eval -- --publicar` → gate aprobado; escribe `eval/runs/<hash>.json` y `eval/primera-corrida.json`. Activar M13.
 - [ ] **Paso 5:** `npm test` → PASS; `npm run eval` → código 0.
-- [ ] **Paso 6: proponer commit** con esperados, run publicado, primera corrida y tests en el mismo commit ("Eval: esperados de Olmo (provisorio) y AssociationRun publicado (M8)").
+- [ ] **Paso 6: proponer commit** con esperados, run publicado, primera corrida y tests en el mismo commit ("Eval: esperados del primer fixture (provisorio) y AssociationRun publicado (M8)").
 
 ### Tarea 13: Perturbaciones críticas (P1, P3–P8, P10–P12), detectabilidad, métricas, G1
 
@@ -705,7 +705,7 @@ Quitar el `it` que usa `checkAssociation` (se borra `mapping.ts` en T14). En `te
 - `ExpectedOutcome = { instanceKey: string; level?: Level; reasonIncludes?: Reason; truthInTopK?: 1 | 3; inconsistency?: Inconsistency["kind"] }[]`.
 - `detectability.ts`: `hardSignature(row): string` (medidas ordenadas, espesor, cantidad); `softSignature(row, vocab): string`; `isDetectable(variant: Pick<Variant, "operators" | "listado">, original: ListadoRow[], vocab): boolean`.
 - `metrics.ts`: `type Ratio = { n: number; N: number }`; `type Metrics = Record<string /* nombre de la métrica, §9.5 */, Ratio | number>`; `interface MetricsByGroup { porCaso: Record<string, Metrics>; porMueble: Record<string, Metrics>; porOperador: Partial<Record<OperatorId, Metrics>>; porCasoCritico: Record<string, Metrics> }`; `computeMetrics(outcomes: VariantOutcome[]): MetricsByGroup` (por caso, mueble, operador, caso crítico; todas las de §9.5 salvo concordancia, sombra y tiempo-sin-gate); `interface VariantOutcome { variant: Variant; run: AssociationRun; checks: { ok: boolean; detail: string }[] }`.
-- `muebleSintetico.ts`: listado inventado (furnitureId `"sintetico"`, códigos `0009-01-M01-Cxx` para no chocar con Olmo) y observaciones a mano: un par equivalente (misma medida, material y canto; cantidades 1 y 2), un tipo con caras de canto, uno con largo < ancho, canto ABS 0,22 mm.
+- `muebleSintetico.ts`: listado inventado (furnitureId `"sintetico"`, códigos `0009-01-M01-Cxx` para no chocar con el primer fixture) y observaciones a mano: un par equivalente (misma medida, material y canto; cantidades 1 y 2), un tipo con caras de canto, uno con largo < ancho, canto ABS 0,22 mm.
 - Operadores de esta tarea (§9.4): P1 (rawName → `"pieza"`), P3 (`_` de más: inicial, final, ambos), P4 (formato roto), P5 (código válido inexistente), P6 (instancia extra), P7 (quita una), P8 (`listado ± k·tol`, k ∈ {0.95, 1.00, 1.05}, **relativo al listado**), P10 (fila duplicada), P11 (quita el código a todo un par equivalente: sintético), P12 (malla suelta).
 - G1: 0 seguras incorrectas en variantes `detectable`; las no detectables van a "límites conocidos".
 
@@ -784,7 +784,7 @@ Los números de tarea siguen el orden de los criterios, no el calendario: T16–
 **Interfaces:**
 - `validateLabels(file: unknown, ctx: { modelId: string; listadoId: string; instanceKeys: ReadonlySet<string>; codes: ReadonlySet<string> }): { ok: true; labels: LabelFile } | { ok: false; errors: string[] }` — todas las reglas de §10.2.
 - `concordance(run: AssociationRun, labels: LabelFile, firstRunDate: string | null): ConcordanceReport` con `{ seguras: Ratio; dudosasTop1: Ratio; dudosasTop3: Ratio; ningunoVsSinAsociar: Ratio; noSe: number; discrepancias: { instanceKey: string; motor: string | null; etiqueta: string | null; parEquivalente: boolean }[]; posterioresAPrimeraCorrida: number; entreEtiquetadores: { acuerdo: Ratio; kappa: number | null; n: number } | null }`. `no-se` fuera de los denominadores. Etiquetas con `decidedAt` posterior a la primera corrida → se cuentan aparte.
-- El harness busca `eval/etiquetas/<hash>.json` (Sabrina: `Sabrina/eval/etiquetas/`); sin archivo → concordancia "no ejecutado".
+- El harness busca `eval/etiquetas/<hash>.json` (segundo fixture: `Sabrina/eval/etiquetas/`); sin archivo → concordancia "no ejecutado".
 
 - [ ] **Paso 1: un caso válido y uno inválido por regla (§13), fallan.**
 
@@ -792,7 +792,7 @@ Los números de tarea siguen el orden de los criterios, no el calendario: T16–
 it.each([
   ["decision fuera del catálogo", (f) => (f.decisions[0].decision = "quizas")],
   ["pieceCode con 'ninguno'", (f) => Object.assign(f.decisions[0], { decision: "ninguno" })],
-  ["pieceCode inexistente", (f) => (f.decisions[0].pieceCode = "0001-01-M01-C99")],
+  ["pieceCode inexistente", (f) => (f.decisions[0].pieceCode = "9999-01-M01-C99")],
   ["engineRunId en ciego", (f) => (f.decisions[0].engineRunId = "sha256:x")],
   ["revision sin engineRunId", (f) => (f.decisions[0].mode = "revision")],
   ["duplicado (instanceKey, labeler, mode)", (f) => f.decisions.push({ ...f.decisions[0] })],
@@ -884,7 +884,7 @@ it("importar: token → instanceKey, ref → código, valida con el esquema", ()
 - [ ] **Paso 5: verificación de builds:** `npm run build && npm run build:etiquetado && npm run check:builds` → código 0. Comprobar a mano que `tools/etiquetado/out/` tiene `index.html`, `modelo.dae`, `listado.json`, `robots.txt` y **no** `tokens.json`.
 - [ ] **Paso 6:** `npm run dev:etiquetado` y probar desde PC y celular (LAN).
 - [ ] **Paso 7: proponer commit** ("Herramienta de etiquetado: app estática aparte, fuera del bundle de producción (M11)").
-- [ ] **Paso 8: PARAR (U-vercel).** Pedir al usuario que cree un proyecto de Vercel **nuevo** (no tocar el de los QR): raíz del repo, comando de build `npm run build:etiquetado`, directorio de salida `tools/etiquetado/out`, sin variables de Sabrina.
+- [ ] **Paso 8: PARAR (U-vercel).** Pedir al usuario que cree un proyecto de Vercel **nuevo** (no tocar el de los QR): raíz del repo, comando de build `npm run build:etiquetado`, directorio de salida `tools/etiquetado/out`, sin variables del segundo fixture.
 - [ ] **Paso 9: PARAR (CM-48 + CM-55).** Con la reexportación aplicada (T23) y alguien de Casa Mueble designado: regenerar el saneado, redesplegar, compartir la URL, recibir el JSON exportado, `npm run etiquetado:importar`, revisar el resultado con el usuario y proponer commit de `eval/etiquetas/<hash>.json`. Si a la fecha de corte del cronograma no hay reexportación: plan B ("no ejecutado").
 
 ---
@@ -899,7 +899,7 @@ it("importar: token → instanceKey, ref → código, valida con el esquema", ()
 
 **Interfaces:**
 - `combinedVariants(base: BaseCase, n: number, seed: number): Variant[]` — 2 a 3 operadores sorteados con `mulberry32(seed)`; detectabilidad **recalculada** sobre la variante combinada.
-- Reporte: "seguras incorrectas en límite conocido: N" y "advertencia saltó: n/N" para P2b; P2e como límite conocido; P9 rotulado **sintético** sobre Olmo; P13 mide cuántas dudosas cambian su top-1 con nombres degradados (seguras sin cambio).
+- Reporte: "seguras incorrectas en límite conocido: N" y "advertencia saltó: n/N" para P2b; P2e como límite conocido; P9 rotulado **sintético** sobre el primer fixture; P13 mide cuántas dudosas cambian su top-1 con nombres degradados (seguras sin cambio).
 
 - [ ] **Paso 1:** pruebas por operador con resultado contado a mano + **la combinación recalculada (§13)**: P8 k=1.05 + P1 sobre la misma instancia → detectable aunque P1 sola sobre un par equivalente no lo sea.
 - [ ] **Paso 2–4:** FAIL → implementar → PASS; `npm run eval` → código 0 (los límites conocidos no gatean).
@@ -919,7 +919,7 @@ it("importar: token → instanceKey, ref → código, valida con el esquema", ()
 
 ### Tarea 20: Baseline y G5
 
-**Archivos:** Crear `eval/baseline.ts`, `eval/baseline.json` (Sabrina: `Sabrina/eval/baseline.json`); modificar `eval/gate.ts`, `eval/run.ts` (`--escribir-baseline`). Test `tests/eval/g5.test.ts`.
+**Archivos:** Crear `eval/baseline.ts`, `eval/baseline.json` (segundo fixture: `Sabrina/eval/baseline.json`); modificar `eval/gate.ts`, `eval/run.ts` (`--escribir-baseline`). Test `tests/eval/g5.test.ts`.
 
 **Interfaces:**
 - `baseline.json` = `{ catalogVersion, vocabularyVersion, byOperator: Record<OperatorId, Metrics> }`.
@@ -946,15 +946,15 @@ it("importar: token → instanceKey, ref → código, valida con el esquema", ()
 **Archivos:** Modificar `CLAUDE.md` (spec §20: motor, harness, `npm run eval`, herramienta, `.gitattributes`, A4 nuevo, C01 dudosa sin vincular, "Simulado" de `mapping.ts` reemplazado). **No** tocar `ESTADO.md`.
 
 - [ ] **Paso 1:** `npm run typecheck && npm run lint && npm test && npm run build && npm run build:etiquetado && npm run check:builds && npm run eval` → todo en 0. Pegar la salida en el resumen.
-- [ ] **Paso 2:** recorrer la tabla de trazabilidad: cada M y G con su prueba en verde (o "no ejecutado" justificado para Sabrina).
-- [ ] **Paso 3:** `git status` y `git diff --stat`: confirmar que nada de `Sabrina/` ni de `dashboard/` está agregado y que ningún archivo versionado nuevo contiene códigos o cifras de Sabrina (`git grep -i sabrina -- eval tools docs/plan-motor-asociacion.md` → solo rutas y la lógica de "no ejecutado").
+- [ ] **Paso 2:** recorrer la tabla de trazabilidad: cada M y G con su prueba en verde (o "no ejecutado" justificado para el segundo fixture).
+- [ ] **Paso 3:** `git status` y `git diff --stat`: confirmar que nada de `Sabrina/` ni de `dashboard/` está agregado y que ningún archivo versionado nuevo contiene códigos o cifras del segundo fixture (`git grep -i sabrina -- eval tools docs/plan-motor-asociacion.md` → solo rutas y la lógica de "no ejecutado").
 - [ ] **Paso 4: proponer commit** ("CLAUDE.md: motor de asociación y Eval Harness").
 
 ---
 
 # Condicional — cuando llegue la reexportación (CM-48)
 
-### Tarea 23: Cambio controlado del .dae de Olmo
+### Tarea 23: Cambio controlado del .dae del primer fixture
 
 **Parada CM-48 (y CM-49 si cambia el nombre de C01).** No se edita el .dae a mano.
 

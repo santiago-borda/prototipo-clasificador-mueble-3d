@@ -1,18 +1,18 @@
 # Especificación — Fixture sintético para el parser y el adaptador de OCR
 
-Versión: v0.1 (borrador para revisión, 5/11/2026). Sesión de solo especificación: sin código.
-Antecedentes: `docs/spec-esquema-pdf.md` (`CutListPdf`, INV-0 a INV-15, §8), `docs/test-plan-esquema-pdf.md` (TP-50 a TP-55, TP-72), `spec-extraccion-pdf-v0.3.md` (aprobada el 3/11, todavía fuera de `docs/`), `Estado-del-proyecto.md` (5/11).
+Versión: v0.2 (5/11/2026). v0.1: borrador de solo especificación. v0.2: §0 resuelta al aplicar la §13 de `docs/spec-extraccion-pdf.md`; implementación en la rama `pdf-fixture-sintetico`.
+Antecedentes: `docs/spec-esquema-pdf.md` (`CutListPdf`, INV-0 a INV-15, §8), `docs/test-plan-esquema-pdf.md` (TP-50 a TP-55, TP-72), `docs/spec-extraccion-pdf.md` (v0.3 aprobada el 3/11; v0.3.1 del 5/11), `Estado-del-proyecto.md` (5/11).
 Ubicación propuesta: `docs/spec-fixture-sintetico.md`.
 
 ---
 
-## 0. Inconsistencias detectadas (resolver antes de aprobar)
+## 0. Inconsistencias detectadas (estado al 5/11)
 
 | Id | Dónde | Qué choca | Propuesta |
 |---|---|---|---|
-| I1 | Pedido de esta spec vs `Estado-del-proyecto.md` (módulo B, v0.2) | La bandera se llama `PROCESAMIENTO_EXTERNO=permitir` en el pedido y `PERMITIR_DATOS_REALES` en el Estado | Confirmar cuál fija la v0.3 (D1) y unificar en Estado y `CLAUDE.md` |
-| I2 | `spec-esquema-pdf.md` §8.3 | Dice que con el segundo fixture `OcrLlm` "no se usa" mientras la titularidad esté pendiente; Casa Mueble lo autorizó el 3/11 (falta la captura escrita, P-04). Además faltan aplicar `evidence` y `lectura-fallida` (aprobados el 3/11) | Actualizar §8.3 en la misma sesión de Claude Code o en una aparte |
-| I3 | `spec-extraccion-pdf-v0.3.md` | No está en `docs/` ni en los archivos del proyecto: esta spec no se pudo contrastar con su texto | Commitear la v0.3 antes de implementar; si choca con esta spec, manda la v0.3 |
+| I1 | Pedido de esta spec vs `Estado-del-proyecto.md` (módulo B, v0.2) | La bandera se llama `PROCESAMIENTO_EXTERNO=permitir` en el pedido y `PERMITIR_DATOS_REALES` en el Estado | **Resuelta:** la v0.3.1 fija `PROCESAMIENTO_EXTERNO=permitir`; `CLAUDE.md` la usa. Falta corregir el Estado (I-07 de spec-extraccion) |
+| I2 | `spec-esquema-pdf.md` §8.3 | Dice que con el segundo fixture `OcrLlm` "no se usa" mientras la titularidad esté pendiente; Casa Mueble lo autorizó el 3/11 (falta la captura escrita, P-04). Además faltan aplicar `evidence` y `lectura-fallida` (aprobados el 3/11) | **Resuelta (5/11):** §8 y §8.3 de spec-esquema actualizadas |
+| I3 | `spec-extraccion-pdf-v0.3.md` | No está en `docs/` ni en los archivos del proyecto: esta spec no se pudo contrastar con su texto | **Resuelta:** está en `docs/spec-extraccion-pdf.md`. Si choca con esta spec, manda aquella |
 | I4 | TP-72 | Prohíbe cualquier `.pdf` en el repo; un fixture en PDF lo violaría | El PDF sintético **no se commitea**: se regenera de forma determinista (§7, D4) |
 | I5 | Estado (v0.2: "validado con zod") vs `spec-esquema-pdf.md` §4 (validador a mano, sin dependencias) | Manda la spec del repo | El fixture no agrega zod |
 
@@ -24,13 +24,13 @@ Tener un conjunto de PDF **falsos** que imitan el formato real de OpenCutList pa
 2. ejercitar en vivo `files:annotate` de Google Cloud Vision con un PDF inline (la prueba de humo del 5/11 usó una imagen, no un PDF);
 3. dejar la suite automática **sin llamadas de red**.
 
-**No es objetivo:** medir la calidad del OCR sobre los PDF reales. Los glifos del fixture no son los de "Microsoft: Print To PDF"; un buen resultado acá no predice el resultado con Sabrina (eso sigue dependiendo de P-04).
+**No es objetivo:** medir la calidad del OCR sobre los PDF reales. Los glifos del fixture no son los de "Microsoft: Print To PDF"; un buen resultado acá no predice el resultado con el segundo fixture (eso sigue dependiendo de P-04).
 
 ## 2. Qué lo hace "sintético" (marcado)
 
 | Marca | Valor | Para qué |
 |---|---|---|
-| Código de proyecto | `9999` (códigos `9999-9X-M0X-Cxx`, formato válido de §7.1) | Nunca coincide con `0001` (Olmo y Sabrina) |
+| Código de proyecto | `9999` (códigos `9999-9X-M0X-Cxx`, formato válido de §7.1) | Nunca coincide con el código de proyecto del proyecto real (primer y segundo fixture) |
 | Leyenda en cada página | "FIXTURE SINTÉTICO — NO ES DATO REAL", en el título del recuadro y al pie | Visible en la imagen y en la salida del OCR |
 | Nombre de archivo | prefijo `sintetico-` | Legible para personas |
 | Metadato `/Subject` | `fixture-sintetico/1` | Legible para personas |
@@ -38,7 +38,7 @@ Tener un conjunto de PDF **falsos** que imitan el formato real de OpenCutList pa
 
 **Regla:** ninguna de estas marcas habilita nada. La compuerta (§6) decide **solo por sha256**; las marcas sirven a las personas y a las pruebas de TS-12.
 
-Datos prohibidos en el fixture (prueba TS-12): `0001-`, "Olmo", "Oslo", "Sabrina", los materiales reales ("Blanco nature", "Gaudi", "Cedro", "Blanco Liso") y medidas de tablero copiadas de los PDF reales. Los parámetros de regla (por ejemplo la constante 0,066) sí se usan: son de la spec, no del cliente.
+Datos prohibidos en el fixture (prueba TS-12): el código de proyecto del proyecto real, los nombres de los muebles reales (incluido el nombre anterior del primero), los materiales reales y las medidas de tablero copiadas de los PDF reales. **La lista vive solo en la prueba y no se escribe en claro en el repo** (ni en esta spec): ver TS-12 en §9. Los parámetros de regla (por ejemplo la constante 0,066) sí se usan: son de la spec, no del cliente.
 
 ## 3. Arquitectura: una fuente, cuatro salidas
 
@@ -138,7 +138,7 @@ Se aplican en memoria sobre el `PdfTextInput` ideal o sobre la respuesta simulad
 
 ## 10. Límites
 
-- No mide la calidad del OCR real (glifos distintos). Eso necesita una página de Sabrina (P-04).
+- No mide la calidad del OCR real (glifos distintos). Eso necesita una página del segundo fixture (P-04).
 - No cubre Tesseract: requiere rasterizar (P-12, sin resolver).
 - La forma exacta de la respuesta de `files:annotate` (por ejemplo, `normalizedVertices` en PDF) se toma de la documentación y se verifica con la salida de TS-13 antes de dar por buena la respuesta simulada.
 - Los rótulos que busca el parser siguen sin contrastar con un PDF real; el fixture los copia de la spec, no los valida.
@@ -151,4 +151,4 @@ Se aplican en memoria sobre el `PdfTextInput` ideal o sobre la respuesta simulad
 | D2 | ¿Se commitea una respuesta real de Vision del fixture (revisada) para usar como replay? | No en esta sesión: la regla es "salidas solo en `.ocr-data/`" |
 | D3 | Generador sin dependencias (fuente de trazos propia) o una dependencia (por ejemplo pdf-lib) | Sin dependencias: pdf-lib con fuentes estándar crearía capa de texto |
 | D4 | PDF regenerado y no commiteado | Sí (TP-72) |
-| D5 | ¿TS-13 cierra la parte de P-02 "files:annotate con PDF inline y lotes"? | Sí; P-02 sigue parcial hasta la prueba con Sabrina |
+| D5 | ¿TS-13 cierra la parte de P-02 "files:annotate con PDF inline y lotes"? | Sí; P-02 sigue parcial hasta la prueba con el segundo fixture |

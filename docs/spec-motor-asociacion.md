@@ -2,7 +2,7 @@
 
 Estado: **v3, para commit** (16/10/2026). Incorpora la re-revisión de la v2 (Opus, 16/10, §21): 3 bloqueantes (B1–B3) y 7 cambios importantes resueltos; decisiones del equipo sobre B2, B3 y el etiquetado. Sin código todavía.
 Antecedentes: decisión del 13/10 (regla exacta por código primero; puntaje interpretable que verifica y respalda), `docs/spec-siguiente-paso.md` (su cambio S5 se especifica acá), criterio A4 actual (`src/data/mapping.ts`).
-Anexo local (no va al repo): `Sabrina/docs/anexo-motor.md`, con los códigos, cifras y hallazgos del segundo fixture. **Este documento no cita códigos ni cifras de Sabrina.**
+Anexo local (no va al repo): `Sabrina/docs/anexo-motor.md`, con los códigos, cifras y hallazgos del segundo fixture. **Este documento no cita códigos ni cifras del segundo fixture.**
 
 Convención de nombres: los refinamientos de este diseño se llaman **RF** (§14) y los supuestos **AS** (§15), para no confundirlos con los R1–R7 de Casa Mueble ni con los S1–S5 de `docs/spec-siguiente-paso.md`.
 
@@ -39,14 +39,14 @@ El **Eval Harness** mide al motor con casos reales y con perturbaciones sintéti
 ### 2.2 Fase 1 — núcleo (por dependencias, no estrictamente en orden)
 
 1. **Congelar entradas.**
-   - **Nombre:** Olmo está confirmado por Casa Mueble (consulta 34, cerrada el 16/10). Queda pendiente que los diseñadores renombren el .skp, el .dae y la carpeta del paquete (hoy dicen "Oslo", también en las rutas de textura del .dae) y **reexporten** el .dae (consulta 48, fecha sin acordar). No se edita el .dae a mano.
+   - **Nombre:** el nombre del primer fixture está confirmado por Casa Mueble (consulta 34, cerrada el 16/10). Queda pendiente que los diseñadores renombren el .skp, el .dae y la carpeta del paquete (hoy dicen "Oslo", también en las rutas de textura del .dae) y **reexporten** el .dae (consulta 48, fecha sin acordar). No se edita el .dae a mano.
    - **Decisión del equipo (16/10): se espera la reexportación antes de etiquetar.** Cambia seguro el hash y puede cambiar el `id` de los nodos (no verificado), y las etiquetas se atan a `modelId` (§10.2).
-   - Mientras tanto se trabaja con el .dae actual de Olmo como entrada **provisoria**: su `modelId` y su `eval/esperados.json` son provisorios.
+   - Mientras tanto se trabaja con el .dae actual del primer fixture como entrada **provisoria**: su `modelId` y su `eval/esperados.json` son provisorios.
    - **La reexportación es un cambio controlado:** el .dae nuevo y su `esperados.json` regenerado (revisado a mano) van en el mismo commit; si no, G2 falla por diseño. Si Casa Mueble corrige el nombre de C01 en la reexportación, la expectativa de C01 cambia (§6.1) y se actualizan `esperados.json` y `tests/olmo.test.ts` (que hoy espera 1 anomalía).
    - Agregar `.gitattributes` con `*.dae binary`, para que la conversión de fin de línea no cambie el hash. **El .dae ya está commiteado:** el alta de `.gitattributes` va acompañada de `git add --renormalize .` en el mismo commit, o el hash en Windows y en Linux queda distinto. M1 prueba ambos fines de línea.
    - Fijar `listadoId` (§5.1).
 2. **Adapter** `.dae` → `Observation` (§4, §5).
-3. **Motor** (§6) y **Eval Harness** (§9) con casos sintéticos y con el .dae provisorio de Olmo. **Se desarrollan en paralelo con la espera de la reexportación y del etiquetado** (decisión del 16/10).
+3. **Motor** (§6) y **Eval Harness** (§9) con casos sintéticos y con el .dae provisorio del primer fixture. **Se desarrollan en paralelo con la espera de la reexportación y del etiquetado** (decisión del 16/10).
 4. **Herramienta de etiquetado** (§10.3): se construye en paralelo; **etiqueta Casa Mueble** (decisión del 16/10) cuando llegue la reexportación. **Confirmado por el equipo el 16/10: sigue en paralelo**, con el plan B de abajo si no llega a tiempo.
    - Fecha límite propuesta: **13/11**, condicionada a (a) una fecha comprometida de reexportación (consulta 48) y (b) la disponibilidad de quien etiquete (consulta 55). Si al cumplirse la fecha de corte que fije el cronograma no hay reexportación, se aplica el plan B.
    - Plan B: la concordancia humana se reporta "no ejecutado".
@@ -60,13 +60,13 @@ El **Eval Harness** mide al motor con casos reales y con perturbaciones sintéti
 | 19/10 | Spec v3 commiteado en `docs/`. `.gitattributes` + renormalize, `modelId`/`listadoId`, normalización del nombre | M1, M3, M4 |
 | 26/10 | Adapter desde XML, .dae sintéticos mínimos, runner del eval (`npm run eval`) | M2, M20 |
 | 2/11 | Motor (pasadas 1 y 2), inconsistencias de corrida, evidencia blanda | M5–M7, M15, M16 |
-| 9/11 | `eval/esperados.json` de Olmo; publicación del `AssociationRun` e integración con visor y ficha (solo seguras); harness con los casos críticos (P1, P3–P8, P10–P12) | M8, M10, M13 |
+| 9/11 | `eval/esperados.json` del primer fixture; publicación del `AssociationRun` e integración con visor y ficha (solo seguras); harness con los casos críticos (P1, P3–P8, P10–P12) | M8, M10, M13 |
 | 16/11 | QR impresos, prueba en celular, ensayo de la demo | — |
-| **Pre-entrega 20/11** | MVP en contexto real: se escanea un **QR real, impreso, de una pieza de Olmo** y el flujo funciona bien: escáner → ficha → visor 3D con las piezas resaltadas, vinculadas por el `AssociationRun` publicado (solo seguras). El harness corre con sintéticos y el reporte muestra niveles, evidencia e inconsistencias. Concordancia humana: la que haya llegado, o "no ejecutado" | Publicación integrada al visor y la ficha (§11); QR impresos con la ruta `/qr` del prototipo (fuera de este spec; `NEXT_PUBLIC_BASE_URL` fija y sin renombrar el proyecto de Vercel, Estado §5); reexportación (48) y etiquetado (55) solo para la concordancia |
+| **Pre-entrega 20/11** | MVP en contexto real: se escanea un **QR real, impreso, de una pieza del primer fixture** y el flujo funciona bien: escáner → ficha → visor 3D con las piezas resaltadas, vinculadas por el `AssociationRun` publicado (solo seguras). El harness corre con sintéticos y el reporte muestra niveles, evidencia e inconsistencias. Concordancia humana: la que haya llegado, o "no ejecutado" | Publicación integrada al visor y la ficha (§11); QR impresos con la ruta `/qr` del prototipo (fuera de este spec; `NEXT_PUBLIC_BASE_URL` fija y sin renombrar el proyecto de Vercel, Estado §5); reexportación (48) y etiquetado (55) solo para la concordancia |
 | Después del 20/11 | Herramienta de etiquetado si no cerró antes (M11, M12); resto del catálogo de perturbaciones (M9); baseline y G5 (M18); modo sombra (M17); reportes públicos (M14, M19) | — |
 | **Entrega final 21/12** | Fase 1 completa; fase 2 si da el tiempo | Cronograma |
 
-En la demo, la instancia dudosa (hoy C01 de Olmo) se ve sin vincular: es el comportamiento esperado de §6.1 y conviene explicarlo, no esconderlo.
+En la demo, la instancia dudosa (hoy C01 del primer fixture) se ve sin vincular: es el comportamiento esperado de §6.1 y conviene explicarlo, no esconderlo.
 
 Si falta tiempo, el proyecto reduce primero API/OT y extracción (B). Qué se recorta de este spec lo decide el equipo con el cronograma.
 
@@ -150,7 +150,7 @@ Tres capas, cada una probable por separado, más un paso de publicación.
 - Las perturbaciones actúan sobre `Observation` y sobre el listado, no sobre el .dae.
 - **Publica** el `AssociationRun` de cada caso real a `eval/runs/<modelId>.json` (§9.7), que es lo que lee la app en producción (§1). No es un paso aparte: es la misma corrida que genera `esperados.json`.
 
-**Privacidad.** Todo lo derivado de Sabrina queda en `Sabrina/` (ignorada): resultados esperados, etiquetas, baseline, reportes, publicación y anexo. En el repo solo hay datos de Olmo y del mueble sintético. **Sin Sabrina, el harness corre igual y aprueba el gate; para Sabrina se reporta "no ejecutado" (no es una falla del gate, resuelve B1 de la revisión; ver §9.6).** Los reportes versionados se generan solo para los `furnitureId` de una lista blanca versionada, `eval/publico.json` (M14).
+**Privacidad.** Todo lo derivado del segundo fixture queda en `Sabrina/` (ignorada): resultados esperados, etiquetas, baseline, reportes, publicación y anexo. En el repo solo hay datos del primer fixture y del mueble sintético. **Sin el segundo fixture, el harness corre igual y aprueba el gate; para el segundo fixture se reporta "no ejecutado" (no es una falla del gate, resuelve B1 de la revisión; ver §9.6).** Los reportes versionados se generan solo para los `furnitureId` de una lista blanca versionada, `eval/publico.json` (M14).
 
 ## 5. Contratos de datos
 
@@ -184,7 +184,7 @@ interface Observation {
 }
 ```
 
-- **Caja de referencia del mueble.** Se calcula una vez sobre la **geometría** del modelo **sin perturbar** y queda fija: no se recalcula después de perturbar y **no usa las medidas generales del mock** (la profundidad de Olmo sigue sin aclararse: 571 mm de caja contra 550 mm del mock, Estado §2).
+- **Caja de referencia del mueble.** Se calcula una vez sobre la **geometría** del modelo **sin perturbar** y queda fija: no se recalcula después de perturbar y **no usa las medidas generales del mock** (la profundidad del primer fixture sigue sin aclararse: 571 mm de caja contra 550 mm del mock, Estado §2).
 - **Canto.** Los bordes **no** se clasifican en largo y corto en la observación: lo hace `evidence.ts` para cada candidato, con su `lengthMm` y su `widthMm`. Así se evita el error de las piezas con largo menor que ancho.
 - Una cantidad impar de triángulos de canto en una instancia lanza una excepción tipada del adapter con su `instanceKey` (como hoy `edgeFaces.ts`). El harness la informa como **entrada inválida** y el caso no pasa el gate.
 
@@ -272,11 +272,11 @@ Sea `C` el formato de código (§3): `^\d{4}-\d{2}-M\d{2}-C\d{2}$`.
 | Cualquier otro (no matchea `^_*C_*$`) | `formato-invalido` | se trata como sin código |
 | Canónico o anómalo, pero el código normalizado no está en el listado | `codigo-inexistente` | se trata como sin código |
 
-**Esta tabla resuelve B2 de la revisión:** unifica en una sola regla (`^_*C_*$`, no canónico) los tres casos que la v2 trataba por separado (`_` finales, `__` inicial, y la fila nueva "más de un `_` inicial"). El componente `_0001-01-M01-C01__` de Olmo cae en esta regla general (dos `_` finales de más): sigue siendo `nombre-anomalo`, sin cambiar el resultado esperado.
+**Esta tabla resuelve B2 de la revisión:** unifica en una sola regla (`^_*C_*$`, no canónico) los tres casos que la v2 trataba por separado (`_` finales, `__` inicial, y la fila nueva "más de un `_` inicial"). El componente `_9999-01-M01-C01__` del primer fixture cae en esta regla general (dos `_` finales de más): sigue siendo `nombre-anomalo`, sin cambiar el resultado esperado.
 
 "Se trata como sin código" significa: `dudosa`, con candidatos por ranking (§6.3), que pueden ser ninguno.
 
-Consecuencia esperada en el .dae **provisorio** de Olmo: el componente `_0001-01-M01-C01__` (1 instancia) queda `dudosa` por `nombre-anomalo` hasta que Casa Mueble confirme (consulta 49). En la fase 1 **queda sin vincular** en el visor y en la ficha. Es un efecto esperado, no una regresión. Si la reexportación corrige el nombre, C01 pasa a `segura` (si cumple medidas) y las expectativas se actualizan (§2.2).
+Consecuencia esperada en el .dae **provisorio** del primer fixture: el componente `_9999-01-M01-C01__` (1 instancia) queda `dudosa` por `nombre-anomalo` hasta que Casa Mueble confirme (consulta 49). En la fase 1 **queda sin vincular** en el visor y en la ficha. Es un efecto esperado, no una regresión. Si la reexportación corrige el nombre, C01 pasa a `segura` (si cumple medidas) y las expectativas se actualizan (§2.2).
 
 ### 6.2 Pasada 1 — códigos y verificación dura
 
@@ -366,13 +366,13 @@ Aplica a toda instancia no segura que tenga componente.
 - **Qué lados** llevan canto (A/B) es ASUMIDO (AS5) y **no se usa**.
 - Si `|lengthMm − widthMm| ≤ tol`, la clasificación es **neutral**.
 - Con `edgeBanding: null` es neutral.
-- Si el .dae no trae caras `Canto_*`, es `no-disponible`. Es el caso de Olmo según el diseño del 16/10: sus materiales son `Blanco_nature`, `GAUDI` y `Color_M06`.
+- Si el .dae no trae caras `Canto_*`, es `no-disponible`. Es el caso del primer fixture según el diseño del 16/10: sus materiales son `Blanco_nature`, `GAUDI` y `Color_M06`.
 - Con código válido, una diferencia solo produce la advertencia `canto-no-coincide`. Sin código válido, ordena candidatos (elemento 6).
 - La convención `Canto_*` (cara de canto = material cuyo nombre empieza con `Canto_`) es **ASUMIDA** (AS4).
 
 ### 8.2 Límite conocido
 
-Sin caras de canto, el motor no separa tipos que difieren solo en el canteado. Se reporta como límite conocido, fuera del gate. Las perturbaciones que agregan caras de canto a Olmo se rotulan **sintéticas**.
+Sin caras de canto, el motor no separa tipos que difieren solo en el canteado. Se reporta como límite conocido, fuera del gate. Las perturbaciones que agregan caras de canto al primer fixture se rotulan **sintéticas**.
 
 ### 8.3 Camino a verificación dura (si Casa Mueble confirma)
 
@@ -395,14 +395,14 @@ Si Casa Mueble confirma que `Canto_*` es la fuente del canteado (consulta 52) y 
 ### 9.1 Casos
 
 - **Reales.**
-  - Olmo, en el repo.
-  - Sabrina, local. **Si falta, se reporta "no ejecutado" para ese caso; esto no hace fallar el gate** (resuelve B1 de la revisión: §9.1, §9.6 y M13 quedan consistentes entre sí).
+  - Primer fixture, en el repo.
+  - Segundo fixture, local. **Si falta, se reporta "no ejecutado" para ese caso; esto no hace fallar el gate** (resuelve B1 de la revisión: §9.1, §9.6 y M13 quedan consistentes entre sí).
   - En los casos reales la verdad sale del **código**. Por eso la precisión real contra el código es **tautológica** y se rotula así. El control independiente es el etiquetado humano ciego (§10).
 - **Sintéticos.**
-  - Se generan desde las observaciones de Olmo y desde un mueble sintético con datos inventados (pares equivalentes y caras de canto).
-  - El mueble sintético **no** se deriva de observaciones de Sabrina: `tests/helpers/syntheticDef.ts` solo importa tipos. Ojo: ese archivo hoy declara un canto de 0,45 mm; es dato inventado, pero 0,45 es el valor que Casa Mueble descartó el 16/10: si se reutiliza, cambiarlo a 0,22.
+  - Se generan desde las observaciones del primer fixture y desde un mueble sintético con datos inventados (pares equivalentes y caras de canto).
+  - El mueble sintético **no** se deriva de observaciones del segundo fixture: `tests/helpers/syntheticDef.ts` solo importa tipos. Ojo: ese archivo hoy declara un canto de 0,45 mm; es dato inventado, pero 0,45 es el valor que Casa Mueble descartó el 16/10: si se reutiliza, cambiarlo a 0,22.
   - Se suman **.dae sintéticos mínimos escritos a mano** (unos pocos paneles) para probar el adapter: líneas sueltas, nombres de formato inválido, otra unidad, caras de canto.
-  - Sabrina se perturba solo en local, con resultados en `Sabrina/`.
+  - Segundo fixture se perturba solo en local, con resultados en `Sabrina/`.
 - **Reporte separado.** Real y sintético nunca se mezclan en una cifra. La precisión sintética **no** es la precisión del taller.
 
 ### 9.2 Generación
@@ -434,7 +434,7 @@ Si Casa Mueble confirma que `Canto_*` es la fuente del canteado (consulta 52) y 
 | P6 | agrega una instancia extra con código | las N+1 dudosas (`cupo-excedido`) | — |
 | P7 | quita una instancia | `faltante` | — |
 | P8 | una medida en `listado ± k·tol` para k = 0,95 / 1,00 / 1,05 | segura / segura / dudosa (borde inclusivo en k=1,00, ε declarado) | — |
-| P9 | quita o agrega caras de canto (en Olmo: sintético) | con código: segura + advertencia; sin código: cambia el ranking | canteado parcial |
+| P9 | quita o agrega caras de canto (en el primer fixture: sintético) | con código: segura + advertencia; sin código: cambia el ranking | canteado parcial |
 | P10 | duplica una fila del listado | `codigo-duplicado` | códigos anómalos |
 | P11 | quita el código a todas las instancias de un par equivalente | empates o desempate por cupo | piezas equivalentes |
 | P12 | agrega una malla suelta | sin-asociar (`sin-componente`) | — |
@@ -479,7 +479,7 @@ Si falla, el script sale con código distinto de 0.
 | Id | Condición |
 |---|---|
 | G1 | 0 seguras incorrectas en todos los casos detectables, reales y sintéticos |
-| G2 | Los casos reales **presentes** son iguales al archivo de resultados esperados, indexado por `modelId`. En un modelo del repo, un hash distinto **falla**. La ausencia de Sabrina no falla G2: para ese caso se reporta "no ejecutado" (§9.1). Cambiar el .dae exige regenerar y revisar `esperados.json` en el mismo commit (§2.2) |
+| G2 | Los casos reales **presentes** son iguales al archivo de resultados esperados, indexado por `modelId`. En un modelo del repo, un hash distinto **falla**. La ausencia del segundo fixture no falla G2: para ese caso se reporta "no ejecutado" (§9.1). Cambiar el .dae exige regenerar y revisar `esperados.json` en el mismo commit (§2.2) |
 | G3 | Misma semilla → JSON idéntico, sin contar el tiempo. Se registra la versión de Node |
 | G4 | Invariancia ante permutaciones del orden de las instancias **y de las filas del listado** |
 | G5 | Con baseline, ninguna métrica empeora, comparando **por operador** (definición abajo). El baseline se ata a `catalogVersion` y `vocabularyVersion` y solo se actualiza con un commit que lo justifique |
@@ -494,24 +494,24 @@ Si falla, el script sale con código distinto de 0.
 Fuera del gate:
 - los límites conocidos;
 - el tiempo;
-- Sabrina ausente (no es una falla, §9.1);
+- Segundo fixture ausente (no es una falla, §9.1);
 - las metas numéricas, que se fijan después del baseline y con validación del profesor.
 
 ### 9.7 Archivos
 
 | Archivo | Versionado | Contenido |
 |---|---|---|
-| `eval/esperados.json` | sí | resultados esperados de Olmo, por `modelId`. Sale de una corrida real y se revisa a mano. Provisorio hasta la reexportación (§2.2) |
+| `eval/esperados.json` | sí | resultados esperados del primer fixture, por `modelId`. Sale de una corrida real y se revisa a mano. Provisorio hasta la reexportación (§2.2) |
 | `eval/runs/<modelId>.json` | sí | **`AssociationRun` publicado** para un `furnitureId` de la lista blanca (§4c, §9.7 abajo). Es lo que lee la app en producción (§1); no se recalcula en el cliente |
 | `eval/baseline.json` | sí | métricas por operador, atadas a versiones |
 | `eval/primera-corrida.json` | sí | fecha de la primera corrida del motor por `modelId`. Se escribe una sola vez |
-| `eval/publico.json` | sí | lista blanca de `furnitureId` que pueden aparecer en reportes versionados y en `eval/runs/` (Olmo y el mueble sintético) |
-| `eval/etiquetas/<hash>.json` | sí | etiquetas de Olmo (§10); `<hash>` es el `modelId` sin el prefijo `sha256:` (los dos puntos rompen nombres de archivo en Windows) |
+| `eval/publico.json` | sí | lista blanca de `furnitureId` que pueden aparecer en reportes versionados y en `eval/runs/` (primer fixture y el mueble sintético) |
+| `eval/etiquetas/<hash>.json` | sí | etiquetas del primer fixture (§10); `<hash>` es el `modelId` sin el prefijo `sha256:` (los dos puntos rompen nombres de archivo en Windows) |
 | `eval/out/reporte.json`, `reporte.md` | no (ignorado) | salida de cada corrida |
-| `eval/reportes/<AAAA-MM-DD>.md` | sí | un reporte por entrega, **sin Sabrina** |
-| `Sabrina/eval/…` | no (carpeta ignorada) | esperados, baseline, etiquetas, publicación y reportes de Sabrina |
+| `eval/reportes/<AAAA-MM-DD>.md` | sí | un reporte por entrega, **sin el segundo fixture** |
+| `Sabrina/eval/…` | no (carpeta ignorada) | esperados, baseline, etiquetas, publicación y reportes del segundo fixture |
 
-> **Estimado, no es criterio.** Con los datos del 16/10 se estima, para Olmo, 32 seguras + 1 dudosa (C01) + 6 sin asociar. **Lo fija la primera corrida**, revisada a mano, y recién entonces entra a `eval/esperados.json`. No figura en ningún criterio M. Con una reexportación que corrija el nombre de C01, la estimación cambia.
+> **Estimado, no es criterio.** Con los datos del 16/10 se estima, para el primer fixture, 32 seguras + 1 dudosa (C01) + 6 sin asociar. **Lo fija la primera corrida**, revisada a mano, y recién entonces entra a `eval/esperados.json`. No figura en ningún criterio M. Con una reexportación que corrija el nombre de C01, la estimación cambia.
 
 ## 10. Revisión humana
 
@@ -544,7 +544,7 @@ Un archivo por (`modelId`, `listadoId`).
       "instanceKey": "ID3/ID155",
       "mode": "ciego",
       "decision": "tipo",
-      "pieceCode": "0001-01-M01-C04",
+      "pieceCode": "9999-01-M01-C04",
       "labeler": "cm1",
       "engineRunId": null,
       "decidedAt": "2026-11-10",
@@ -570,13 +570,13 @@ Un archivo por (`modelId`, `listadoId`).
 ### 10.3 Herramienta de etiquetado (fase 1, excepción al "sin UI")
 
 - **Quién la usa:** personal de Casa Mueble, desde PC o celular, sin instalar nada. **Cambia respecto del borrador anterior** ("solo de desarrollo"): ahora tiene que poder usarla alguien de afuera. Sigue **fuera del bundle de producción de la app**.
-- **Entrada.** Separada de la app de producción. **Decisión del 16/10: despliegue aparte, no indexado.** El detalle (proyecto de Vercel propio, ruta, cómo se arma el build sin la app) **se decide en el plan**, después de leer la documentación de Next 16 (AGENTS.md). Requisitos: no exponer nada de Sabrina y no depender del proyecto de Vercel de los QR impresos (no renombrarlo ni tocarlo). Como en el prototipo, no indexado no es control de acceso: por eso solo sirve datos de Olmo y el modelo saneado.
+- **Entrada.** Separada de la app de producción. **Decisión del 16/10: despliegue aparte, no indexado.** El detalle (proyecto de Vercel propio, ruta, cómo se arma el build sin la app) **se decide en el plan**, después de leer la documentación de Next 16 (AGENTS.md). Requisitos: no exponer nada del segundo fixture y no depender del proyecto de Vercel de los QR impresos (no renombrarlo ni tocarlo). Como en el prototipo, no indexado no es control de acceso: por eso solo sirve datos del primer fixture y el modelo saneado.
 - **Modelo saneado.** La herramienta sirve una **copia del .dae con los nombres de componente reemplazados por un token opaco** (no el `instanceKey`), generada por un script (el `modelId` del original queda registrado en el archivo de etiquetas). **Cambia respecto de la v2:** el `instanceKey` sigue el orden de recorrido del .dae, que puede coincidir con el orden de los códigos C01…C21 y filtrar la correlación; el token opaco rompe esa correlación y la tabla token ↔ `instanceKey` queda local a la herramienta, fuera del modelo servido. Así el nombre, y cualquier pista de orden, no están tampoco en la respuesta de red, no solo en el DOM.
 - **Orden.** Las instancias se presentan en **orden aleatorio por semilla**.
 - **Qué muestra.** La pieza resaltada y el listado (nombre, medidas, espesor, material, cantidad, canteado).
 - **Qué oculta.** El nombre del componente, la ficha, el menú de piezas, los vínculos y toda salida del motor.
 - **Respuestas.** La persona elige un tipo, `ninguno` o `no-se`. Un botón exporta el JSON.
-- **Alcance.** Se etiqueta **todo** Olmo: las instancias con componente (33 en el .dae provisorio) + las mallas sueltas (6 en el provisorio), a recontar sobre el .dae reexportado. Cuánto tarda quien etiqueta: a relevar. Sabrina, si es mucho, con una muestra sorteada por semilla, reportada como n/N, **solo en local** mientras la titularidad no se resuelva.
+- **Alcance.** Se etiqueta **todo** el primer fixture: las instancias con componente (33 en el .dae provisorio) + las mallas sueltas (6 en el provisorio), a recontar sobre el .dae reexportado. Cuánto tarda quien etiqueta: a relevar. Segundo fixture, si es mucho, con una muestra sorteada por semilla, reportada como n/N, **solo en local** mientras la titularidad no se resuelva.
 - **Pruebas automáticas.** Ningún nombre de componente del .dae aparece en el DOM ni en los archivos que sirve la herramienta.
 - **Fecha límite.** 13/11, condicionada como en §2.2. Plan B: la concordancia se reporta "no ejecutado".
 
@@ -614,11 +614,11 @@ El reporte compara el `decidedAt` de cada etiqueta con `eval/primera-corrida.jso
 | `src/model/ids.ts` | `PIECE_NAME` exige `_` inicial y no coincide con §3: la normalización pasa a `normalize.ts`, con las dos regexes de §6.1 (`^_?C$` canónico, `^_*C_*$` anómalo); lo que quede de `ids.ts` se alinea |
 | `src/model/namedColladaLoader.ts` | restaura nombres solo si cumplen `PIECE_NAME`; el adapter lee del XML (§4a). Si el plan elige correlacionar por `id`, el pre-parseo copia también el `id` |
 | `FurniturePart` (`src/model/types.ts`) | suma `instanceKey`. El visor mapea `instanceKey` → mesh; `<código>#n` queda como etiqueta de pantalla |
-| Visor y ficha | leen `eval/runs/<modelId>.json` (publicado, §9.7) y vinculan **solo seguras**; no invocan `associate.ts`. Si el `modelId` servido no tiene `AssociationRun` publicado, no vinculan nada y avisan (§1). En el .dae provisorio de Olmo, la C01 queda sin vincular en la fase 1 (efecto esperado, §6.1) |
+| Visor y ficha | leen `eval/runs/<modelId>.json` (publicado, §9.7) y vinculan **solo seguras**; no invocan `associate.ts`. Si el `modelId` servido no tiene `AssociationRun` publicado, no vinculan nada y avisan (§1). En el .dae provisorio del primer fixture, la C01 queda sin vincular en la fase 1 (efecto esperado, §6.1) |
 | `src/model/verifyModel.ts` | sigue como verificación de desarrollo; las comprobaciones (b) y (c) reusan `evidence.ts` |
 | `tests/helpers/edgeFaces.ts` | el detector pasa al adapter; el test usa el código del adapter |
 | `tests/olmo.test.ts` | hoy espera 21 tipos, 33 instancias, 6 mallas sin código y 1 anomalía: se revisa con la reexportación (§2.2) |
-| Criterio **A4** | se reescribe: "cada instancia recibe exactamente un nivel, y el resultado es igual al de `eval/esperados.json`" (el mismo archivo que G2). La parte de Sabrina se saltea sin Sabrina |
+| Criterio **A4** | se reescribe: "cada instancia recibe exactamente un nivel, y el resultado es igual al de `eval/esperados.json`" (el mismo archivo que G2). La parte del segundo fixture se saltea sin el segundo fixture |
 | `.gitattributes` | nuevo: `*.dae binary`, con `git add --renormalize .` en el mismo commit |
 | `package.json` | `npm run eval` (corre con `vitest run` / `vite-node`, §4c) |
 
@@ -627,19 +627,19 @@ El reporte compara el `decidedAt` de cada etiqueta con `eval/primera-corrida.jso
 | Id | Sección | Criterio | Prueba concreta |
 |---|---|---|---|
 | M1 | §2.2, §5.1 | `.gitattributes` presente, `git add --renormalize` aplicado (mismo `modelId` con fin de línea LF y CRLF) y `listadoId` calculado según §5.1 | test del contenido de `.gitattributes`; test de `listadoId` con un listado mínimo escrito a mano y el hash esperado calculado aparte; test de `modelId` con el mismo .dae en los dos fines de línea; G2 |
-| M2 | §4a, §5.2 | El adapter produce una `Observation` por instancia con componente y por malla suelta; las líneas se excluyen y se cuentan; `instanceKey` es único; la unidad se convierte a mm; el nombre de formato inválido llega como `rawName` | test con el .dae provisorio de Olmo (33 + 6 + 0 líneas) y con .dae sintéticos mínimos (líneas, formato inválido, otra unidad, nodo con dos `instance_node` → excepción) |
+| M2 | §4a, §5.2 | El adapter produce una `Observation` por instancia con componente y por malla suelta; las líneas se excluyen y se cuentan; `instanceKey` es único; la unidad se convierte a mm; el nombre de formato inválido llega como `rawName` | test con el .dae provisorio del primer fixture (33 + 6 + 0 líneas) y con .dae sintéticos mínimos (líneas, formato inválido, otra unidad, nodo con dos `instance_node` → excepción) |
 | M3 | §4b | `src/engine/` no importa three ni usa el DOM | test estático de imports |
 | M4 | §6.1 | Cada regla de normalización tiene un caso, incluidos los subcasos de anómalo (inicial, final, ambos) | tabla de casos, una fila por fila de §6.1 más los subcasos de anómalo |
 | M5 | §6.2–6.3 | Pasadas 1 y 2: piso, tipo del código en el top-3, cupo completo, empates (con cuantización del elemento 7), top-3 vacío, `sin-asociar` solo por `sin-componente` | tabla de casos de `associate.ts`, con un caso de empate que sin cuantizar no empataría |
 | M6 | §9.6 | Resultado invariante ante permutaciones de instancias y de filas del listado | G4 |
 | M7 | §5.3, §9.6 | Salida determinista | G3 |
-| M8 | §9.7, §11 | Olmo real igual a `eval/esperados.json`, cada instancia con exactamente un nivel, y `eval/runs/<modelId>.json` publicado coincide con `esperados.json`. Mientras el .dae conserve el nombre anómalo de C01, esa instancia es `dudosa` y queda sin vincular | G2, A4 |
+| M8 | §9.7, §11 | Primer fixture real igual a `eval/esperados.json`, cada instancia con exactamente un nivel, y `eval/runs/<modelId>.json` publicado coincide con `esperados.json`. Mientras el .dae conserve el nombre anómalo de C01, esa instancia es `dudosa` y queda sin vincular | G2, A4 |
 | M9 | §9.2–9.4 | Catálogo P1–P14 implementado, con detectabilidad calculada desde el listado | reporte por operador + tabla de detectabilidad contada a mano (§13) |
 | M10 | §9.6 | 0 seguras incorrectas en casos detectables | G1 |
 | M11 | §10.3 | La herramienta de etiquetado está fuera del bundle de producción y no muestra ni sirve nombres de componente ni `instanceKey` (solo el token opaco) | verificación del build (método fijado en el plan); test del DOM y de los archivos servidos |
 | M12 | §10.2, §10.4–10.6 | Etiquetas validadas contra el esquema (incluido `exposicion` como arreglo); concordancia, discrepancias y ceguera temporal en el reporte | validador con un caso válido y uno inválido por regla + reporte con etiquetas de prueba |
-| M13 | §4 (privacidad), §9.1, §9.6 | Sin Sabrina: todo corre, el gate aprueba, y el reporte dice "no ejecutado" para Sabrina | test automático que corre el harness apuntando a un directorio `Sabrina/` inexistente y verifica código de salida 0 |
-| M14 | §9.7 | Reporte de entrega versionado, sin Sabrina | test del generador de `eval/reportes/`: rechaza un `furnitureId` fuera de `eval/publico.json` y acepta los de la lista |
+| M13 | §4 (privacidad), §9.1, §9.6 | Sin el segundo fixture: todo corre, el gate aprueba, y el reporte dice "no ejecutado" para el segundo fixture | test automático que corre el harness apuntando a un directorio `Sabrina/` inexistente y verifica código de salida 0 |
+| M14 | §9.7 | Reporte de entrega versionado, sin el segundo fixture | test del generador de `eval/reportes/`: rechaza un `furnitureId` fuera de `eval/publico.json` y acepta los de la lista |
 | M15 | §5.4, §6.2–6.3 | Inconsistencias de corrida: `faltante`, `sin-confirmar`, `cupo-excedido`, `cupo-completo-sugerido`, `conflicto`, `sin-componente`, y que un código duplicado no calcula `faltante`/`sin-confirmar` | tabla de casos, un caso por inconsistencia + caso de código duplicado |
 | M16 | §6.4, §8 | Evidencia blanda y canto: orientación, posición, canto (cumple, no cumple, neutral, no disponible) y espejo neutral | tablas de §13 |
 | M17 | §9.5 | Modo sombra: registra k y la curva, con semillas de selección y validación separadas, sin fijar umbral | fixture sintético con k calculado a mano |
@@ -680,7 +680,7 @@ Los llamamos **RF** para no confundirlos con los R1–R7 de Casa Mueble (`Consul
 | RF4 | Puntaje como tupla lexicográfica, sin pesos; orden de los elementos 4–6 propuesto (orientación > posición > canto); elemento 7 cuantizado (§6.3). El documento v2 habla de "puntaje de certeza" | Sin pesos inventados; explicable por el primer elemento distinto |
 | RF5 | Elemento "código" binario, sin similitud parcial | Evitar reglas inventadas |
 | RF6 | El cupo restante baja al candidato pero no lo excluye | No esconder candidatos |
-| RF7 | El nombre anómalo pone techo de dudosa (C01 de Olmo) | Conservador hasta confirmar |
+| RF7 | El nombre anómalo pone techo de dudosa (C01 del primer fixture) | Conservador hasta confirmar |
 | RF8 | Asignación global (enfoque 2) solo si el reporte de conflictos lo justifica | Explicabilidad |
 | RF9 | La revisión humana (aceptar o rechazar candidatos) se difiere a la pantalla C. En la fase 1 las dudosas quedan sin vincular. Hoy el documento v2 dice que una dudosa pasa a revisión humana antes de imprimir y que las correcciones alimentan la evaluación | Acotar la fase 1; el esquema ya la contempla |
 | RF10 | La concordancia humana se mide contra etiquetado **ciego** hecho por personal de Casa Mueble, y las decisiones de `revision` no cuentan. La Tabla 30 del documento v2 la define como coincidencia entre la propuesta del motor y la decisión final de la persona | Evitar medir acuerdo contra quien ya vio la propuesta |
@@ -696,12 +696,12 @@ Los llamamos **RF** para no confundirlos con los R1–R7 de Casa Mueble (`Consul
 | AS4 | `Canto_*` como convención de caras de canto | Materiales del segundo fixture (`Canto_Blanco`, `Canto_Cedro`) y `tests/helpers/edgeFaces.ts` | Casa Mueble (consulta 52) |
 | AS5 | Leyenda de canteado y orientación A/B (no se usan en el motor) | Lectura del equipo de los PDF de corte (Estado §1) | Casa Mueble (consultas 2 y 47) |
 | AS6 | Pares de tipos equivalentes en medida, material y canto con código distinto, tratados como tipos distintos (detalle en el anexo local) | Análisis del segundo fixture | Casa Mueble (pendiente ya abierto en Estado) |
-| AS7 | Las mallas sueltas sin código de Olmo no son piezas del listado (entran como `sin-asociar`, sin afirmar qué son) | Verificación de desarrollo del prototipo | Casa Mueble (consulta 33) |
-| AS8 | Tolerancia por modelo (`FurnitureDef.toleranceMm`): Olmo 2 mm, valor por defecto de la verificación de desarrollo del prototipo; el segundo fixture, 0,5 mm, derivada de la diferencia entre listado "final" y "ajustado" (detalle en el anexo local). **No viene de Casa Mueble** | Prototipo | Casa Mueble (consulta 50) |
+| AS7 | Las mallas sueltas sin código del primer fixture no son piezas del listado (entran como `sin-asociar`, sin afirmar qué son) | Verificación de desarrollo del prototipo | Casa Mueble (consulta 33) |
+| AS8 | Tolerancia por modelo (`FurnitureDef.toleranceMm`): Primer fixture 2 mm, valor por defecto de la verificación de desarrollo del prototipo; el segundo fixture, 0,5 mm, derivada de la diferencia entre listado "final" y "ajustado" (detalle en el anexo local). **No viene de Casa Mueble** | Prototipo | Casa Mueble (consulta 50) |
 | AS9 | La medida del listado es la medida final del panel, sin el canto sumado | Comparación contra el segundo fixture (§8.4) | Casa Mueble (consulta 51) |
 | AS10 | Resolución de cuantización de la tupla (`tupleRoundingMm`, por defecto 0,01 mm, §6.3) | Elección del equipo para que el elemento 7 detecte empates genuinos sin ruido de conversión de unidades | No depende de Casa Mueble; se ajusta si el baseline lo pide |
 
-El nombre del mueble (Olmo) **ya no es un supuesto**: lo confirmó Casa Mueble el 16/10.
+El nombre del mueble (primer fixture) **ya no es un supuesto**: lo confirmó Casa Mueble el 16/10.
 
 ## 16. Consultas pendientes con Casa Mueble
 
@@ -711,23 +711,23 @@ Numeración continua con `Consultas y respuestas Casa Mueble y cátedra.md` (la 
 
 | N.º | Consulta |
 |---|---|
-| 48 | ¿Cuándo pueden renombrar Oslo por Olmo en el .skp, el .dae y la carpeta del paquete, y reexportar el .dae? |
-| 49 | El `__` final del componente C01 de Olmo: ¿error de nombre o significa algo? |
-| 50 | ¿Qué tolerancia de medida usa el taller? (para Olmo y para el segundo fixture) |
+| 48 | ¿Cuándo pueden renombrar Oslo por el nombre confirmado del primer fixture en el .skp, el .dae y la carpeta del paquete, y reexportar el .dae? |
+| 49 | El `__` final del componente C01 del primer fixture: ¿error de nombre o significa algo? |
+| 50 | ¿Qué tolerancia de medida usa el taller? (para el primer fixture y para el segundo fixture) |
 | 51 | ¿La medida "final" del listado incluye el canto? |
 | 52 | ¿Las caras con material `Canto_*` son la fuente del canteado? (distinta de la 2 y la 47, que preguntan de qué documento sale el dato) |
 | 53 | Convención de frente, atrás, izquierda y derecha del mueble |
 | 54 | Significado del ícono de espejo. Una transformada espejada en el .dae coincide con el ícono (detalle en el anexo local) |
-| 55 | ¿Quién de Casa Mueble puede etiquetar Olmo (cada instancia, con una herramienta simple), cuándo y desde qué dispositivo? |
+| 55 | ¿Quién de Casa Mueble puede etiquetar el primer fixture (cada instancia, con una herramienta simple), cuándo y desde qué dispositivo? |
 
 **Ya abiertas, que este spec también necesita**
 
-- 33: las geometrías sueltas sin código de Olmo (20 × 35 × 10 mm, material `Color_M06`) y los herrajes.
-- 42: significado de los segmentos del código (`0001`, `01`, `M01`, `Cxx`) y por qué todos llevan `M01` en Olmo. La 25 y la 26 están "respondidas (a confirmar)".
+- 33: las geometrías sueltas sin código del primer fixture (20 × 35 × 10 mm, material `Color_M06`) y los herrajes.
+- 42: significado de los segmentos del código (`9999`, `01`, `M01`, `Cxx`) y por qué todos llevan `M01` en el primer fixture. La 25 y la 26 están "respondidas (a confirmar)".
 - 2 y 47: origen del canteado y leyenda de las columnas de canteado.
 - Pares de tipos con medida, material y canto idénticos y código distinto: ya figura en los pendientes con Casa Mueble de `Estado-del-proyecto.md`. Este spec no suma una consulta nueva.
 
-**Cerrada:** 34 (Olmo, 16/10).
+**Cerrada:** 34 (primer fixture, 16/10).
 
 ## 17. Para el profesor
 
@@ -747,9 +747,9 @@ Numeración continua con `Consultas y respuestas Casa Mueble y cátedra.md` (la 
 | Muestra real chica (dos muebles) | n/N en todo; sumar cada modelo real nuevo como caso |
 | Ceguera parcial del etiquetado; quien etiqueta diseñó el modelo | Declarada; exposición por etiquetador (§10.2); control temporal (§10.6) |
 | Tolerancia en el límite si un modelo modela el espesor del canto | §8.4; consulta 51 |
-| La reexportación de Olmo cambia `modelId` (y puede cambiar los `id` de nodo) e invalida etiquetas hechas antes | Se etiqueta después de reexportar (decisión del 16/10); cambio controlado del .dae y de `esperados.json` (§2.2) |
+| La reexportación del primer fixture cambia `modelId` (y puede cambiar los `id` de nodo) e invalida etiquetas hechas antes | Se etiqueta después de reexportar (decisión del 16/10); cambio controlado del .dae y de `esperados.json` (§2.2) |
 | El etiquetado depende de Casa Mueble: reexportación y disponibilidad sin fecha | Desarrollo en paralelo con sintéticos (confirmado por el equipo, 16/10); consultas 48 y 55; plan B "no ejecutado" |
-| La herramienta de etiquetado, desplegada aparte y no indexada, queda accesible a quien tenga la URL | Solo datos de Olmo y modelo saneado con token opaco; sin Sabrina (§10.3) |
+| La herramienta de etiquetado, desplegada aparte y no indexada, queda accesible a quien tenga la URL | Solo datos del primer fixture y modelo saneado con token opaco; sin el segundo fixture (§10.3) |
 | Herramienta de etiquetado fuera de plazo | Plan B: "no ejecutado" |
 | Nombres con formato inválido invisibles por cómo restaura nombres el loader | El adapter lee del XML (§4a); prueba con .dae sintético |
 | Si el .dae servido y el `AssociationRun` publicado quedan desincronizados (§1) | No se vincula nada y se avisa; `modelId` es la clave de verificación |
@@ -758,23 +758,23 @@ Numeración continua con `Consultas y respuestas Casa Mueble y cátedra.md` (la 
 
 **Verificadas en la revisión del 16/10 contra el repo sincronizado:**
 
-- `tests/olmo.test.ts` espera 21 tipos, 33 instancias, 0 advertencias, 1 anomalía (`_0001-01-M01-C01__`) y 6 mallas sin código con 0 líneas.
+- `tests/olmo.test.ts` espera 21 tipos, 33 instancias, 0 advertencias, 1 anomalía (`_9999-01-M01-C01__`) y 6 mallas sin código con 0 líneas.
 - `src/model/ids.ts`: `PIECE_NAME` exige `_` inicial y admite `_` finales; `canonicalCode` quita todos los `_` iniciales y finales.
 - `NamedColladaLoader` restaura el nombre del componente solo si cumple `PIECE_NAME` y solo en nodos con un único `instance_node` y sin contenido propio.
 - `colladaModel.ts` hace `clearGroups` y centra la geometría.
 - `tests/helpers/edgeFaces.ts` usa `/^Canto_/` y lanza una excepción con cantidad impar de triángulos de canto.
-- En el .dae de Olmo, cada instancia tiene su propio nodo envoltorio con `id` propio, incluso cuando comparten componente.
+- En el .dae del primer fixture, cada instancia tiene su propio nodo envoltorio con `id` propio, incluso cuando comparten componente.
 - El lockfile resuelve `jsdom` 24.1.3 y `vitest` 3.2.7. `vitest.config.ts` usa entorno `jsdom`.
 - `PieceType` tiene los campos de §5.1, más `qrId` y `moduleId`.
 - `tests/helpers/syntheticDef.ts` declara un canto de 0,45 mm.
 
 **Del diseño del 16/10, no re-verificadas en esta revisión:**
 
-- El componente `_0001-01-M01-C01__` se instancia una sola vez (nodo `ID156`, listado con cantidad 1). Los `id` pueden cambiar con la reexportación.
-- Olmo no trae caras `Canto_*`; sus materiales son `Blanco_nature`, `GAUDI` y `Color_M06`.
+- El componente `_9999-01-M01-C01__` se instancia una sola vez (nodo `ID156`, listado con cantidad 1). Los `id` pueden cambiar con la reexportación.
+- Primer fixture no trae caras `Canto_*`; sus materiales son `Blanco_nature`, `GAUDI` y `Color_M06`.
 - En ninguno de los dos modelos hay normales fuera de los ejes: solo giros de 90°.
-- Olmo no tiene transformadas espejadas.
-- En Olmo no hay tipos con |largo − ancho| ≤ 2·tol + 5 mm.
+- Primer fixture no tiene transformadas espejadas.
+- En el primer fixture no hay tipos con |largo − ancho| ≤ 2·tol + 5 mm.
 - `ColladaLoader` falla en Node 20 puro sin `DOMParser`.
 - Todo lo del segundo fixture (§8.4 y anexo local).
 
@@ -782,7 +782,7 @@ Numeración continua con `Consultas y respuestas Casa Mueble y cátedra.md` (la 
 
 - Si three expone el `id` del nodo en la escena.
 - Si la reexportación conserva los `id` de nodo.
-- La profundidad de Olmo (571 mm de caja contra 550 mm del mock).
+- La profundidad del primer fixture (571 mm de caja contra 550 mm del mock).
 
 ## 20. Cambios a replicar en otros documentos
 

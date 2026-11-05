@@ -15,7 +15,7 @@ Sin OCR, sin red y sin dependencias nuevas. No toca el visor, las fichas, el imp
 **A decidir al arrancar:**
 - Dónde vive el tipo `Observation`: el motor lo define en `src/engine/types.ts`, que no existe. Propuesta: crear solo ese archivo de tipos, sin lógica.
 - TP-61 (`listadoId`) sigue sin función del motor: no se escribe una propia (RP9). Queda pendiente hasta el motor, salvo que se decida adelantar esa función.
-- TP-40 usa el .dae real del Olmo, que necesita three y `DOMParser`: se prueba con `tests/helpers/loadModel.ts` o se deja para cuando exista el adapter.
+- TP-40 usa el .dae real del primer fixture, que necesita three y `DOMParser`: se prueba con `tests/helpers/loadModel.ts` o se deja para cuando exista el adapter.
 
 ## Sesión 2 — Adaptador de OCR
 
@@ -23,10 +23,10 @@ Objetivo (`CLAUDE.md`): adaptador de OCR con fixtures y **el mismo parser** de l
 
 1. **`src/pdf/ocrAdapter.ts`, puro:** palabras con caja de un OCR (formato a fijar) → `PdfTextElement[]` y `pageWidths`, con origen arriba a la izquierda. Sin llamadas de red en la función: la salida del OCR se recibe ya hecha.
 2. **Lector en `parseCutListText`:** hoy fija `reader: "texto-pdf"` y `hasTextLayer: true`. Hace falta poder decir `reader: "ocr-llm"` y `hasTextLayer: false`, para que toda fila salga `dudosa` por `origen-ocr` (TP-53). Es un cambio chico en `PdfTextInput`.
-3. **Fixtures:** salidas de OCR grabadas. Las del Olmo solo con OK explícito del equipo; las de Sabrina, en `Sabrina/` (ignorada) mientras no se decida otra cosa (RP11).
+3. **Fixtures:** salidas de OCR grabadas. Las del primer fixture solo con OK explícito del equipo; las del segundo fixture, en `Sabrina/` (ignorada) mientras no se decida otra cosa (RP11).
 4. **Pruebas:** salida grabada → mismo resultado que el fixture transcripto, o `pending`, nunca un valor inventado. Palabras mal leídas ("Cant0") → `pending`, no corrección.
 
-**Lo que la sesión 1 ya deja medido** (§8.2): la geometría de los trazados de los PDF de Sabrina. Las posiciones de las marcas de canto salen de los trazados **sin OCR ni servicios externos**: sirven de verdad independiente para evaluar al OCR en s1 a s4.
+**Lo que la sesión 1 ya deja medido** (§8.2): la geometría de los trazados de los PDF del segundo fixture. Las posiciones de las marcas de canto salen de los trazados **sin OCR ni servicios externos**: sirven de verdad independiente para evaluar al OCR en s1 a s4.
 
 **Riesgos conocidos:**
 - El texto de canto mide ~5,5 pt y está en 3 renglones. El análisis del 23/10 vio a Tesseract confundir códigos y medidas.

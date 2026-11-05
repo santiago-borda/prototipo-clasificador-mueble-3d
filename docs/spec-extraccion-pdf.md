@@ -7,7 +7,7 @@
 | Versión | 0.3.1 (v0.3 aprobada el 3/11; reemplaza a la 0.2). La 0.3.1 es una corrección de mantenimiento del 5/11: credenciales fuera del repo, rutas del esquema y bandera de procesamiento externo. No cambia el diseño aprobado |
 | Fecha | 03/11/2026 (ajustes del 05/11 en §8, §9, §12, §14 y P-02/P-15: credenciales y salidas del OCR). 05/11: prueba de humo de Cloud Vision, credenciales y conectividad OK en local; no valida calidad del OCR |
 | Autores | Santiago Borda, Lautaro Salina |
-| Estado | **Aprobada el 3/11** (por el equipo y el profesor). Siguen abiertos los puntos de §15 y la decisión de §5.3; el adaptador de OCR no se programa antes de resolver P-02 y P-12. P-02 está **parcial** (no resuelta): se resuelve con la prueba con una página de Sabrina (depende de P-04) |
+| Estado | **Aprobada el 3/11** (por el equipo y el profesor). Siguen abiertos los puntos de §15 y la decisión de §5.3; el adaptador de OCR no se programa antes de resolver P-02 y P-12. P-02 está **parcial** (no resuelta): se resuelve con la prueba con una página del segundo fixture (depende de P-04) |
 | Contrato del que depende | `docs/spec-esquema-pdf.md` (aprobada el 3/11): `CutListPdf`, `FuenteDePdf`, INV-0 a INV-15, catálogo cerrado de razones. **Si esta spec y aquella chocan, manda aquella.** |
 | Lo consume | Motor de asociación A (`spec-motor-asociacion.md`), detector de inconsistencias C, sección de cortes (R4) |
 | Ubicación propuesta | `docs/spec-extraccion-pdf.md` |
@@ -45,11 +45,11 @@
 | V-02: el código debe coincidir con el proyecto/mueble del contexto | **Eliminada** | El repo trata el código como opaco (AS1) |
 | Campo "ok" si coinciden 2 fuentes | **Abierto** (§5.3); por defecto toda fila sale `dudosa` por `origen-ocr` | spec-esquema §7.3 (RP8). La alternativa se decide con datos del harness |
 | Parser de tabla propio sobre salida de Vision | Se reutiliza `parseCutListText` | Un solo parser para `TextoPdf` y `OcrLlm` |
-| Vision y Gemini como primera implementación | **Sesión 2: Tesseract local, replay y Vision. Sesión 3: Gemini.** Todo envío externo con bandera y lista blanca por hash | Casa Mueble autorizó el envío el 3/11 (§9); Sabrina incluida |
+| Vision y Gemini como primera implementación | **Sesión 2: Tesseract local, replay y Vision. Sesión 3: Gemini.** Todo envío externo con bandera y lista blanca por hash | Casa Mueble autorizó el envío el 3/11 (§9); segundo fixture incluido |
 
 ## 3. Hechos de entrada que condicionan la lectura
 
-Fuente: Casa Mueble (20/10) y relevamiento del 3/11 sobre los PDF de Olmo y de Sabrina. Los detalles de la hoja de varias páginas, las columnas presentes o ausentes y el mapeo de cantos están en spec-esquema §2 y §3; acá solo se listan los que afectan al OCR.
+Fuente: Casa Mueble (20/10) y relevamiento del 3/11 sobre los PDF del primer fixture y del segundo fixture. Los detalles de la hoja de varias páginas, las columnas presentes o ausentes y el mapeo de cantos están en spec-esquema §2 y §3; acá solo se listan los que afectan al OCR.
 
 | ID | Hecho |
 |---|---|
@@ -104,7 +104,7 @@ PDF ─► 1. Ingesta (sha256 = pdfId, caché)
 2. **Rasterizado.** Imagen por página, en una resolución fija y registrada en `readerVersion`. Herramienta a decidir (P-12).
 3. **OCR (3a).** El `OcrAdapter` devuelve palabras con página, x, y, ancho y alto (el mismo tipo que usa `TextoPdf`: `PdfTextElement`, más `pageWidths` en `PdfTextInput`, tal como quedó en la rama `pdf-esquema-sesion-1`). Eso alimenta `parseCutListText` sin cambios. El parser decide qué es fila, columna y marca; el OCR solo aporta palabras.
 4. **LLM (3b).** Recibe el PDF o las imágenes y un esquema de respuesta equivalente a `CutListPdf`. Se le indica que **transcriba y no corrija**. La respuesta se valida con el mismo validador de INV-0; si falla, se reintenta una vez y después se toma la pasada como fallida (§7). Es transcripción, no decisión: **No-Wrapper LLM** (motor §1), el LLM no puntúa ni asocia.
-5. **Detector de marcas (3c).** Para cada celda de las subcolumnas 1 a 4 (coordenadas del parser) decide si hay un punto de color saturado en la imagen. Los umbrales se calibran con los PDF de Sabrina (P-01).
+5. **Detector de marcas (3c).** Para cada celda de las subcolumnas 1 a 4 (coordenadas del parser) decide si hay un punto de color saturado en la imagen. Los umbrales se calibran con los PDF del segundo fixture (P-01).
 6. **Reconciliación (4).** Ver §5.1.
 
 ### 5.1 Reglas de reconciliación (conservadoras)
@@ -128,7 +128,7 @@ Rige spec-esquema §7.3: toda fila leída por `OcrLlm` sale `dudosa` con `origen
 
 ### 5.3 Decisión abierta: ¿puede un campo con acuerdo dejar de ser `dudosa`?
 
-**Hoy no** (spec-esquema §7.3). La alternativa propuesta el 3/11 es que un campo salga sin razón cuando al menos dos fuentes independientes coinciden y ninguna discrepa. Para decidirlo con datos, el harness (§11) mide el **error en campos con acuerdo** y el **error en campos con acuerdo de las tres fuentes**. La alternativa solo se adopta si ambos dan **0 sobre Sabrina y sobre Olmo**, y la adopta el equipo, no esta spec.
+**Hoy no** (spec-esquema §7.3). La alternativa propuesta el 3/11 es que un campo salga sin razón cuando al menos dos fuentes independientes coinciden y ninguna discrepa. Para decidirlo con datos, el harness (§11) mide el **error en campos con acuerdo** y el **error en campos con acuerdo de las tres fuentes**. La alternativa solo se adopta si ambos dan **0 sobre el segundo fixture y sobre el primer fixture**, y la adopta el equipo, no esta spec.
 
 ## 6. Validación
 
@@ -136,7 +136,7 @@ No hay validaciones propias de B. Después de la reconciliación se aplican las 
 - INV-0 a INV-15 sobre el `CutListPdf` (incluido `hoja-incompleta`, que el parser detecta, y las razones de §7.1).
 - Cruce con el .dae (§7.2 de spec-esquema), cuando exista (sesión 2b).
 
-Lo que **sí** controla B (sin razón nueva, como advertencia en `evidence` o en el informe del harness): la eficiencia recalculada (Σ L·A·cantidad / área de la placa) contra la del pie. Tolerancia provisoria ±0,5 pp: Sabrina Fondo 3 mm da exacto (71,47 %) pero Sabrina Blanco 18 mm da 82,70 % contra 82,40 % del pie, sin explicar (P-08). No es un invariante hasta entender la diferencia.
+Lo que **sí** controla B (sin razón nueva, como advertencia en `evidence` o en el informe del harness): la eficiencia recalculada (Σ L·A·cantidad / área de la placa) contra la del pie. Tolerancia provisoria ±0,5 pp: en el segundo fixture, Fondo 3 mm da exacto (71,47 %) pero Blanco 18 mm da 82,70 % contra 82,40 % del pie, sin explicar (P-08). No es un invariante hasta entender la diferencia.
 
 ## 7. Errores
 
@@ -180,15 +180,15 @@ interface LlmAdapter { readonly name: string; readonly modelId: string; extract(
 ### 8.2 Salidas locales del OCR (agregado del 5/11)
 
 - Todo archivo que genere la lectura (páginas rasterizadas en PNG, respuestas JSON de Vision o de Gemini, palabras reconocidas, caché de §5 (1)) se escribe **solo en `.ocr-data/`** (raíz del repo, ignorada por git) y **en ninguna otra ruta**.
-- Esos archivos contienen datos de Casa Mueble y de Sabrina (medidas, códigos, canteado): no se commitean.
-- Lo que sí puede commitearse como fixture es una **transcripción hecha a mano**: la de Olmo en `tests/fixtures/pdf/`; los fixtures de replay con palabras de Sabrina viven en `Sabrina/` (§9).
+- Esos archivos contienen datos de Casa Mueble y del segundo fixture (medidas, códigos, canteado): no se commitean.
+- Lo que sí puede commitearse como fixture es una **transcripción hecha a mano**: la del primer fixture en `tests/fixtures/pdf/`; los fixtures de replay con palabras del segundo fixture viven en `Sabrina/` (§9).
 
 ## 9. Privacidad
 
 - **Autorización (3/11, informada por el equipo):** Casa Mueble aprobó enviar los PDF de OpenCutList a servicios externos de lectura (Cloud Vision y Gemini) para pruebas y desarrollo, con la aclaración de que en la capa gratis de Gemini Google puede usar el contenido y personas de su equipo pueden leerlo. **Falta guardar la captura del mensaje como confirmación escrita (P-04).** Los términos de Cloud Vision no están verificados, y tampoco se sabe aún si Vision usa el contenido enviado.
-- Casa Mueble confirmó también el uso de los archivos de Sabrina y autorizó enviar sus PDF a esos servicios (3/11, informado por el equipo). Se aplican las mismas reglas que a Olmo: bandera `PROCESAMIENTO_EXTERNO=permitir` y lista blanca por sha256, sin la cual el adaptador de red se niega a correr.
-- Un PDF real entra a la lista blanca solo cuando el equipo agrega su sha256 de forma explícita, sea de Olmo o de Sabrina. La autorización de Casa Mueble habilita el envío; la lista blanca decide cuáles PDF se envían de verdad.
-- Los fixtures de replay con palabras de Sabrina viven en `Sabrina/` (ignorada por git) hasta que se decida qué se commitea.
+- Casa Mueble confirmó también el uso de los archivos del segundo fixture y autorizó enviar sus PDF a esos servicios (3/11, informado por el equipo). Se aplican las mismas reglas que al primer fixture: bandera `PROCESAMIENTO_EXTERNO=permitir` y lista blanca por sha256, sin la cual el adaptador de red se niega a correr.
+- Un PDF real entra a la lista blanca solo cuando el equipo agrega su sha256 de forma explícita, sea del primer fixture o del segundo fixture. La autorización de Casa Mueble habilita el envío; la lista blanca decide cuáles PDF se envían de verdad.
+- Los fixtures de replay con palabras del segundo fixture viven en `Sabrina/` (ignorada por git) hasta que se decida qué se commitea.
 - Las salidas del OCR se guardan solo en `.ocr-data/` (ignorada por git) y la clave de Google Cloud solo en `$HOME\.secrets\gcp`, fuera del repo; ver §8.1 y §8.2. `.ocr-data/` y los patrones de claves de §8.1 deben figurar en `.gitignore` y se verifican con `git check-ignore`.
 
 ## 10. R5: IA desactivable
@@ -198,9 +198,9 @@ interface LlmAdapter { readonly name: string; readonly modelId: string; extract(
 
 ## 11. Eval Harness
 
-**Dataset (decisión del equipo, 3/11).** **Sabrina es el principal** porque sus PDF son los más nuevos (export del 14/10) y los únicos con columnas de canto; **Olmo es secundario** (medidas, cantidades, hojas de varias páginas). Los archivos de Sabrina viven local. Reexportar Olmo con canto definido permitiría su ground truth de cantos (P-10).
+**Dataset (decisión del equipo, 3/11).** **El segundo fixture es el principal** porque sus PDF son los más nuevos (export del 14/10) y los únicos con columnas de canto; **el primer fixture es secundario** (medidas, cantidades, hojas de varias páginas). Los archivos del segundo fixture viven local. Reexportar el primer fixture con canto definido permitiría su ground truth de cantos (P-10).
 
-**Ground truth.** Un `CutListPdf` por PDF, armado a mano por los dos integrantes por separado y conciliado (los fixtures existentes son el punto de partida). Sabrina: 10 páginas, 29 códigos, 105 instancias (50 + 13 + 17 + 25 cruzadas con el .dae); falta verificar sus medidas contra el PDF (P-11).
+**Ground truth.** Un `CutListPdf` por PDF, armado a mano por los dos integrantes por separado y conciliado (los fixtures existentes son el punto de partida). Segundo fixture: 10 páginas, 29 códigos, 105 instancias (50 + 13 + 17 + 25 cruzadas con el .dae); falta verificar sus medidas contra el PDF (P-11).
 
 **Casos adversarios** (variantes del ground truth): página de continuación omitida, columna de cantos quitada, puntos de color intercambiados, `__` final y `_` inicial en un código, código duplicado en un tablero, fila omitida, cantidad alterada, resolución menor, rotación leve (±1°), ruido.
 
@@ -230,8 +230,8 @@ interface LlmAdapter { readonly name: string; readonly modelId: string; extract(
 
 ## 13. Cambios que esta spec pide a `spec-esquema-pdf.md`
 
-1. `PdfReading` (ok): campo opcional `evidence?: Evidence` (§4). **Aprobado por el equipo el 3/11; falta aplicarlo en §8 de la spec del esquema.**
-2. `PdfReading` (no ok): razón `lectura-fallida`. **Aprobado por el equipo el 3/11; falta aplicarlo en §8 y en el catálogo de §7.3.** La rama `pdf-esquema-sesion-1` ya sumó `hoja-incompleta`: el tipo final queda:
+1. `PdfReading` (ok): campo opcional `evidence?: Evidence` (§4). **Aprobado por el equipo el 3/11; aplicado en §8 de la spec del esquema el 5/11.**
+2. `PdfReading` (no ok): razón `lectura-fallida`. **Aprobado por el equipo el 3/11; aplicado en §8 y en el catálogo de §7.3 el 5/11.** La rama `pdf-esquema-sesion-1` ya sumó `hoja-incompleta`: el tipo final queda:
 
 ```ts
 type PdfReading =
@@ -242,7 +242,7 @@ type PdfReading =
       detail: string };
 ```
    (verificar contra `src/pdf/types.ts`). `lectura-fallida` es razón de lectura, como `sin-capa-de-texto`, no de fila.
-3. §8.3: reemplazar el párrafo "Privacidad (PENDIENTE)" por el siguiente texto y borrar la línea "con el segundo fixture no se usa":
+3. §8.3: reemplazar el párrafo "Privacidad (PENDIENTE)" por el siguiente texto y borrar la línea "con el segundo fixture no se usa" (**aplicado el 5/11**):
    > **Privacidad.** Usarlo manda el PDF a un servicio externo. Casa Mueble autorizó el 3/11 (informado por el equipo; falta la captura escrita, P-04) el envío de los PDF de OpenCutList, incluidos los del segundo fixture, a Cloud Vision y Gemini, con la aclaración de que en la capa gratis de Gemini Google puede usar el contenido. Un adaptador de red solo corre con `PROCESAMIENTO_EXTERNO=permitir` y el sha256 del PDF en la lista blanca. Detalle, proveedores, reconciliación y evidencia: `docs/spec-extraccion-pdf.md`.
 4. Si se adopta la alternativa de §5.3, modificar §7.3 (hoy "siempre `dudosa`").
 
@@ -266,17 +266,17 @@ type PdfReading =
 
 | ID | Pendiente |
 |---|---|
-| P-01 | Calibrar el detector de marcas por color con Sabrina (¿hay colores de canto además de azul y rojo?). Sesión 3. |
-| P-02 | Si Cloud Vision acepta API key o exige cuenta de servicio. Para la sesión 2 se usa la cuenta de servicio con clave JSON (5/11); el uso de API key no está verificado. **Parcial:** credenciales y conectividad verificadas en local con una imagen sin datos de Casa Mueble (5/11); falta la prueba con una página de Sabrina (depende de P-04). La prueba en vivo con el PDF sintético (`spec-fixture-sintetico.md`, TS-13) cubriría `files:annotate` con PDF inline y lotes, sin cerrar P-02. |
+| P-01 | Calibrar el detector de marcas por color con el segundo fixture (¿hay colores de canto además de azul y rojo?). Sesión 3. |
+| P-02 | Si Cloud Vision acepta API key o exige cuenta de servicio. Para la sesión 2 se usa la cuenta de servicio con clave JSON (5/11); el uso de API key no está verificado. **Parcial:** credenciales y conectividad verificadas en local con una imagen sin datos de Casa Mueble (5/11); falta la prueba con una página del segundo fixture (depende de P-04). La prueba en vivo con el PDF sintético (`spec-fixture-sintetico.md`, TS-13) cubriría `files:annotate` con PDF inline y lotes, sin cerrar P-02. |
 | P-03 | Límites vigentes de la capa gratis de Gemini y del modelo elegido. |
-| P-04 | Guardar la captura de la confirmación escrita de Casa Mueble: envío de PDF a APIs externas (con la aclaración sobre la capa gratis), uso y envío de los archivos de Sabrina. Pendiente de respuesta: consulta 56 (orden 1 a 4 informado; falta cara de referencia, espejadas y la confirmación escrita). |
+| P-04 | Guardar la captura de la confirmación escrita de Casa Mueble: envío de PDF a APIs externas (con la aclaración sobre la capa gratis), uso y envío de los archivos del segundo fixture. Pendiente de respuesta: consulta 56 (orden 1 a 4 informado; falta cara de referencia, espejadas y la confirmación escrita). |
 | P-05 | Límite de cuerpo de las funciones de Vercel con subida a Blob (si B se despliega allí). |
 | P-06 | Alcance de R5 para B con la cátedra. |
 | P-07 | Origen del listado de cortes de R4: el PDF actual no lo trae. |
 | P-08 | Umbrales del harness y tolerancia de la eficiencia recalculada (82,70 % contra 82,40 % sin explicar). |
 | P-09 | Numeración de módulos con más de uno. |
-| P-10 | Reexportar los PDF de Olmo con canto definido (ground truth de cantos de Olmo). |
-| P-11 | Verificar las medidas del .dae de Sabrina contra el PDF (solo se cruzaron cantidades). |
+| P-10 | Reexportar los PDF del primer fixture con canto definido (ground truth de cantos del primer fixture). |
+| P-11 | Verificar las medidas del .dae del segundo fixture contra el PDF (solo se cruzaron cantidades). |
 | **P-12** | **Cómo rasterizar el PDF en la sesión 2 sin una dependencia no aprobada** (herramienta de línea de comandos externa o librería de Node): decisión del equipo antes de programar. |
 | **P-13** | **Precisión de Tesseract sobre esta tabla** (letra chica del canto, íconos intercalados): la consulta 58 dice que no alcanza como única vía. La sesión 2 lo mide; no se asume. |
 | **P-14** | **Alinear esta spec con la §8.2 de `spec-esquema-pdf.md` y los tipos finales de la rama `pdf-esquema-sesion-1`** (`PdfTextElement`, `PdfTextInput`, `pageWidths`, campos nullable, `campo-pendiente`, nombres de los campos de tablero y de pie usados en §5.1): esta spec los usa según lo informado, sin haber leído el código de la rama. (Ojo: la §8.2 de este documento trata las salidas locales; la §8.2 que cita P-14 es la de spec-esquema-pdf.) |
@@ -287,11 +287,11 @@ type PdfReading =
 
 | ID | Inconsistencia | Acción |
 |---|---|---|
-| I-01 | Los PDF de Olmo no traen "Tiras de cantos" ni "Ajustadas"; solo los de Sabrina. | Cantos con Sabrina; reexportar Olmo (P-10). |
+| I-01 | Los PDF del primer fixture no traen "Tiras de cantos" ni "Ajustadas"; solo los del segundo fixture. | Cantos con el segundo fixture; reexportar el primer fixture (P-10). |
 | I-02 | El Excel (descartado el 20/10) expresa los cantos como "2 largos 1 corto" y usa "Color blanco" para el fondo de 3 mm (el PDF y el .dae dicen Blanco nature). | Solo como contraste. |
 | I-03 | La cifra 12,02 % del fondo de 3 mm es la **tasa de llenado** (Resumen) y 11,80 % la **eficiencia** (pie); ambas son de OpenCutList. El "Estado del proyecto" ya está corregido. Falta decidir qué métrica usa el documento. | Propuesta: eficiencia del pie. |
-| I-04 | En el .dae de Olmo, C20 y C21 (3 mm) usan el material `Blanco_nature` de las piezas de 18 mm. | El cruce con el .dae distingue por espesor (sesión 2b). |
-| I-05 | Sabrina y Olmo comparten `0001-01`; Sabrina trae además `0001-02` en el mismo PDF. | La asociación es por (mueble, código); falta numeración única de proyectos con Casa Mueble. |
-| I-06 | spec-esquema §8.3 cita un documento `spec-extraccion-pdf` que no estaba en `docs/`. | Se resuelve al commitear esta spec como `docs/spec-extraccion-pdf.md` y aplicar §13. |
+| I-04 | En el .dae del primer fixture, C20 y C21 (3 mm) usan el material `Blanco_nature` de las piezas de 18 mm. | El cruce con el .dae distingue por espesor (sesión 2b). |
+| I-05 | El segundo fixture y el primer fixture comparten `9999-01`; el segundo fixture trae además `9999-02` en el mismo PDF. | La asociación es por (mueble, código); falta numeración única de proyectos con Casa Mueble. |
+| I-06 | spec-esquema §8.3 cita un documento `spec-extraccion-pdf` que no estaba en `docs/`. | **Resuelta (5/11):** esta spec está en `docs/spec-extraccion-pdf.md` y la §13 se aplicó. |
 | I-07 | El Estado del proyecto (módulo B, v0.2) nombra la bandera `PERMITIR_DATOS_REALES`; esta spec y el equipo usan `PROCESAMIENTO_EXTERNO=permitir`. | Corregir el Estado al cerrar el chat. |
-| I-08 | Esta spec nombra a "Olmo" y "Sabrina" (y `Sabrina/`), mientras que `spec-esquema-pdf.md` dice "segundo fixture" para no citar datos del cliente en el repo. | Decidir con el equipo si se anonimizan antes de commitear (recomendado, por la visibilidad del repo ante la cátedra). |
+| I-08 | Esta spec nombraba a los dos muebles reales, mientras que `spec-esquema-pdf.md` decía "segundo fixture" para no citar datos del cliente en el repo. | **Resuelta (5/11):** `docs/` se anonimizó ("primer fixture", "segundo fixture" en la prosa). Las rutas reales del repo, en código en línea, quedan como están. |

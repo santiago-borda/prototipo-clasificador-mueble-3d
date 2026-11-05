@@ -1,9 +1,9 @@
 # Especificación — Esquema de la salida del PDF de OpenCutList
 
-Estado: **en implementación** (28/10/2026; revisado el 3/11/2026 con los PDF de Sabrina y la revisión página por página de los del Olmo; ver §13). Sesión 1 hecha en `src/pdf/`: tipos, razones, validador y parser de elementos de texto. Falta lo de `docs/plan-sesion-2-pdf.md`.
+Estado: **en implementación** (28/10/2026; revisado el 3/11/2026 con los PDF del segundo fixture y la revisión página por página de los del primer fixture; ver §13). Sesión 1 hecha en `src/pdf/`: tipos, razones, validador y parser de elementos de texto. Falta lo de `docs/plan-sesion-2-pdf.md`.
 Antecedentes: `docs/contexto-casa-mueble-pdf.md` (reunión del 20/10 y análisis del PDF de ejemplo del 23/10), `docs/spec-motor-asociacion.md` (contratos §5, normalización §6.1, canto §8), `docs/spec-importador-prueba.md` (validación pura con fila y columna).
 Plan de pruebas: `docs/test-plan-esquema-pdf.md`. Fixture de referencia: `tests/fixtures/pdf/olmo.json`.
-Como en la spec del motor, **este documento no cita códigos ni cifras del segundo fixture** (local): se lo nombra "segundo fixture". **Actualización 3/11:** Casa Mueble aprobó el uso de los archivos de Sabrina sin restricciones de titularidad (informado por el equipo; falta la confirmación escrita) y el repo es público por acuerdo con Casa Mueble. Las observaciones nuevas del 3/11 nombran a Sabrina; qué parte de sus archivos se commitea sigue siendo decisión del equipo (RP11).
+Como en la spec del motor, **este documento no cita códigos ni cifras del segundo fixture** (local): se lo nombra "segundo fixture". **Actualización 3/11:** Casa Mueble aprobó el uso de los archivos del segundo fixture sin restricciones de titularidad (informado por el equipo; falta la confirmación escrita) y el repo es público por acuerdo con Casa Mueble. Las observaciones nuevas del 3/11 nombran al segundo fixture; qué parte de sus archivos se commitea sigue siendo decisión del equipo (RP11).
 
 ---
 
@@ -22,9 +22,9 @@ Principios (los del motor, sin cambios): **la IA nunca decide sola**; **conserva
 
 | Archivo | Productor (metadatos) | Capa de texto | Qué es |
 |---|---|---|---|
-| Olmo, 3 PDF de optimización (Blanco nature 18, Gaudi 18, Blanco nature 3) | `Microsoft: Print To PDF` | **No** (0 fuentes; `pdftotext` 4.00 extrae 2–3 bytes) | Salida de OpenCutList, 9/10 |
-| Olmo, "Nombres con códigos (Excel con datos de canteado)" | `Skia/PDF` (impresión desde el navegador) | Sí | Planilla del equipo de Casa Mueble, **no** es salida de OpenCutList |
-| Olmo, "Plano con medidas" | AutoCAD 2026 | Sí (cotas) | Plano |
+| Primer fixture, 3 PDF de optimización (Blanco nature 18, Gaudi 18, Blanco nature 3) | `Microsoft: Print To PDF` | **No** (0 fuentes; `pdftotext` 4.00 extrae 2–3 bytes) | Salida de OpenCutList, 9/10 |
+| Primer fixture, "Nombres con códigos (Excel con datos de canteado)" | `Skia/PDF` (impresión desde el navegador) | Sí | Planilla del equipo de Casa Mueble, **no** es salida de OpenCutList |
+| Primer fixture, "Plano con medidas" | AutoCAD 2026 | Sí (cotas) | Plano |
 | Segundo fixture, 3 PDF de optimización | `Microsoft: Print To PDF` | **No** | Salida de OpenCutList, 14/10 |
 
 **Consecuencia: `TextoPdf` (§8.2) no se puede validar hoy con ningún PDF real.** Todos los PDF de OpenCutList disponibles son solo trazados. El análisis del 23/10 ya lo había visto en el ejemplo y abrió la consulta 58 (pedir PDF con texto o el CSV del complemento). Mientras no llegue, `TextoPdf` se valida solo con su parser puro y entradas sintéticas (§8.2) y los fixtures se transcriben a mano.
@@ -33,12 +33,12 @@ Principios (los del motor, sin cambios): **la IA nunca decide sola**; **conserva
 
 | Variante | Columnas del listado por tablero | Dónde aparece |
 |---|---|---|
-| Corta | No., Designación, Cant., Finales (L, A) | Los 3 PDF del Olmo; el PDF de fondos de 3 mm del segundo fixture |
+| Corta | No., Designación, Cant., Finales (L, A) | Los 3 PDF del primer fixture; el PDF de fondos de 3 mm del segundo fixture |
 | Completa | No., Designación, Cant., Ajustadas (L, A), Finales (L, A), Tiras de cantos (4 subcolumnas) | Los PDF de 18 mm del segundo fixture |
 
 Por eso el esquema registra **qué columnas trae** cada documento (`columns`, §4) y distingue "columna ausente" de "columna presente sin marcas".
 
-**Estructura de páginas (verificada el 3/11 en los 6 PDF de optimización).** La primera página de cada PDF es el **resumen**. Cada hoja de tablero ("i / N") empieza en la página siguiente con el diagrama y las primeras filas del listado; si el listado no entra, **continúa en la página siguiente con el encabezado de la hoja repetido (el mismo "i / N")** y el pie ("N piezas", "Longitud de cortes", "Eficiencia") aparece **solo en la última página de la hoja**. Páginas por PDF: Olmo Blanco nature 18 = 3 (resumen; A–G; H–M con el pie), Olmo Gaudi 18 = 2, Olmo fondo 3 mm = 2; Sabrina Blanco 18 = 3, Sabrina Cedro 18 = 5 (resumen; hoja 1/2 en dos páginas; hoja 2/2 en dos páginas), Sabrina fondo 3 mm = 2. Una hoja **no** equivale a una página: el lector tiene que unir las páginas de la misma hoja (INV-15).
+**Estructura de páginas (verificada el 3/11 en los 6 PDF de optimización).** La primera página de cada PDF es el **resumen**. Cada hoja de tablero ("i / N") empieza en la página siguiente con el diagrama y las primeras filas del listado; si el listado no entra, **continúa en la página siguiente con el encabezado de la hoja repetido (el mismo "i / N")** y el pie ("N piezas", "Longitud de cortes", "Eficiencia") aparece **solo en la última página de la hoja**. Páginas por PDF: Primer fixture Blanco nature 18 = 3 (resumen; A–G; H–M con el pie), primer fixture Gaudi 18 = 2, primer fixture fondo 3 mm = 2; segundo fixture Blanco 18 = 3, segundo fixture Cedro 18 = 5 (resumen; hoja 1/2 en dos páginas; hoja 2/2 en dos páginas), segundo fixture fondo 3 mm = 2. Una hoja **no** equivale a una página: el lector tiene que unir las páginas de la misma hoja (INV-15).
 
 ## 3. Reglas confirmadas y pendientes
 
@@ -54,7 +54,7 @@ Por eso el esquema registra **qué columnas trae** cada documento (`columns`, §
 | RP8 | `TextoPdf` es determinista y sin IA; `OcrLlm` solo hace análisis previo, se valida con el esquema y contra el .dae, y **nunca decide** | Pedido del equipo (28/10); principios del motor | Decisión del equipo |
 | RP9 | Se reutilizan `PieceType` y la serialización de `listadoId` (motor §5.1) | Pedido del equipo | Decisión del equipo |
 | RP10 | R4: el "listado de cortes" es la **lista de piezas por tablero** (no una secuencia de cortes) | Equipo, 28/10 | **Supuesto PROVISORIO**, a confirmar con Casa Mueble (§9); formato de Gabriel PENDIENTE (consultas 35–37) |
-| RP11 | Nada del segundo fixture entra al repo | `CLAUDE.md` | Vigente hasta que el equipo decida qué se commitea. **3/11:** Casa Mueble aprobó el uso de los archivos de Sabrina sin restricciones de titularidad (confirmación escrita pendiente) y el repo es público por acuerdo con Casa Mueble: la titularidad ya no lo impide |
+| RP11 | Nada del segundo fixture entra al repo | `CLAUDE.md` | Vigente hasta que el equipo decida qué se commitea. **3/11:** Casa Mueble aprobó el uso de los archivos del segundo fixture sin restricciones de titularidad (confirmación escrita pendiente) y el repo es público por acuerdo con Casa Mueble: la titularidad ya no lo impide |
 
 ## 4. Esquema tipado
 
@@ -184,7 +184,7 @@ Se verifican sobre un `CutListPdf` (INV-1 a INV-9, INV-13, INV-15), sobre el con
 | INV-10 | **Mismo código, mismo material:** un código aparece en un solo PDF (un material + espesor) del mueble | `codigo-con-distinto-material` |
 | INV-11 | **Mismo código, mismos datos entre tableros:** en todas sus filas, igual `name`, `finalL`, `finalA` y `edges` | `codigo-con-distintas-medidas` / `codigo-con-distinto-canteado` / `codigo-con-distinto-nombre` |
 | INV-12 | **Total por código** = Σ `quantity` en todos los tableros de todos los PDF del mueble. Es la cantidad que se compara con el .dae y la que va a `PieceType.quantity` | (definición; se prueba con un código en dos tableros) |
-| INV-13 | Porcentajes en [0, 100]. `fillRatePct` (resumen) y `efficiencyPct` (pie de tablero) son **cifras distintas** y no se relacionan entre sí (en el Olmo difieren); qué mide cada una queda PENDIENTE | `porcentaje-invalido` |
+| INV-13 | Porcentajes en [0, 100]. `fillRatePct` (resumen) y `efficiencyPct` (pie de tablero) son **cifras distintas** y no se relacionan entre sí (en el primer fixture difieren); qué mide cada una queda PENDIENTE | `porcentaje-invalido` |
 | INV-14 | **Conversión al listado** (§6): solo con 0 rechazos; las filas `dudosa` impiden publicar el listado sin revisión humana | — |
 | INV-15 | **Hoja completa**, en dos partes (decisión del equipo, 3/11: una vez unidas las páginas, el `CutListPdf` ya no dice dónde estaban el pie ni el diagrama). **(a) Sobre el `CutListPdf`, lo verifica el validador:** las `pages` de cada hoja son consecutivas, no incluyen la página 1 (el resumen) y no se solapan con las de otra hoja. **(b) Sobre los elementos de texto, lo verifica el parser (§8.2):** todas las páginas de la hoja repiten el encabezado "i / N", el material y el espesor; el pie (`pieceCount`, `cutLengthM`, `efficiencyPct`) está en la última y en ninguna otra; el diagrama solo en la primera. Una hoja sin pie, con pie en una página intermedia o con encabezados que no coinciden indica una página faltante o mal unida: el listado de esa hoja no es confiable | (a) `hoja-incompleta`, documento rechazado. (b) el parser devuelve `{ ok: false, reason: "hoja-incompleta" }` |
 
@@ -216,9 +216,9 @@ Se reutilizan `PieceType` (`src/data/types.ts`) y la serialización canónica de
 | `notes` | `null` |
 | `qrId`, `moduleId` | no salen del PDF; los asigna el sistema (quedan fuera de `listadoId`, motor §5.1) |
 
-**ABIERTO — columna de cantos ausente (decisión del equipo, 28/10).** `CLAUDE.md` y la tabla local del segundo fixture tratan sus fondos de 3 mm como `[]` ("dato real"), pero su PDF **no trae** la columna "Tiras de cantos". `null` ("sin dato") sería lo coherente con "nada no confirmado se inventa", pero cambiaría el `listadoId` del segundo fixture. **No se toca ese `listadoId`** y la conversión de una columna ausente queda sin definir hasta que Casa Mueble responda la pregunta PDF-2 (§11): si la columna ausente significa "sin canto", va `[]`; si significa "columna oculta", va `null`. **Propuesta (3/11, a decidir):** que lo resuelva el cruce con el .dae, pieza por pieza: columna ausente y sin caras `Canto_*` en el .dae = sin canto (`[]`); columna ausente con caras `Canto_*` = canto no exportado (`null`). Observado en Sabrina: el fondo de 3 mm no trae la columna y su modelo no tiene caras de canto (A8); el Olmo no trae la columna y su modelo tampoco tiene caras `Canto_*`, así que ese criterio no distingue su caso (queda `no-disponible`, §7.2).
+**ABIERTO — columna de cantos ausente (decisión del equipo, 28/10).** `CLAUDE.md` y la tabla local del segundo fixture tratan sus fondos de 3 mm como `[]` ("dato real"), pero su PDF **no trae** la columna "Tiras de cantos". `null` ("sin dato") sería lo coherente con "nada no confirmado se inventa", pero cambiaría el `listadoId` del segundo fixture. **No se toca ese `listadoId`** y la conversión de una columna ausente queda sin definir hasta que Casa Mueble responda la pregunta PDF-2 (§11): si la columna ausente significa "sin canto", va `[]`; si significa "columna oculta", va `null`. **Propuesta (3/11, a decidir):** que lo resuelva el cruce con el .dae, pieza por pieza: columna ausente y sin caras `Canto_*` en el .dae = sin canto (`[]`); columna ausente con caras `Canto_*` = canto no exportado (`null`). Observado en el segundo fixture: el fondo de 3 mm no trae la columna y su modelo no tiene caras de canto (A8); el primer fixture no trae la columna y su modelo tampoco tiene caras `Canto_*`, así que ese criterio no distingue su caso (queda `no-disponible`, §7.2).
 
-**Olmo con la variante corta.** Ningún PDF de OpenCutList del Olmo trae "Tiras de cantos": su canteado **no se puede leer del PDF** (con `null` o `[]` según PDF-2; en ningún caso con los lados que eligió el mock). Se pide a Casa Mueble reexportar el Olmo con todas las columnas (PDF-1). Los conteos "2 largos 1 corto" salen de **otra fuente** (la planilla del Excel) y no dicen qué lado: no alcanzan para llenar s1–s4. El fixture los guarda aparte (`excel`), sin mezclarlos con el esquema.
+**Primer fixture con la variante corta.** Ningún PDF de OpenCutList del primer fixture trae "Tiras de cantos": su canteado **no se puede leer del PDF** (con `null` o `[]` según PDF-2; en ningún caso con los lados que eligió el mock). Se pide a Casa Mueble reexportar el primer fixture con todas las columnas (PDF-1). Los conteos "2 largos 1 corto" salen de **otra fuente** (la planilla del Excel) y no dicen qué lado: no alcanzan para llenar s1–s4. El fixture los guarda aparte (`excel`), sin mezclarlos con el esquema.
 
 ## 7. Errores y razones
 
@@ -230,14 +230,14 @@ Formato `C = ^\d{4}-\d{2}-M\d{2}-C\d{2}$` (AS1, código opaco). En el PDF el có
 |---|---|---|
 | Fila sin código legible (`code` `null` o vacío) | `codigo-ausente` | `dudosa`; no entra al listado |
 | Matchea `^_?C$` | — | válido |
-| Matchea `^_*C_*$` y no es canónico (incluye el `__` final, como el C01 del .dae del Olmo) | `nombre-anomalo` | `dudosa`; se normaliza para cruzar, pero no se publica sin revisión |
+| Matchea `^_*C_*$` y no es canónico (incluye el `__` final, como el C01 del .dae del primer fixture) | `nombre-anomalo` | `dudosa`; se normaliza para cruzar, pero no se publica sin revisión |
 | No matchea `^_*C_*$` | `formato-invalido` | `dudosa`; no entra al listado |
 | Dos filas del mismo tablero con el mismo código | `codigo-duplicado-en-tablero` (INV-4) | las dos `dudosa` |
 | Mismo código en dos PDF (dos materiales o espesores) | `codigo-con-distinto-material` (INV-10) | todas sus filas `dudosa` |
 
 ### 7.2 Cruce con el modelo (.dae)
 
-Entrada: el listado (§6) y las `Observation` del adapter del motor (§5.2), sin cambios. Tolerancia: `FurnitureDef.toleranceMm` (AS8 del motor; Olmo 2 mm). Se compara **solo dentro del mismo mueble**.
+Entrada: el listado (§6) y las `Observation` del adapter del motor (§5.2), sin cambios. Tolerancia: `FurnitureDef.toleranceMm` (AS8 del motor; primer fixture 2 mm). Se compara **solo dentro del mismo mueble**.
 
 | Caso | Razón | Efecto |
 |---|---|---|
@@ -247,7 +247,7 @@ Entrada: el listado (§6) y las `Observation` del adapter del motor (§5.2), sin
 | {L, A, espesor} ordenado vs. caja ordenada fuera de tolerancia | `medida-no-coincide` | `dudosa` |
 | Canteado: con caras `Canto_*` en el .dae (AS4), cantidad de lados L y A marcados ≠ caras que miden L y A (como A8 y el motor §8.1) | `canteado-no-coincide` | `dudosa` |
 | Canteado con \|L − A\| ≤ tolerancia | — | neutral (no se puede distinguir lado L de lado A) |
-| Canteado sin caras `Canto_*` en el .dae (es el caso del Olmo) o con `edges: "columna-ausente"` | — | `no-disponible`; no baja el nivel |
+| Canteado sin caras `Canto_*` en el .dae (es el caso del primer fixture) o con `edges: "columna-ausente"` | — | `no-disponible`; no baja el nivel |
 
 ### 7.3 Nivel de cada fila
 
@@ -255,7 +255,7 @@ Entrada: el listado (§6) y las `Observation` del adapter del motor (§5.2), sin
 - `dudosa`: cualquier razón, **o** leída por `OcrLlm` (siempre, sin excepción: RP8).
 - Un documento con `esquema-invalido`, `unidad-no-soportada`, `estructura-no-reconocida` o `hoja-incompleta` se **rechaza** entero: no hay filas.
 
-Catálogo cerrado de razones: `esquema-invalido`, `estructura-no-reconocida`, `unidad-no-soportada`, `sin-capa-de-texto`, `campo-pendiente`, `codigo-ausente`, `nombre-anomalo`, `formato-invalido`, `codigo-duplicado-en-tablero`, `letra-duplicada-en-tablero`, `letra-inconsistente`, `suma-tablero-no-coincide`, `suma-resumen-no-coincide`, `diagrama-no-coincide`, `hoja-incompleta`, `pieza-mayor-que-tablero`, `cantos-inconsistentes`, `codigo-con-distinto-material`, `codigo-con-distintas-medidas`, `codigo-con-distinto-canteado`, `codigo-con-distinto-nombre`, `porcentaje-invalido`, `origen-ocr`, `codigo-sin-instancias`, `instancias-sin-fila`, `cantidad-no-coincide`, `medida-no-coincide`, `canteado-no-coincide`.
+Catálogo cerrado de razones: `esquema-invalido`, `estructura-no-reconocida`, `unidad-no-soportada`, `sin-capa-de-texto`, `campo-pendiente`, `codigo-ausente`, `nombre-anomalo`, `formato-invalido`, `codigo-duplicado-en-tablero`, `letra-duplicada-en-tablero`, `letra-inconsistente`, `suma-tablero-no-coincide`, `suma-resumen-no-coincide`, `diagrama-no-coincide`, `hoja-incompleta`, `lectura-fallida`, `pieza-mayor-que-tablero`, `cantos-inconsistentes`, `codigo-con-distinto-material`, `codigo-con-distintas-medidas`, `codigo-con-distinto-canteado`, `codigo-con-distinto-nombre`, `porcentaje-invalido`, `origen-ocr`, `codigo-sin-instancias`, `instancias-sin-fila`, `cantidad-no-coincide`, `medida-no-coincide`, `canteado-no-coincide`.
 
 ## 8. `FuenteDePdf` y adaptadores
 
@@ -267,9 +267,16 @@ interface FuenteDePdf {
 }
 
 type PdfReading =
-  | { ok: true; document: CutListPdf }        // siempre pasa después por la validación (§5, §7)
-  | { ok: false; reason: "sin-capa-de-texto" | "estructura-no-reconocida" | "unidad-no-soportada" | "hoja-incompleta"; detail: string };
+  | { ok: true; document: CutListPdf; evidence?: Evidence }   // siempre pasa después por la validación (§5, §7); evidence: solo OcrLlm
+  | { ok: false;
+      reason: "sin-capa-de-texto" | "estructura-no-reconocida" | "unidad-no-soportada"
+            | "hoja-incompleta" | "lectura-fallida";
+      detail: string };
 ```
+
+- `evidence` (aprobado por el equipo el 3/11): lecturas crudas de cada fuente por campo, con la misma clave que `PendingField.path`. Lo devuelve solo `OcrLlm` y no forma parte del `CutListPdf`: el validador no lo lee. Tipo `Evidence` / `FieldEvidence`: `docs/spec-extraccion-pdf.md` §4.
+- `lectura-fallida` (aprobado el 3/11): fallaron todas las pasadas de un adaptador (spec-extraccion §7); no se devuelve resultado parcial. Es una razón de **lectura**, como `sin-capa-de-texto`, no de fila.
+- Código: `PdfReading` y `PdfReadingFailure` en `src/pdf/types.ts`. Al 5/11 el tipo del código tiene `hoja-incompleta` pero todavía no `evidence` ni `lectura-fallida`; se agregan en la rama `pdf-fixture-sintetico`, junto con el catálogo de `src/pdf/reasons.ts`.
 
 ### 8.1 Contrato común
 
@@ -284,7 +291,7 @@ type PdfReading =
 - El parser recibe los elementos de texto de **todas las páginas** y une las de una misma hoja antes de armar el `Board` (§2, INV-15); la celda de la designación puede partirse en 2 o 3 renglones (§7.1).
 - Sin capa de texto (`/Font` ausente o texto vacío) → `{ ok: false, reason: "sin-capa-de-texto" }`. **No** cae a OCR en silencio.
 
-**Entrada del parser (aprobada por el equipo el 3/11).** No depende de pdf.js ni de ninguna librería: la produce la extracción, sea de una capa de texto o de las palabras de un OCR. Ningún PDF de OpenCutList disponible tiene texto (§2): la geometría se midió en los trazados de los PDF de Sabrina, en local, pero los textos y su partición en elementos son un supuesto hasta que responda la consulta 58.
+**Entrada del parser (aprobada por el equipo el 3/11).** No depende de pdf.js ni de ninguna librería: la produce la extracción, sea de una capa de texto o de las palabras de un OCR. Ningún PDF de OpenCutList disponible tiene texto (§2): la geometría se midió en los trazados de los PDF del segundo fixture, en local, pero los textos y su partición en elementos son un supuesto hasta que responda la consulta 58.
 
 ```ts
 /** Un trozo de texto de una página, con su caja. Lo produce la extracción; el parser no lee bytes. */
@@ -312,18 +319,18 @@ function parseCutListText(input: PdfTextInput): PdfReading;  // pura; reader = "
 
 - **Unidades:** las que use la extracción, las mismas en todos los campos. El parser compara posiciones entre elementos; el único valor absoluto es la constante de canto, relativa al ancho de página.
 - **Granularidad:** acepta palabras sueltas o frases. Agrupa por renglón (cajas que se solapan verticalmente) y une los elementos contiguos de un renglón (separación ≤ alto del más bajo de los dos) en un segmento. Así también puede recibir las palabras de un OCR (§8.3, propuesta).
-- **Sin coordenadas fijas:** las columnas salen de los rótulos del encabezado de la tabla. **Medido en Sabrina (3/11): la página de continuación no repite el encabezado de la tabla**, y las columnas son las mismas en todas las páginas de una hoja: se usan las de la página anterior de la hoja. El encabezado ocupa tres renglones ("Ajustadas", "Finales", "Tiras de cantos" arriba; "No.", "Designación", "Cant." en el medio; L y A abajo). Las L y A de "Finales" son las más cercanas al centro de su rótulo.
+- **Sin coordenadas fijas:** las columnas salen de los rótulos del encabezado de la tabla. **Medido en el segundo fixture (3/11): la página de continuación no repite el encabezado de la tabla**, y las columnas son las mismas en todas las páginas de una hoja: se usan las de la página anterior de la hoja. El encabezado ocupa tres renglones ("Ajustadas", "Finales", "Tiras de cantos" arriba; "No.", "Designación", "Cant." en el medio; L y A abajo). Las L y A de "Finales" son las más cercanas al centro de su rótulo.
 - **Columnas de la tabla:** "No." y "Cant." son angostas (centro a menos de un ancho de rótulo); lo que está entre las dos es la designación; "Finales" L y A se asignan al más cercano; "Ajustadas" se ignora.
 - **Filas:** una fila empieza en cada elemento de la columna "No." (medido: la letra va en el primer renglón de la fila) y llega hasta la siguiente; lo que caiga en esa franja le pertenece.
 - **Designación e íconos:** se descarta el elemento que no tenga letras ni dígitos, y los caracteres de uso privado Unicode. El código son los primeros renglones cuya unión cumple `^_*C_*$` (medido: 2 renglones, con el ícono en el primero); el resto es el nombre (medido: 1 o 2 renglones). Si ninguna unión cumple, el renglón 1 es el código tal cual, el resto es el nombre y el código va a `pending`.
 - **Hojas:** una página sin "i / N", páginas de una misma hoja no consecutivas, un material o espesor distinto, un pie ausente o fuera de la última página, o letras de diagrama en una página de continuación dan `hoja-incompleta`. Números de hoja que no sean 1..N, o hojas de un mismo documento con columnas distintas, dan `estructura-no-reconocida`.
 
-**Marcas de canto (RP3), medido el 3/11 en los trazados de los PDF de Sabrina.** Cada celda marcada trae su propio punto (el color no se lee: azul o rojo según el material) y su texto "Canto <material> ~ 0 mm x 22 mm", en 3 renglones centrados sobre el punto (±1,5 pt). El punto no es texto; **la marca es el grupo de elementos del texto**, y su x es el centro de ese grupo. Un grupo arranca en un elemento que empieza con "Canto". El rótulo "Tiras de cantos" mide ~61 pt, menos que la banda, y su centro coincide con el centro de la banda (< 1 pt).
+**Marcas de canto (RP3), medido el 3/11 en los trazados de los PDF del segundo fixture.** Cada celda marcada trae su propio punto (el color no se lee: azul o rojo según el material) y su texto "Canto <material> ~ 0 mm x 22 mm", en 3 renglones centrados sobre el punto (±1,5 pt). El punto no es texto; **la marca es el grupo de elementos del texto**, y su x es el centro de ese grupo. Un grupo arranca en un elemento que empieza con "Canto". El rótulo "Tiras de cantos" mide ~61 pt, menos que la banda, y su centro coincide con el centro de la banda (< 1 pt).
 
 - **Centro de banda** = centro del rótulo. **Paso** = la menor distancia entre dos marcas de una misma fila en **toda la hoja**, si es ≤ 1,5 × constante; si no, **constante** = 0,066 × ancho de página. Los centros de s1 a s4 son centro ∓ 1,5 pasos y centro ∓ 0,5 pasos; cada marca va al más cercano.
-- **Por qué en toda la hoja y con tope:** la distancia dentro de una sola página no alcanza. En Sabrina Cedro hoja 2/2, la p. 5 solo tiene filas con marcas en s1 y s4 (99,3 pt): con esa distancia como paso, 6 de 15 marcas caen en la subcolumna equivocada, sin ninguna colisión que lo delate. El tope descarta distancias que necesariamente saltean una subcolumna.
+- **Por qué en toda la hoja y con tope:** la distancia dentro de una sola página no alcanza. En el segundo fixture Cedro hoja 2/2, la p. 5 solo tiene filas con marcas en s1 y s4 (99,3 pt): con esa distancia como paso, 6 de 15 marcas caen en la subcolumna equivocada, sin ninguna colisión que lo delate. El tope descarta distancias que necesariamente saltean una subcolumna.
 - **Las subcolumnas no son iguales.** Medido (pt, ancho de página 595,32; el paso es la separación entre centros): Blanco 18, 39,0 / 39,5 / 39,9; Cedro hoja 1/2, 34,55 en las tres; Cedro hoja 2/2, 31,6 / 29,7 / 37,9. El paso como fracción del ancho va de 0,058 a 0,067: 0,066 no es una constante del formato, es un valor de respaldo que funciona porque el error se mantiene lejos de medio paso.
-- **Verificación (3/11):** sobre las 47 marcas de las 6 páginas de Sabrina que tienen marcas (las otras 4 de las 10 no tienen ninguna: 3 resúmenes y el fondo de 3 mm), con el paso de la hoja: 0 mal asignadas, error máximo 0,22 del paso. Con solo la constante: 0 mal asignadas, error máximo 0,26. La verdad es la posición de los íconos del encabezado, que coincide con lo transcripto en el fixture en las 29 filas con canto. Los íconos se usaron **solo para medir**: el parser no los lee (RP4).
+- **Verificación (3/11):** sobre las 47 marcas de las 6 páginas del segundo fixture que tienen marcas (las otras 4 de las 10 no tienen ninguna: 3 resúmenes y el fondo de 3 mm), con el paso de la hoja: 0 mal asignadas, error máximo 0,22 del paso. Con solo la constante: 0 mal asignadas, error máximo 0,26. La verdad es la posición de los íconos del encabezado, que coincide con lo transcripto en el fixture en las 29 filas con canto. Los íconos se usaron **solo para medir**: el parser no los lee (RP4).
 - **Conservador:** una marca a más de medio paso del centro más cercano, dos marcas de una fila en la misma subcolumna, texto en la zona de cantos sin "Canto", o una constante sin ancho de página van a `pending` en `edges`, sin adivinar. La fila queda `dudosa`.
 - **Límite:** con la constante y una tabla que se aparte mucho de lo medido, una asignación errónea no se detecta acá; la detecta el cruce con el .dae cuando hay caras `Canto_*` (§7.2).
 
@@ -334,7 +341,7 @@ function parseCutListText(input: PdfTextInput): PdfReading;  // pura; reader = "
 - Uso: prellenar una transcripción o contrastar contra `TextoPdf`. **Nunca** produce el listado por sí solo: todas sus filas son `dudosa` con `origen-ocr` (§7.3) hasta que una persona las confirme (la pantalla de revisión queda fuera de esta spec, como la C del motor).
 - Su salida pasa por el mismo validador y el mismo cruce con el .dae. Un JSON que no cumple el esquema se rechaza; no se "repara".
 - No determinista: se guarda la salida con `readerVersion` (modelo y versión del prompt) y `pdfId`; no se vuelve a correr en silencio.
-- **Privacidad (PENDIENTE):** usarlo manda el PDF a un servicio externo. Con el Olmo, solo con OK explícito del equipo. **Actualización 3/11:** la titularidad de Sabrina ya no impide usarlo con sus PDF (Casa Mueble aprobó el uso de sus archivos; confirmación escrita pendiente), pero la aprobación del envío a APIs externas es **otra** confirmación y sigue PENDIENTE: debe ser escrita y mencionar que la capa gratis de algunos proveedores puede usar el contenido para mejorar sus productos. Proveedor, costo y modelo: a decidir; no se fijan acá. El diseño de `OcrLlm` (proveedores, doble pasada, reconciliación y Eval Harness) se desarrolla en un documento aparte (`spec-extraccion-pdf`, borrador del 3/11, a incorporar a `docs/` y alinear con esta spec).
+- **Privacidad.** Usarlo manda el PDF a un servicio externo. Casa Mueble autorizó el 3/11 (informado por el equipo; falta la captura escrita, P-04) el envío de los PDF de OpenCutList, incluidos los del segundo fixture, a Cloud Vision y Gemini, con la aclaración de que en la capa gratis de Gemini Google puede usar el contenido. Un adaptador de red solo corre con `PROCESAMIENTO_EXTERNO=permitir` y el sha256 del PDF en la lista blanca. Detalle, proveedores, reconciliación y evidencia: `docs/spec-extraccion-pdf.md`.
 - No-Wrapper LLM (motor §1): el LLM no puntúa ni decide asociaciones; solo transcribe.
 - **Camino crítico:** mientras no haya PDF con texto (consulta 58), la lectura real de los PDF depende de `OcrLlm` (`CLAUDE.md`).
 - **ABIERTO:** si una fila de `OcrLlm` cuyos valores coinciden exactamente con el .dae (código, cantidad, medidas y, si hay caras `Canto_*`, canteado) puede pasar a un nivel "verificada por el modelo". La verificación la haría el validador de reglas (§7.2), no el LLM. Hasta decidirlo, rige §7.3: siempre `dudosa`. **Alternativa propuesta el 3/11 (a decidir, no vigente):** que un campo del OCR pueda salir sin razón cuando al menos dos fuentes independientes (OCR, LLM, marca de color) coinciden y ninguna discrepa; cualquier desacuerdo o fuente única sigue siendo `dudosa`.
@@ -384,7 +391,7 @@ Datos que R4 necesita del esquema (todos ya están en §4):
 ## 11. Inconsistencias que esta spec deja a la vista (sin resolver)
 
 - **Canto 0,22 y gola 404 × 36:** confirmados por Casa Mueble el 16/10 (consultas 32 y 31, según `CLAUDE.md`). Siguen diciendo otra cosa, y **falta actualizarlos** (fuera de esta spec): el mock (0,45; gola "provisoria"), `ESTADO.md`, `tests/helpers/syntheticDef.ts` (0,45), el comentario de `src/model/edgeLayout.ts` ("el canto real es 0,45 mm") y el dashboard (consulta 32 "sin respuesta"). El esquema no fija el espesor del canto: guarda el texto del PDF (`thicknessText`, "~ 0 mm").
-- **Ancho 22 mm y tipo ABS en el Olmo:** no aparecen en ningún PDF del Olmo (la planilla solo dice "Canto de 0.22"). En el segundo fixture el PDF dice "x 22 mm"; "ABS" no aparece en ninguno.
+- **Ancho 22 mm y tipo ABS en el primer fixture:** no aparecen en ningún PDF del primer fixture (la planilla solo dice "Canto de 0.22"). En el segundo fixture el PDF dice "x 22 mm"; "ABS" no aparece en ninguno.
 - **Columna de cantos ausente:** `[]` o `null`, ABIERTO (§6, PDF-2).
 - **R4:** piezas por tablero contra "cortes verticales primero" (§9).
 - **Designación:** la regla 6 del 20/10 ("proyecto-mueble-módulo-corte") contra el código opaco (AS1, consulta 42). Se mantiene opaco.
@@ -395,12 +402,12 @@ Llevan una numeración provisoria; al pasarlas al archivo de consultas se les as
 
 | Id | Pregunta | Afecta |
 |---|---|---|
-| PDF-1 | ¿Pueden exportar siempre con todas las columnas ("Ajustadas" y "Tiras de cantos") y con texto seleccionable? Pedido concreto: reexportar el Olmo así. Se suma a la consulta 58. *Hipótesis (3/11, sin confirmar):* en Sabrina las columnas aparecen solo en los tableros con piezas que tienen canto definido en el modelo; si es así, reexportar el Olmo exige definir el canto en el .skp, no solo activar una opción | §2, §6, `TextoPdf` |
+| PDF-1 | ¿Pueden exportar siempre con todas las columnas ("Ajustadas" y "Tiras de cantos") y con texto seleccionable? Pedido concreto: reexportar el primer fixture así. Se suma a la consulta 58. *Hipótesis (3/11, sin confirmar):* en el segundo fixture las columnas aparecen solo en los tableros con piezas que tienen canto definido en el modelo; si es así, reexportar el primer fixture exige definir el canto en el .skp, no solo activar una opción | §2, §6, `TextoPdf` |
 | PDF-2 | Si un PDF no trae la columna de cantos (como los fondos de 3 mm), ¿significa "sin canto" o que la columna está oculta? | §6 (`[]` o `null`) |
-| PDF-3 | ¿La letra (No.) de una pieza es la misma en todos los tableros del mismo PDF? *Observado (3/11):* en Sabrina Cedro, M, N y S figuran en las hojas 1/2 y 2/2 con el mismo código, y las letras de una hoja pueden saltear (J, K, L, M, N, S); INV-6 se cumple, falta confirmación de Casa Mueble | INV-6 |
-| PDF-4 | ¿Qué mide la "Tasa de llenado" del resumen y qué la "Eficiencia" del tablero? *Observado (3/11):* en el fondo de 3 mm de Sabrina la eficiencia del pie (71,47 %) es exactamente Σ(L × A × cantidad) / área de la placa; en el Blanco 18 de Sabrina el mismo cálculo da 82,70 % contra 82,40 % del pie (0,3 puntos de diferencia sin explicar). La tasa de llenado del resumen no coincide con ninguna (Olmo fondo: 12,02 % contra 11,80 %) | INV-13 |
-| PDF-5 | ¿El canto del Olmo es de 22 mm de ancho y ABS? (el espesor 0,22 ya está confirmado) | anexo D2 |
-| PDF-6 | ¿El fondo de 3 mm del Olmo es Blanco nature, como dice el PDF, o blanco, como dice la planilla? | anexo D5 |
+| PDF-3 | ¿La letra (No.) de una pieza es la misma en todos los tableros del mismo PDF? *Observado (3/11):* en el segundo fixture Cedro, M, N y S figuran en las hojas 1/2 y 2/2 con el mismo código, y las letras de una hoja pueden saltear (J, K, L, M, N, S); INV-6 se cumple, falta confirmación de Casa Mueble | INV-6 |
+| PDF-4 | ¿Qué mide la "Tasa de llenado" del resumen y qué la "Eficiencia" del tablero? *Observado (3/11):* en el fondo de 3 mm del segundo fixture la eficiencia del pie (71,47 %) es exactamente Σ(L × A × cantidad) / área de la placa; en el Blanco 18 del segundo fixture el mismo cálculo da 82,70 % contra 82,40 % del pie (0,3 puntos de diferencia sin explicar). La tasa de llenado del resumen no coincide con ninguna (primer fixture fondo: 12,02 % contra 11,80 %) | INV-13 |
+| PDF-5 | ¿El canto del primer fixture es de 22 mm de ancho y ABS? (el espesor 0,22 ya está confirmado) | anexo D2 |
+| PDF-6 | ¿El fondo de 3 mm del primer fixture es Blanco nature, como dice el PDF, o blanco, como dice la planilla? | anexo D5 |
 | PDF-7 | Para R4, ¿se corta la placa entera, como en la optimización, o una fracción, como en la planilla de compra? | §9, anexo D10 |
 | PDF-8 | "La fibra sigue la longitud": ¿L sigue siempre la veta? | INV-7 |
 | PDF-9 | ¿Una misma pieza puede aparecer en dos materiales o espesores? | INV-10 |
@@ -408,11 +415,11 @@ Llevan una numeración provisoria; al pasarlas al archivo de consultas se les as
 
 Siguen abiertas además la 56 (leyenda de cantos por escrito), 58, 51, 42 y 35–37.
 
-## 12. Anexo — Diferencias entre los PDF del Olmo y el mock
+## 12. Anexo — Diferencias entre los PDF del primer fixture y el mock
 
 Transcripción en `tests/fixtures/pdf/olmo.json`. **No se corrigió ni el mock ni el fixture.**
 
-| # | Dato | PDF del Olmo | `src/data/furniture.mock.ts` |
+| # | Dato | PDF del primer fixture | `src/data/furniture.mock.ts` |
 |---|---|---|---|
 | D1 | Espesor del canto | Planilla: "Canto de 0.22" (Blanco Nature y Gaudi). OpenCutList: sin dato | 0,45, provisorio (Casa Mueble confirmó 0,22 el 16/10: el mock está desactualizado) |
 | D2 | Ancho y tipo de canto | No figuran | ABS, 22 mm |
@@ -420,7 +427,7 @@ Transcripción en `tests/fixtures/pdf/olmo.json`. **No se corrigió ni el mock n
 | D4 | Material del tablero de 18 mm | "Blanco nature", "GAUDI" (OpenCutList); "Color Blanco Nature", "Gaudi" (planilla) | "Blanco Nature", "Gaudi" |
 | D5 | Material de los fondos de 3 mm | "Blanco nature / 3 mm" (OpenCutList); "MDF 3 mm - Color blanco" (planilla) | "MDF blanco" |
 | D6 | Nombre de C07 | "Gola horizontal" (OpenCutList); "Gola Horizontal" (planilla) | "Gola Horizontal" |
-| D7 | Nombre del mueble | "Escritorio Oslo - Gaudi + blanco nature.skp" (OpenCutList); "Escritorio Olmo" (planilla) | "Escritorio Olmo" (consulta 48, reexportación) |
+| D7 | Nombre del mueble | "Escritorio Oslo - Gaudi + blanco nature.skp" (OpenCutList); "escritorio del primer fixture" (planilla) | "escritorio del primer fixture" (consulta 48, reexportación) |
 | D8 | Qué lados llevan canto | OpenCutList: sin columna. Planilla: solo conteos | lados elegidos por el prototipo (ASUMIDO) |
 | D9 | Profundidad | Planilla: 550 mm | 550 mm (el .dae mide 571: pendiente ya conocido) |
 | D10 | Placas | OpenCutList: un tablero entero por material (Gaudi 2750 × 1830, fondo 2600 × 1830). Planilla de compra: "1/4 placa" Gaudi y "1/2" de fondo | no lo modela |
@@ -430,5 +437,5 @@ Transcripción en `tests/fixtures/pdf/olmo.json`. **No se corrigió ni el mock n
 ## 13. Historial
 
 - **28/10:** borrador inicial (sesión de solo especificación).
-- **3/11:** revisión con los PDF de Sabrina y la lectura página por página de los 6 PDF de optimización. Agregado: estructura de páginas (§2), `Board.pages`, INV-15 y la razón `hoja-incompleta` (una hoja puede ocupar varias páginas); propuesta de resolver PDF-2 con el cruce con el .dae (§6); alternativa a "siempre dudosa" para `OcrLlm` y parser compartido (§8.3, propuestas, sin cambiar lo vigente); actualización de privacidad y de RP11 por la aprobación de Casa Mueble sobre los archivos de Sabrina (el envío a APIs externas sigue pendiente); observaciones en PDF-1, PDF-3 y PDF-4. Pendiente de esta revisión: agregar los casos de INV-15 al plan de pruebas y aprobar la spec.
-- **3/11, implementación (sesión 1):** decisiones del equipo al arrancar: entrada del parser (§8.2, con `pageWidths`); `code`, `quantity`, `finalL` y `finalA` nullable, y razón `campo-pendiente` (§4, §7.3); excepciones de INV-0 (§4); INV-15 repartida entre validador y parser, y `hoja-incompleta` en `PdfReading` (§5, §8); alcance de las razones de tablero y documento (§5). Medición local de las marcas de canto en los trazados de Sabrina (§8.2): corrige la regla pedida para el paso, de "por página" a "mínimo de la hoja con tope", porque la primera asigna mal 6 de 15 marcas en Cedro 2/2.
+- **3/11:** revisión con los PDF del segundo fixture y la lectura página por página de los 6 PDF de optimización. Agregado: estructura de páginas (§2), `Board.pages`, INV-15 y la razón `hoja-incompleta` (una hoja puede ocupar varias páginas); propuesta de resolver PDF-2 con el cruce con el .dae (§6); alternativa a "siempre dudosa" para `OcrLlm` y parser compartido (§8.3, propuestas, sin cambiar lo vigente); actualización de privacidad y de RP11 por la aprobación de Casa Mueble sobre los archivos del segundo fixture (el envío a APIs externas sigue pendiente); observaciones en PDF-1, PDF-3 y PDF-4. Pendiente de esta revisión: agregar los casos de INV-15 al plan de pruebas y aprobar la spec.
+- **3/11, implementación (sesión 1):** decisiones del equipo al arrancar: entrada del parser (§8.2, con `pageWidths`); `code`, `quantity`, `finalL` y `finalA` nullable, y razón `campo-pendiente` (§4, §7.3); excepciones de INV-0 (§4); INV-15 repartida entre validador y parser, y `hoja-incompleta` en `PdfReading` (§5, §8); alcance de las razones de tablero y documento (§5). Medición local de las marcas de canto en los trazados del segundo fixture (§8.2): corrige la regla pedida para el paso, de "por página" a "mínimo de la hoja con tope", porque la primera asigna mal 6 de 15 marcas en Cedro 2/2.- **5/11:** se aplica la §13 de `docs/spec-extraccion-pdf.md`: `PdfReading` suma `evidence` (ok, solo `OcrLlm`) y `lectura-fallida` (no ok, también en el catálogo de §7.3); §8.3, privacidad según la autorización del 3/11 (falta la captura escrita, P-04). Se anonimiza `docs/`: "primer fixture" y "segundo fixture" en la prosa; las rutas reales del repo (código en línea) no cambian.

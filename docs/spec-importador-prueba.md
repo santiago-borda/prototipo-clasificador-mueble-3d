@@ -1,6 +1,6 @@
 # Especificación — Importador de prueba (.dae + CSV) con guardado en el servidor
 
-Estado: **decisiones cerradas el 20/10; pendiente solo la implementación** (las pruebas se escriben en un chat aparte). `CLAUDE.md` ya refleja las reglas matizadas. No hay código todavía. Antecedente: `docs/spec-siguiente-paso.md` (Olmo y Sabrina como fixtures, criterios A1–A9).
+Estado: **decisiones cerradas el 20/10; pendiente solo la implementación** (las pruebas se escriben en un chat aparte). `CLAUDE.md` ya refleja las reglas matizadas. No hay código todavía. Antecedente: `docs/spec-siguiente-paso.md` (primer fixture y el segundo fixture como fixtures, criterios A1–A9).
 
 ## Contexto
 Hoy cada mueble se carga a mano: el .dae va a `public/models/` y la tabla de piezas se transcribe a un `FurnitureDef`. Casa Mueble tiene que poder subir por sí misma un .dae y un CSV con el listado de piezas, ver el mueble en el visor 3D con su ficha, y compartir el link, **sin intervención del equipo**.
@@ -18,15 +18,15 @@ Es una **prueba**. Los formatos del CSV y del listado definitivo quedan para des
 | D6 | Para la prueba el CSV usa `M01` en todos los códigos, como el .dae. Los cambios de nomenclatura los hará Casa Mueble después. | Usuario |
 | D7 | La clave la guarda el usuario y no se cambia hasta que él decida. | Usuario |
 | D8 | `CLAUDE.md` se matiza (hecho el 20/10): almacenamiento de archivos sí, base de datos no; escritura con clave. | Usuario |
-| D9 | Las medidas generales del mueble (`Furniture.dimsMm`) no vienen en el CSV: salen de la **caja de las piezas del .dae**, calculada en el navegador al validar (mm, redondeadas) y guardadas en `mueble.json`. `buildFurnitureDef` las recibe como parámetro obligatorio, sin valor por defecto. Es el mismo criterio que Sabrina ("medidos del .dae"). El servidor no las recalcula (no valida el .dae). | A propuesta, a confirmar |
-| D10 | El `Furniture.id` y el nombre del mueble importado llevan el prefijo `prueba-<importId8>` (el `mueble_id` del CSV, `olmo`, choca con el Olmo real). Dos importaciones del mismo CSV tienen que poder convivir en un registro. | A propuesta, a confirmar |
+| D9 | Las medidas generales del mueble (`Furniture.dimsMm`) no vienen en el CSV: salen de la **caja de las piezas del .dae**, calculada en el navegador al validar (mm, redondeadas) y guardadas en `mueble.json`. `buildFurnitureDef` las recibe como parámetro obligatorio, sin valor por defecto. Es el mismo criterio que el segundo fixture ("medidos del .dae"). El servidor no las recalcula (no valida el .dae). | A propuesta, a confirmar |
+| D10 | El `Furniture.id` y el nombre del mueble importado llevan el prefijo `prueba-<importId8>` (el `mueble_id` del CSV, `olmo`, choca con el primer fixture real). Dos importaciones del mismo CSV tienen que poder convivir en un registro. | A propuesta, a confirmar |
 
 ## Reglas del proyecto que cambian
 `CLAUDE.md` hoy dice "Sin CI, DB, auth" y "No agregar middleware/proxy de auth". Esta especificación las matiza, y al implementar se actualiza `CLAUDE.md` (con OK del usuario):
 - Hay **almacenamiento de archivos** (Blob), no base de datos.
 - La **lectura** sigue abierta, por link con id no adivinable y `noindex`.
 - La **escritura** (subir, listar, borrar) exige la clave compartida, comprobada **dentro de cada handler de ruta**. No se agrega middleware ni proxy de auth.
-- Sin las variables de entorno, la app funciona como hoy (solo Olmo y, en local, Sabrina).
+- Sin las variables de entorno, la app funciona como hoy (solo el primer fixture y, en local, el segundo fixture).
 
 ## Alcance
 1. Pantalla `/importar`: elegir .dae y CSV, ingresar la clave, ver el informe de validación, subir y obtener el link.
@@ -47,7 +47,7 @@ Es una **prueba**. Los formatos del CSV y del listado definitivo quedan para des
 
 ### Identificadores
 - `importId`: 16 caracteres hexadecimales aleatorios (no adivinable). Es el id público del link.
-- qrId de lo importado: `prueba-<importId8>-mueble`, `prueba-<importId8>-mod-<n>`, `prueba-<importId8>-c<NN>` (`importId8` = los primeros 8 caracteres). El prefijo evita colisiones con Olmo y con Sabrina, y el registro lo asegura (`createRegistry`).
+- qrId de lo importado: `prueba-<importId8>-mueble`, `prueba-<importId8>-mod-<n>`, `prueba-<importId8>-c<NN>` (`importId8` = los primeros 8 caracteres). El prefijo evita colisiones con el primer fixture y con el segundo fixture, y el registro lo asegura (`createRegistry`).
 
 ### Archivos por importación (Blob, acceso privado)
 | Ruta | Contenido |
@@ -94,16 +94,16 @@ Una prueba por criterio, en `tests/importador*.test.ts`, con el `ImportStore` en
 |---|---|---|
 | I1 | El CSV de ejemplo v2 se lee: 21 filas, 33 instancias. BOM, `;` y coma decimal funcionan. | automática |
 | I2 | Cada error de R2 se informa con fila y columna; una advertencia no bloquea. | automática |
-| I3 | El `FurnitureDef` armado tiene los módulos y los cantos esperados, qrId con prefijo `prueba-`, y pasa `createRegistry` junto a Olmo. | automática |
+| I3 | El `FurnitureDef` armado tiene los módulos y los cantos esperados, qrId con prefijo `prueba-`, y pasa `createRegistry` junto al primer fixture. | automática |
 | I4 | Con el CSV de prueba con todos los códigos en `M01` (D6) y el `olmo.dae` actual, el informe queda **correcto**. Con el CSV v2 original (`M02`/`M03` en 14 piezas), el informe señala 14 tipos sin instancias y 24 instancias huérfanas (el .dae tiene 33 y solo 9 pertenecen a los 7 tipos que siguen en `M01`: C01–C03 y C16–C19): es el fixture del caso de desajuste. | automática, dos fixtures |
-| I5 | Olmo sin regresiones: pasan A1–A9, `olmo.test.ts` y `registry.test.ts`. | existentes |
+| I5 | Primer fixture sin regresiones: pasan A1–A9, `olmo.test.ts` y `registry.test.ts`. | existentes |
 | I6 | Sin clave, o con clave incorrecta, las rutas con clave devuelven 401. Con clave, la importación se guarda y se lee por id. | automática |
 | I7 | Un id inexistente devuelve 404 en lectura y en modelo. | automática |
 | I8 | El servidor rechaza un CSV inválido aunque el cliente lo haya aceptado. | automática |
 | I9 | Se rechazan extensiones y tamaños fuera de los límites, y la importación número 51. | automática |
 | I10 | Sin las variables de entorno la app funciona como hoy, y las rutas de escritura responden 503. | automática |
 | I11 | Borrar elimina los cuatro archivos y la importación desaparece de la lista. | automática |
-| I12 | Ningún archivo importado ni dato de Sabrina entra al repo, a `public/` ni al build. Las pruebas usan solo fixtures de Olmo. | revisión de `git status` y del build |
+| I12 | Ningún archivo importado ni dato del segundo fixture entra al repo, a `public/` ni al build. Las pruebas usan solo fixtures del primer fixture. | revisión de `git status` y del build |
 | I13 | Con los archivos reales: subir en `/importar`, abrir el link en otro navegador, ver el 3D, resaltar una pieza y abrir su ficha. | manual |
 
 Verificación final: `npm run typecheck && npm run lint && npm test && npm run build`. El aviso "Module not found ../../Sabrina/data/sabrina.def" sigue siendo esperado sin la carpeta.
@@ -113,7 +113,7 @@ Verificación final: `npm run typecheck && npm run lint && npm test && npm run b
 2. **Crear el store de Blob y definir `BLOB_READ_WRITE_TOKEN` e `IMPORT_UPLOAD_KEY` en Vercel** son acciones hacia afuera: las hace el usuario o se piden explícitamente.
 3. **API de `@vercel/blob`.** Los nombres usados aquí (`put`/`get` con `access: "private"`, subida directa con `upload` y `handleUpload`) salen de la documentación de Vercel consultada el 20/10. Se vuelven a leer en el momento de implementar. Dependencia nueva: `@vercel/blob`.
 4. **Next 16.** Antes de escribir los handlers de ruta se lee `node_modules/next/dist/docs/` (AGENTS.md).
-5. **Titularidad de archivos de otros clientes.** Casa Mueble puede subir archivos de clientes (como el de Sabrina). Quién puede subir qué y por cuánto tiempo no está definido. Mientras tanto: acceso privado, borrado disponible y `noindex`.
+5. **Titularidad de archivos de otros clientes.** Casa Mueble puede subir archivos de clientes (como el del segundo fixture). Quién puede subir qué y por cuánto tiempo no está definido. Mientras tanto: acceso privado, borrado disponible y `noindex`.
 6. ~~Quién guarda la clave y cada cuánto se cambia.~~ Resuelto (D7): la guarda el usuario y no se cambia hasta que él decida. Falta solo definir cómo se la entrega a Casa Mueble.
 7. ~~Conflicto de códigos `M02`/`M03`.~~ Resuelto para la prueba (D6): `M01` en todo. La nomenclatura definitiva queda para el importador real.
 

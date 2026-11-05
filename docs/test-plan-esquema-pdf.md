@@ -8,9 +8,9 @@ Estado: **en implementación** (3/11/2026). Spec: `docs/spec-esquema-pdf.md` (la
 
 - vitest + jsdom, como el resto (`npm test`). Los módulos de `src/pdf/` son puros: no necesitan DOM.
 - Fixtures:
-  - **Olmo** (en el repo): `tests/fixtures/pdf/olmo.json`, transcripción manual de los 3 PDF de OpenCutList y de la planilla.
+  - **Primer fixture** (en el repo): `tests/fixtures/pdf/olmo.json`, transcripción manual de los 3 PDF de OpenCutList y de la planilla.
   - **Segundo fixture** (local, ignorado): `Sabrina/fixtures/sabrina.json`. Las pruebas que lo usan se saltean si falta la carpeta, como `tests/sabrina.test.ts`.
-  - **Sintéticos**: se derivan en la prueba copiando el fixture del Olmo y cambiando **un** campo (mutación mínima). No se escriben archivos nuevos con datos inventados salvo los elementos de texto del parser (TP-50).
+  - **Sintéticos**: se derivan en la prueba copiando el fixture del primer fixture y cambiando **un** campo (mutación mínima). No se escriben archivos nuevos con datos inventados salvo los elementos de texto del parser (TP-50).
 - El .dae se usa a través de las `Observation` del adapter del motor (`docs/spec-motor-asociacion.md` §5.2). Mientras el adapter no exista, los casos de §7.2 (TP-40 a TP-46) usan `Observation` escritas a mano.
 
 ## Cobertura objetivo
@@ -20,7 +20,7 @@ Por criterio, no por porcentaje de líneas:
 1. Cada invariante INV-0 a INV-15: al menos **un caso que cumple y uno que falla**.
 2. Cada razón del catálogo (spec §7.3): al menos **un caso** que la produce, y ningún caso que la produzca sin motivo.
 3. Cada fila de las tablas §7.1 y §7.2: un caso.
-4. Los dos fixtures reales completos: 0 razones en el Olmo salvo las esperadas (abajo).
+4. Los dos fixtures reales completos: 0 razones en el primer fixture salvo las esperadas (abajo).
 5. Porcentaje de líneas: **a definir con el equipo** después de la primera implementación; no se fija ahora.
 
 ## Casos
@@ -29,14 +29,14 @@ Por criterio, no por porcentaje de líneas:
 
 | Id | Caso | Entrada | Resultado esperado |
 |---|---|---|---|
-| TP-01 | Olmo completo válido | `olmo.json` (3 documentos) | INV-0 a INV-13 cumplen; 21 códigos; 0 filas `dudosa` por estructura |
+| TP-01 | Primer fixture completo válido | `olmo.json` (3 documentos) | INV-0 a INV-13 cumplen; 21 códigos; 0 filas `dudosa` por estructura |
 | TP-02 | "Ajustadas" no entra | documento con `columns.adjusted: true` | el esquema no tiene campo de ajustadas; `finalL`/`finalA` son los de "Finales" |
-| TP-03 | INV-1 cumple | tablero Blanco nature 18 del Olmo | Σ cantidades = 20 = `pieceCount` |
+| TP-03 | INV-1 cumple | tablero Blanco nature 18 del primer fixture | Σ cantidades = 20 = `pieceCount` |
 | TP-04 | INV-1 falla | mismo tablero con una cantidad +1 | `suma-tablero-no-coincide` |
 | TP-05 | INV-2 cumple con varios tableros | sintético: un material con `count: 2` y dos hojas | Σ `pieceCount` = `parts` |
 | TP-06 | INV-2 falla | resumen con `parts` −1 | `suma-resumen-no-coincide` |
 | TP-07 | INV-2 falla por hojas | `count: 2` con una sola hoja | `suma-resumen-no-coincide` |
-| TP-08 | INV-3 cumple | diagramas del Olmo | cada letra coincide con su cantidad |
+| TP-08 | INV-3 cumple | diagramas del primer fixture | cada letra coincide con su cantidad |
 | TP-09 | INV-3 falla | una letra con `count` −1; y una letra en el diagrama sin fila | `diagrama-no-coincide` (los dos subcasos) |
 | TP-16 | INV-5 | dos filas con la misma letra en un tablero | `letra-duplicada-en-tablero` |
 | TP-17 | INV-8 | pieza con L mayor que el tablero | `pieza-mayor-que-tablero` |
@@ -68,7 +68,7 @@ Por criterio, no por porcentaje de líneas:
 | TP-20 | Mapeo s1–s4 | fila con las cuatro marcas | `edgeBanding = ["corto-A","corto-B","largo-A","largo-B"]` (orden alfabético de §5.1 del motor) |
 | TP-21 | Una marca por subcolumna | cuatro filas, una marca cada una | s1 → `largo-B`, s2 → `largo-A`, s3 → `corto-A`, s4 → `corto-B` |
 | TP-22 | Columna presente sin marcas | fila con s1–s4 `null` | `edgeBanding = []` |
-| TP-23 | Columna ausente | documento con `columns.edgeStrips: false` (como el Olmo) | **PENDIENTE de PDF-2**: `null` o `[]`. Sin cambio en el `listadoId` del segundo fixture hasta decidirlo |
+| TP-23 | Columna ausente | documento con `columns.edgeStrips: false` (como el primer fixture) | **PENDIENTE de PDF-2**: `null` o `[]`. Sin cambio en el `listadoId` del segundo fixture hasta decidirlo |
 | TP-24 | INV-9 falla | `columns.edgeStrips: false` con una fila que trae `EdgeStrips` | `cantos-inconsistentes` |
 | TP-25 | Texto de canto | celda sintética "Canto Gaudi ~ 0 mm x 22 mm" | `material: "Gaudi"`, `widthMm: 22`, `thicknessText: "~ 0 mm"`; ningún número de espesor |
 | TP-26 | Íconos ignorados | elementos de texto con el ícono del encabezado de canto movido de columna | el resultado depende solo de la posición x de la marca |
@@ -77,18 +77,18 @@ Por criterio, no por porcentaje de líneas:
 
 | Id | Caso | Entrada | Resultado esperado |
 |---|---|---|---|
-| TP-30 | Canónico | `0001-01-M01-C04` | válido |
-| TP-31 | Canónico con `_` inicial | `_0001-01-M01-C04` | válido |
-| TP-32 | Anómalo: `__` final | `_0001-01-M01-C01__` | `nombre-anomalo`, `dudosa` |
+| TP-30 | Canónico | `9999-01-M01-C04` | válido |
+| TP-31 | Canónico con `_` inicial | `_9999-01-M01-C04` | válido |
+| TP-32 | Anómalo: `__` final | `_9999-01-M01-C01__` | `nombre-anomalo`, `dudosa` |
 | TP-33 | Anómalo: inicial, final, ambos | `__C`, `C_`, `__C__` | `nombre-anomalo` en los tres |
-| TP-34 | Código partido con ícono | elementos de texto "0001-01-", ícono, "M01-C01" en dos líneas | `0001-01-M01-C01` |
-| TP-35 | Ausente y formato inválido | designación vacía; `0001-1-M01-C04` | `codigo-ausente`; `formato-invalido` |
+| TP-34 | Código partido con ícono | elementos de texto "9999-01-", ícono, "M01-C01" en dos líneas | `9999-01-M01-C01` |
+| TP-35 | Ausente y formato inválido | designación vacía; `9999-1-M01-C04` | `codigo-ausente`; `formato-invalido` |
 
 ### Cruce con el .dae
 
 | Id | Caso | Entrada | Resultado esperado |
 |---|---|---|---|
-| TP-40 | Olmo contra su .dae | `olmo.json` + `Observation` del .dae del Olmo | 21 códigos con instancias; cantidades y medidas cumplen (tolerancia 2 mm); canteado `no-disponible` (sin caras `Canto_*`, columna ausente). El C01 del .dae es anómalo: lo informa el motor, no esta lectura |
+| TP-40 | Primer fixture contra su .dae | `olmo.json` + `Observation` del .dae del primer fixture | 21 códigos con instancias; cantidades y medidas cumplen (tolerancia 2 mm); canteado `no-disponible` (sin caras `Canto_*`, columna ausente). El C01 del .dae es anómalo: lo informa el motor, no esta lectura |
 | TP-41 | Sin instancias | código del PDF que no está en el .dae | `codigo-sin-instancias` |
 | TP-42 | Instancias sin fila | .dae con un código que el PDF no trae | `instancias-sin-fila` |
 | TP-43 | Cantidad | total 2 contra 3 instancias | `cantidad-no-coincide` |
@@ -102,7 +102,7 @@ Por criterio, no por porcentaje de líneas:
 |---|---|---|---|
 | TP-50 | Parser de `TextoPdf` | elementos de texto sintéticos (texto + x, y) armados a mano desde `olmo.json` | `CutListPdf` igual al fixture |
 | TP-51 | Determinismo | TP-50 dos veces | JSON idéntico byte a byte |
-| TP-52 | Sin capa de texto | PDF del Olmo real (solo local; los PDF no se commitean) o un PDF sin `/Font` | `{ ok: false, reason: "sin-capa-de-texto" }`; no llama a OCR |
+| TP-52 | Sin capa de texto | PDF del primer fixture real (solo local; los PDF no se commitean) o un PDF sin `/Font` | `{ ok: false, reason: "sin-capa-de-texto" }`; no llama a OCR |
 | TP-53 | `OcrLlm` nunca es segura | salida simulada de OCR idéntica al fixture | todas las filas `dudosa` con `origen-ocr` |
 | TP-54 | `OcrLlm` con JSON inválido | salida simulada sin `boards` | rechazo `esquema-invalido`; no se repara |
 | TP-55 | Extracción real de `TextoPdf` | PDF de OpenCutList **con** texto | **PENDIENTE**: no hay ninguno (consulta 58) |
@@ -136,7 +136,7 @@ Por criterio, no por porcentaje de líneas:
 
 | Id | Caso | Entrada | Resultado esperado |
 |---|---|---|---|
-| TP-60 | Conversión del Olmo | `olmo.json` | 21 `PieceType`; códigos, medidas y cantidades iguales a las del mock; `edgeBanding` según TP-23 (PENDIENTE de PDF-2), nunca los lados del mock |
+| TP-60 | Conversión del primer fixture | `olmo.json` | 21 `PieceType`; códigos, medidas y cantidades iguales a las del mock; `edgeBanding` según TP-23 (PENDIENTE de PDF-2), nunca los lados del mock |
 | TP-61 | `listadoId` reutiliza §5.1 | listado de TP-60 | mismo hash que la función del motor sobre los mismos `PieceType` (sin función propia) |
 | TP-62 | Bloqueo por rechazo | documento rechazado | no hay conversión |
 | TP-63 | Bloqueo por dudosa | una fila `dudosa` | conversión disponible solo como borrador, marcada "requiere revisión" |
@@ -145,7 +145,7 @@ Por criterio, no por porcentaje de líneas:
 
 | Id | Caso | Entrada | Resultado esperado |
 |---|---|---|---|
-| TP-70 | Casillas de R4 (supuesto PROVISORIO, spec §9) | tablero Gaudi del Olmo | 10 casillas `(pdfId, 1, letra, n)`; dos por letra A–D, una por E y F |
+| TP-70 | Casillas de R4 (supuesto PROVISORIO, spec §9) | tablero Gaudi del primer fixture | 10 casillas `(pdfId, 1, letra, n)`; dos por letra A–D, una por E y F |
 | TP-71 | Segundo fixture | `Sabrina/fixtures/sabrina.json` (si existe) | INV-0 a INV-13 cumplen; se saltea si falta la carpeta |
 | TP-72 | Nada privado en el repo | `git ls-files` | ningún archivo bajo `Sabrina/` ni `Olmo/`, y ningún `.pdf` en todo el repo |
 

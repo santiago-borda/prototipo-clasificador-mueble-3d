@@ -4,12 +4,22 @@
 |---|---|
 | Proyecto | PFG-Muebles-3D (Casa Mueble) |
 | Módulo | B, apoyo de IA: extracción de datos del PDF (OCR + LLM) |
-| Versión | 0.3 (aprobada el 3/11; reemplaza a la 0.2) |
+| Versión | 0.3.1 (v0.3 aprobada el 3/11; reemplaza a la 0.2). La 0.3.1 es una corrección de mantenimiento del 5/11: credenciales fuera del repo, rutas del esquema y bandera de procesamiento externo. No cambia el diseño aprobado |
 | Fecha | 03/11/2026 (ajustes del 05/11 en §8, §9, §12, §14 y P-02/P-15: credenciales y salidas del OCR). 05/11: prueba de humo de Cloud Vision, credenciales y conectividad OK en local; no valida calidad del OCR |
 | Autores | Santiago Borda, Lautaro Salina |
 | Estado | **Aprobada el 3/11** (por el equipo y el profesor). Siguen abiertos los puntos de §15 y la decisión de §5.3; el adaptador de OCR no se programa antes de resolver P-02 y P-12. P-02 está **parcial** (no resuelta): se resuelve con la prueba con una página de Sabrina (depende de P-04) |
 | Contrato del que depende | `docs/spec-esquema-pdf.md` (aprobada el 3/11): `CutListPdf`, `FuenteDePdf`, INV-0 a INV-15, catálogo cerrado de razones. **Si esta spec y aquella chocan, manda aquella.** |
 | Lo consume | Motor de asociación A (`spec-motor-asociacion.md`), detector de inconsistencias C, sección de cortes (R4) |
+| Ubicación propuesta | `docs/spec-extraccion-pdf.md` |
+
+### Cambios de la v0.3.1 (5/11)
+
+1. **Credenciales:** la clave de la cuenta de servicio vive en `$HOME\.secrets\gcp` (fuera del repo), no en `credentials/`. Cambia §8.1, §9, §12 y §14.
+2. **Cuenta `ocr-extractor`:** sin el rol de Storage (el OCR con el PDF inline no lo necesita), clave anterior borrada, presupuesto con alertas (§8.1).
+3. **Rutas del esquema (§5.1):** pasan a la forma `boards[].pieces[].campo`, según `spec-esquema-pdf.md`. Los nombres exactos se alinean con `src/pdf/types.ts` en la sesión 2 (P-14).
+4. **Bandera `PROCESAMIENTO_EXTERNO=permitir`:** confirmada como el nombre vigente (el Estado del proyecto decía `PERMITIR_DATOS_REALES`, que queda en desuso).
+5. **Lista sintética (propuesta):** los PDF del fixture sintético, identificados por el sha256 de su manifiesto, no exigen lista blanca real (§8, ver `spec-fixture-sintetico.md` §6; pendiente de aprobación).
+6. **§13:** se agrega `hoja-incompleta` a las razones de lectura no ok y se transcribe el texto de §8.3 de la spec del esquema.
 
 ---
 
@@ -90,7 +100,7 @@ PDF ─► 1. Ingesta (sha256 = pdfId, caché)
     ─► validación común (INV-0 a INV-15) y cruce con el .dae (sesión 2b) ─► revisión humana
 ```
 
-1. **Ingesta.** `pdfId = "sha256:" + hash`. El mismo PDF con la misma configuración (adaptadores, modelo, versión de prompt y de esquema) devuelve el resultado guardado: reenviar no genera duplicados. La caché y todo archivo intermedio van solo a `.ocr-data/` (§8).
+1. **Ingesta.** `pdfId = "sha256:" + hash`. El mismo PDF con la misma configuración (adaptadores, modelo, versión de prompt y de esquema) devuelve el resultado guardado: reenviar no genera duplicados. La caché y todo archivo intermedio van solo a `.ocr-data/` (§8.2).
 2. **Rasterizado.** Imagen por página, en una resolución fija y registrada en `readerVersion`. Herramienta a decidir (P-12).
 3. **OCR (3a).** El `OcrAdapter` devuelve palabras con página, x, y, ancho y alto (el mismo tipo que usa `TextoPdf`: `PdfTextElement`, más `pageWidths` en `PdfTextInput`, tal como quedó en la rama `pdf-esquema-sesion-1`). Eso alimenta `parseCutListText` sin cambios. El parser decide qué es fila, columna y marca; el OCR solo aporta palabras.
 4. **LLM (3b).** Recibe el PDF o las imágenes y un esquema de respuesta equivalente a `CutListPdf`. Se le indica que **transcriba y no corrija**. La respuesta se valida con el mismo validador de INV-0; si falla, se reintenta una vez y después se toma la pasada como fallida (§7). Es transcripción, no decisión: **No-Wrapper LLM** (motor §1), el LLM no puntúa ni asocia.
@@ -99,14 +109,16 @@ PDF ─► 1. Ingesta (sha256 = pdfId, caché)
 
 ### 5.1 Reglas de reconciliación (conservadoras)
 
+Las rutas siguen la forma del esquema (`boards[].pieces[].campo`, `header.*`, `summary.*`). **Los nombres exactos de los campos de cada tablero y del pie se alinean con `src/pdf/types.ts` en la sesión 2 (P-14).**
+
 | Campo (ruta en `CutListPdf`) | Fuentes | Regla |
 |---|---|---|
-| `pieces[].code`, `.name`, `.letter` | OCR, LLM | Iguales tras normalizar espacios y guiones tipográficos → valor, `acuerdo`. Distintos → `null` + `pending`, `discrepancia`. Solo uno → `null` + `pending`, `fuente-unica`. **No se autocorrige** (el `__` final o un `_` inicial llegan tal cual y los trata spec-esquema §7.1). |
-| `quantity`, `finalL`, `finalA`, `thicknessMm`, `lengthMm`, `widthMm`, `pieceCount`, `cutLengthM`, `efficiencyPct` | OCR, LLM | Valores iguales → valor. Cualquier diferencia → `null` + `pending`. **Sin tolerancia.** |
-| `pieces[].edges.s1..s4` (presencia de marca) | OCR (palabra "Canto" en la celda), píxeles, LLM | Las tres fuentes que opinan coinciden → marca o `null`. Cualquier desacuerdo, o una sola fuente → `null` + `pending`, **no** se asume "sin marca". |
-| `edges.sK.material` | OCR (texto "Canto <material>"), LLM | Igualdad sin distinguir mayúsculas ni tildes; si no, `null`. El color del punto **no** decide el material. |
+| `boards[].pieces[].code`, `.name`, `.letter` | OCR, LLM | Iguales tras normalizar espacios y guiones tipográficos → valor, `acuerdo`. Distintos → `null` + `pending`, `discrepancia`. Solo uno → `null` + `pending`, `fuente-unica`. **No se autocorrige** (el `__` final o un `_` inicial llegan tal cual y los trata spec-esquema §7.1). |
+| `boards[].pieces[].quantity`, `.finalL`, `.finalA`; `header.thicknessMm`; `boards[].lengthMm`, `.widthMm`; pie del tablero (cantidad de piezas, longitud de cortes, eficiencia); `summary.cutCount`, `summary.cutLengthM`, `summary.fillRatePct` | OCR, LLM | Valores iguales → valor. Cualquier diferencia → `null` + `pending`. **Sin tolerancia.** |
+| `boards[].pieces[].edges.s1..s4` (presencia de marca) | OCR (palabra "Canto" en la celda), píxeles, LLM | Las tres fuentes que opinan coinciden → marca o `null`. Cualquier desacuerdo, o una sola fuente → `null` + `pending`, **no** se asume "sin marca". |
+| `boards[].pieces[].edges.sK.material` | OCR (texto "Canto <material>"), LLM | Igualdad sin distinguir mayúsculas ni tildes; si no, `null`. El color del punto **no** decide el material. |
 | `edges` completo vs `"columna-ausente"` | parser (columnas detectadas) | Lo decide la presencia de los títulos "Ajustadas" y "Tiras de cantos" en el OCR; el LLM contrasta. Desacuerdo → `estructura-no-reconocida` (rechazo). |
-| `header.material`, `summary.*` | OCR, LLM | Como los números y los textos de arriba. Un pie dudoso no marca filas: lo detectan INV-1 e INV-15. |
+| `header.material`, `summary.*` (resto) | OCR, LLM | Como los números y los textos de arriba. Un pie dudoso no marca filas: lo detectan INV-1 e INV-15. |
 
 Principio: **ante la duda, `pending`**. Ninguna regla elige "la fuente más confiable" para romper un empate.
 
@@ -116,7 +128,7 @@ Rige spec-esquema §7.3: toda fila leída por `OcrLlm` sale `dudosa` con `origen
 
 ### 5.3 Decisión abierta: ¿puede un campo con acuerdo dejar de ser `dudosa`?
 
-**Hoy no** (spec-esquema §7.3). La alternativa propuesta el 3/11 es que un campo salga sin razón cuando al menos dos fuentes independientes coinciden y ninguna discrepa. Para decidirlo con datos, el harness (§10) mide el **error en campos con acuerdo** y el **error en campos con acuerdo de las tres fuentes**. La alternativa solo se adopta si ambos dan **0 sobre Sabrina y sobre Olmo**, y la adopta el equipo, no esta spec.
+**Hoy no** (spec-esquema §7.3). La alternativa propuesta el 3/11 es que un campo salga sin razón cuando al menos dos fuentes independientes coinciden y ninguna discrepa. Para decidirlo con datos, el harness (§11) mide el **error en campos con acuerdo** y el **error en campos con acuerdo de las tres fuentes**. La alternativa solo se adopta si ambos dan **0 sobre Sabrina y sobre Olmo**, y la adopta el equipo, no esta spec.
 
 ## 6. Validación
 
@@ -152,14 +164,16 @@ interface LlmAdapter { readonly name: string; readonly modelId: string; extract(
 | 3 | `LlmAdapter` (Gemini, capa gratis), reconciliación, detector de marcas y harness | Lista blanca por hash; ID del modelo en variable de entorno |
 
 - Cambiar de proveedor implica solo un adaptador nuevo; el ID del modelo va en una variable de entorno.
-- Un adaptador que usa la red **se niega a correr** si no están activas la bandera `PROCESAMIENTO_EXTERNO=permitir` y la lista blanca por sha256 que incluye al PDF. La lista blanca arranca vacía.
-- Variables de entorno: `OCR_PROVIDER`, `LLM_PROVIDER`, `GEMINI_MODEL_ID`, credenciales de Google, `PROCESAMIENTO_EXTERNO`.
+- Un adaptador que usa la red **se niega a correr** si no están activas la bandera `PROCESAMIENTO_EXTERNO=permitir` y la lista blanca por sha256 que incluye al PDF. La lista blanca real arranca vacía y vive fuera del repo.
+- **Lista sintética (propuesta, pendiente de aprobación; ver `spec-fixture-sintetico.md` §6):** los PDF del fixture sintético se identifican por el sha256 de su manifiesto y pasan sin lista blanca real. La decisión es solo por hash: ninguna marca, leyenda ni nombre de archivo habilita un envío.
+- Variables de entorno: `OCR_PROVIDER`, `LLM_PROVIDER`, `GEMINI_MODEL_ID`, `GOOGLE_APPLICATION_CREDENTIALS`, `PROCESAMIENTO_EXTERNO`.
 
-### 8.1 Credenciales de Google Cloud (agregado del 5/11)
+### 8.1 Credenciales de Google Cloud (actualizado el 5/11)
 
-- **Tipo de credencial (sesión 2):** cuenta de servicio de Google Cloud con clave JSON, con permisos mínimos (sin rol de Propietario ni de Editor). Si Cloud Vision acepta además una API key sigue sin verificarse (P-02).
-- **Dónde vive la clave:** en `credentials/` (raíz del repo), carpeta **ignorada por git** y fuera de `public/`. La clave **no se escribe en el código, no se commitea y no se pega en un chat**. Si se filtra, se elimina en Google Cloud y se genera otra.
-- **Cómo se referencia:** solo mediante la variable de entorno `GOOGLE_APPLICATION_CREDENTIALS`, con **ruta absoluta**, definida en `.env.local` (ignorado). Cada integrante genera su propia clave de la cuenta de servicio, o se comparte por un canal seguro, nunca por el repo ni por chat.
+- **Tipo de credencial (sesión 2):** cuenta de servicio `ocr-extractor` con clave JSON y permisos mínimos (sin rol de Propietario ni de Editor). Al 5/11 se le **retiró el rol "Administrador de objetos de Storage"**, que el OCR con el PDF inline no necesita; la prueba de humo se repitió después del recorte y sigue en OK. La clave anterior fue **borrada** (queda una sola clave de usuario). Hay un presupuesto con alertas: solo avisa y no corta el gasto; un tope real exige bajar la cuota diaria de la API (opcional, sin decidir). Si Cloud Vision acepta además una API key sigue sin verificarse (P-02).
+- **Dónde vive la clave:** en `$HOME\.secrets\gcp`, **fuera del repo** (cada integrante genera la suya). `credentials/` en la raíz del repo **ya no se usa**. La clave **no se escribe en el código, no se commitea y no se pega en un chat**. Si se filtra, se elimina en Google Cloud y se genera otra.
+- **Cómo se referencia:** solo mediante la variable de entorno `GOOGLE_APPLICATION_CREDENTIALS`, con **ruta absoluta** a ese archivo. Nunca por el repo ni por chat.
+- **Red de seguridad en el repo:** `.gitignore` incluye `.secrets/`, `*-key.json`, `*service-account*.json` y `*.p12`. La comprobación sólida de que el historial no tiene claves es `git log --all -S"BEGIN PRIVATE KEY"` (la búsqueda web de GitHub no recorre todo el historial).
 - **Dónde se ejecuta:** el adaptador de Vision corre solo del lado servidor (script o ruta API de Next.js), nunca en el cliente. Cliente propuesto: `@google-cloud/vision` (dependencia nueva a aprobar por el equipo, igual que P-12).
 - **Despliegue:** en entornos sin sistema de archivos local (por ejemplo Vercel) no hay ruta de archivo; ver P-15.
 
@@ -171,11 +185,11 @@ interface LlmAdapter { readonly name: string; readonly modelId: string; extract(
 
 ## 9. Privacidad
 
-- **Autorización (3/11, informada por el equipo):** Casa Mueble aprobó enviar los PDF de OpenCutList a servicios externos de lectura (Cloud Vision y Gemini) para pruebas y desarrollo, con la aclaración de que en la capa gratis de Gemini Google puede usar el contenido y personas de su equipo pueden leerlo. **Falta guardar la captura del mensaje como confirmación escrita (P-04).** Los términos de Cloud Vision no están verificados.
+- **Autorización (3/11, informada por el equipo):** Casa Mueble aprobó enviar los PDF de OpenCutList a servicios externos de lectura (Cloud Vision y Gemini) para pruebas y desarrollo, con la aclaración de que en la capa gratis de Gemini Google puede usar el contenido y personas de su equipo pueden leerlo. **Falta guardar la captura del mensaje como confirmación escrita (P-04).** Los términos de Cloud Vision no están verificados, y tampoco se sabe aún si Vision usa el contenido enviado.
 - Casa Mueble confirmó también el uso de los archivos de Sabrina y autorizó enviar sus PDF a esos servicios (3/11, informado por el equipo). Se aplican las mismas reglas que a Olmo: bandera `PROCESAMIENTO_EXTERNO=permitir` y lista blanca por sha256, sin la cual el adaptador de red se niega a correr.
-- Un PDF entra a la lista blanca solo cuando el equipo agrega su sha256 de forma explícita, sea de Olmo o de Sabrina. La autorización de Casa Mueble habilita el envío; la lista blanca decide cuáles PDF se envían de verdad.
+- Un PDF real entra a la lista blanca solo cuando el equipo agrega su sha256 de forma explícita, sea de Olmo o de Sabrina. La autorización de Casa Mueble habilita el envío; la lista blanca decide cuáles PDF se envían de verdad.
 - Los fixtures de replay con palabras de Sabrina viven en `Sabrina/` (ignorada por git) hasta que se decida qué se commitea.
-- Las salidas del OCR se guardan solo en `.ocr-data/` (ignorada por git) y la clave de Google Cloud solo en `credentials/` (ignorada por git); ver §8.1 y §8.2. Esas dos rutas deben figurar en `.gitignore` y se verifican con `git check-ignore`.
+- Las salidas del OCR se guardan solo en `.ocr-data/` (ignorada por git) y la clave de Google Cloud solo en `$HOME\.secrets\gcp`, fuera del repo; ver §8.1 y §8.2. `.ocr-data/` y los patrones de claves de §8.1 deben figurar en `.gitignore` y se verifican con `git check-ignore`.
 
 ## 10. R5: IA desactivable
 
@@ -211,14 +225,25 @@ interface LlmAdapter { readonly name: string; readonly modelId: string; extract(
 - Idempotencia: mismo `pdfId` y misma configuración devuelven el mismo resultado.
 - R5: con la IA apagada no se llama al `LlmAdapter`.
 - Lista blanca: un adaptador de red sin bandera o con hash fuera de la lista no corre.
-- Salidas locales (§8.2): el adaptador escribe únicamente bajo `.ocr-data/` (prueba con un directorio temporal); `.ocr-data/` y `credentials/` están en `.gitignore` (verificación con `git check-ignore`).
+- Salidas locales (§8.2): el adaptador escribe únicamente bajo `.ocr-data/` (prueba con un directorio temporal); `.ocr-data/` y los patrones de claves de §8.1 están en `.gitignore` (verificación con `git check-ignore`). La clave no está en el repo: `git ls-files` no lista ningún archivo de claves.
 - Cobertura propuesta: ≥ 90 % de líneas en reconciliación y validación. Falta confirmarla con la cátedra.
 
 ## 13. Cambios que esta spec pide a `spec-esquema-pdf.md`
 
 1. `PdfReading` (ok): campo opcional `evidence?: Evidence` (§4). **Aprobado por el equipo el 3/11; falta aplicarlo en §8 de la spec del esquema.**
-2. `PdfReading` (no ok): razón `lectura-fallida`. **Aprobado por el equipo el 3/11; falta aplicarlo en §8 y en el catálogo de §7.3.**
-3. §8.3: reemplazar el párrafo de privacidad por la autorización de Casa Mueble del 3/11 y la referencia a esta spec (`spec-extraccion-pdf-v0.3.md`, con su ruta en `docs/`). Redactado; falta pegarlo en la spec del esquema.
+2. `PdfReading` (no ok): razón `lectura-fallida`. **Aprobado por el equipo el 3/11; falta aplicarlo en §8 y en el catálogo de §7.3.** La rama `pdf-esquema-sesion-1` ya sumó `hoja-incompleta`: el tipo final queda:
+
+```ts
+type PdfReading =
+  | { ok: true; document: CutListPdf; evidence?: Evidence }   // evidence: solo OcrLlm
+  | { ok: false;
+      reason: "sin-capa-de-texto" | "estructura-no-reconocida" | "unidad-no-soportada"
+            | "hoja-incompleta" | "lectura-fallida";
+      detail: string };
+```
+   (verificar contra `src/pdf/types.ts`). `lectura-fallida` es razón de lectura, como `sin-capa-de-texto`, no de fila.
+3. §8.3: reemplazar el párrafo "Privacidad (PENDIENTE)" por el siguiente texto y borrar la línea "con el segundo fixture no se usa":
+   > **Privacidad.** Usarlo manda el PDF a un servicio externo. Casa Mueble autorizó el 3/11 (informado por el equipo; falta la captura escrita, P-04) el envío de los PDF de OpenCutList, incluidos los del segundo fixture, a Cloud Vision y Gemini, con la aclaración de que en la capa gratis de Gemini Google puede usar el contenido. Un adaptador de red solo corre con `PROCESAMIENTO_EXTERNO=permitir` y el sha256 del PDF en la lista blanca. Detalle, proveedores, reconciliación y evidencia: `docs/spec-extraccion-pdf.md`.
 4. Si se adopta la alternativa de §5.3, modificar §7.3 (hoy "siempre `dudosa`").
 
 ## 14. Trazabilidad
@@ -234,7 +259,7 @@ interface LlmAdapter { readonly name: string; readonly modelId: string; extract(
 | R5: IA desactivable | §10 | Corrida con IA apagada |
 | Sin duplicados al reenviar | §5 (1) | Idempotencia por `pdfId` |
 | Envío externo solo con bandera y lista blanca | §8, §9 | Prueba de lista blanca |
-| Clave y salidas del OCR fuera del control de versiones | §8.1, §8.2, §9 | Prueba de ruta de salida; `git check-ignore` |
+| Clave y salidas del OCR fuera del control de versiones | §8.1, §8.2, §9 | Prueba de ruta de salida; `git check-ignore`; `git ls-files` sin claves |
 | R4 | Fuera de alcance (P-07) | n/a |
 
 ## 15. Pendientes y preguntas abiertas
@@ -242,7 +267,7 @@ interface LlmAdapter { readonly name: string; readonly modelId: string; extract(
 | ID | Pendiente |
 |---|---|
 | P-01 | Calibrar el detector de marcas por color con Sabrina (¿hay colores de canto además de azul y rojo?). Sesión 3. |
-| P-02 | Si Cloud Vision acepta API key o exige cuenta de servicio. Para la sesión 2 se creó una cuenta de servicio con clave JSON (5/11); el uso de API key no está verificado. **Parcial:** credenciales y conectividad verificadas en local (5/11); falta la prueba con una página de Sabrina (depende de P-04). |
+| P-02 | Si Cloud Vision acepta API key o exige cuenta de servicio. Para la sesión 2 se usa la cuenta de servicio con clave JSON (5/11); el uso de API key no está verificado. **Parcial:** credenciales y conectividad verificadas en local con una imagen sin datos de Casa Mueble (5/11); falta la prueba con una página de Sabrina (depende de P-04). La prueba en vivo con el PDF sintético (`spec-fixture-sintetico.md`, TS-13) cubriría `files:annotate` con PDF inline y lotes, sin cerrar P-02. |
 | P-03 | Límites vigentes de la capa gratis de Gemini y del modelo elegido. |
 | P-04 | Guardar la captura de la confirmación escrita de Casa Mueble: envío de PDF a APIs externas (con la aclaración sobre la capa gratis), uso y envío de los archivos de Sabrina. Pendiente de respuesta: consulta 56 (orden 1 a 4 informado; falta cara de referencia, espejadas y la confirmación escrita). |
 | P-05 | Límite de cuerpo de las funciones de Vercel con subida a Blob (si B se despliega allí). |
@@ -254,8 +279,9 @@ interface LlmAdapter { readonly name: string; readonly modelId: string; extract(
 | P-11 | Verificar las medidas del .dae de Sabrina contra el PDF (solo se cruzaron cantidades). |
 | **P-12** | **Cómo rasterizar el PDF en la sesión 2 sin una dependencia no aprobada** (herramienta de línea de comandos externa o librería de Node): decisión del equipo antes de programar. |
 | **P-13** | **Precisión de Tesseract sobre esta tabla** (letra chica del canto, íconos intercalados): la consulta 58 dice que no alcanza como única vía. La sesión 2 lo mide; no se asume. |
-| **P-14** | **Alinear esta spec con §8.2 y los tipos finales de la rama `pdf-esquema-sesion-1`** (`PdfTextElement`, `PdfTextInput`, `pageWidths`, campos nullable, `campo-pendiente`): esta v0.3 los usa según lo informado, sin haber leído el código de la rama. (Ojo: la §8.2 de este documento trata las salidas locales; la §8.2 que cita P-14 es la de spec-esquema-pdf.) |
+| **P-14** | **Alinear esta spec con la §8.2 de `spec-esquema-pdf.md` y los tipos finales de la rama `pdf-esquema-sesion-1`** (`PdfTextElement`, `PdfTextInput`, `pageWidths`, campos nullable, `campo-pendiente`, nombres de los campos de tablero y de pie usados en §5.1): esta spec los usa según lo informado, sin haber leído el código de la rama. (Ojo: la §8.2 de este documento trata las salidas locales; la §8.2 que cita P-14 es la de spec-esquema-pdf.) |
 | **P-15** | **Credenciales de Vision fuera de la máquina local** (testing en `taller-test.casamueble.com.ar`, preproducción, producción; Vercel si corresponde): ahí no hay ruta de archivo, así que el contenido del JSON se carga en una variable de entorno del servidor. Decidir el mecanismo por entorno y quién custodia la clave. Aplica solo si B se ejecuta en un servidor; en la sesión 2 corre local. |
+| P-16 | Confirmar si Cloud Vision usa el contenido enviado (términos del servicio) y registrarlo en §9. |
 
 ## 16. Inconsistencias que esta spec deja a la vista
 
@@ -266,4 +292,6 @@ interface LlmAdapter { readonly name: string; readonly modelId: string; extract(
 | I-03 | La cifra 12,02 % del fondo de 3 mm es la **tasa de llenado** (Resumen) y 11,80 % la **eficiencia** (pie); ambas son de OpenCutList. El "Estado del proyecto" ya está corregido. Falta decidir qué métrica usa el documento. | Propuesta: eficiencia del pie. |
 | I-04 | En el .dae de Olmo, C20 y C21 (3 mm) usan el material `Blanco_nature` de las piezas de 18 mm. | El cruce con el .dae distingue por espesor (sesión 2b). |
 | I-05 | Sabrina y Olmo comparten `0001-01`; Sabrina trae además `0001-02` en el mismo PDF. | La asociación es por (mueble, código); falta numeración única de proyectos con Casa Mueble. |
-| I-06 | spec-esquema §8.3 cita un documento `spec-extraccion-pdf` que no estaba en `docs/`. | Esta spec lo resuelve cuando se commitee (§13). |
+| I-06 | spec-esquema §8.3 cita un documento `spec-extraccion-pdf` que no estaba en `docs/`. | Se resuelve al commitear esta spec como `docs/spec-extraccion-pdf.md` y aplicar §13. |
+| I-07 | El Estado del proyecto (módulo B, v0.2) nombra la bandera `PERMITIR_DATOS_REALES`; esta spec y el equipo usan `PROCESAMIENTO_EXTERNO=permitir`. | Corregir el Estado al cerrar el chat. |
+| I-08 | Esta spec nombra a "Olmo" y "Sabrina" (y `Sabrina/`), mientras que `spec-esquema-pdf.md` dice "segundo fixture" para no citar datos del cliente en el repo. | Decidir con el equipo si se anonimizan antes de commitear (recomendado, por la visibilidad del repo ante la cátedra). |

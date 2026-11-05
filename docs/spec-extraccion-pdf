@@ -4,10 +4,10 @@
 |---|---|
 | Proyecto | PFG-Muebles-3D (Casa Mueble) |
 | Módulo | B, apoyo de IA: extracción de datos del PDF (OCR + LLM) |
-| Versión | 0.3 (borrador para aprobación; reemplaza a la 0.2 del 3/11) |
+| Versión | 0.3 (aprobada el 3/11; reemplaza a la 0.2) |
 | Fecha | 03/11/2026 |
 | Autores | Santiago Borda, Lautaro Salina |
-| Estado | **Borrador.** No se programa el adaptador de OCR hasta que se apruebe (SDD) |
+| Estado | **Aprobada el 3/11** (informado por el equipo). Siguen abiertos los puntos de §15 y la decisión de §5.3; el adaptador de OCR no se programa antes de resolver P-02 y P-12 |
 | Contrato del que depende | `docs/spec-esquema-pdf.md` (aprobada el 3/11): `CutListPdf`, `FuenteDePdf`, INV-0 a INV-15, catálogo cerrado de razones. **Si esta spec y aquella chocan, manda aquella.** |
 | Lo consume | Motor de asociación A (`spec-motor-asociacion.md`), detector de inconsistencias C, sección de cortes (R4) |
 
@@ -159,7 +159,7 @@ interface LlmAdapter { readonly name: string; readonly modelId: string; extract(
 
 - **Autorización (3/11, informada por el equipo):** Casa Mueble aprobó enviar los PDF de OpenCutList a servicios externos de lectura (Cloud Vision y Gemini) para pruebas y desarrollo, con la aclaración de que en la capa gratis de Gemini Google puede usar el contenido y personas de su equipo pueden leerlo. **Falta guardar la captura del mensaje como confirmación escrita (P-04).** Los términos de Cloud Vision no están verificados.
 - Casa Mueble confirmó también el uso de los archivos de Sabrina y autorizó enviar sus PDF a esos servicios (3/11, informado por el equipo). Se aplican las mismas reglas que a Olmo: bandera `PROCESAMIENTO_EXTERNO=permitir` y lista blanca por sha256, sin la cual el adaptador de red se niega a correr.
-- Con el Olmo, el envío a un servicio externo requiere el OK explícito del equipo y su hash en la lista blanca.
+- Un PDF entra a la lista blanca solo cuando el equipo agrega su sha256 de forma explícita, sea de Olmo o de Sabrina. La autorización de Casa Mueble habilita el envío; la lista blanca decide cuáles PDF se envían de verdad.
 - Los fixtures de replay con palabras de Sabrina viven en `Sabrina/` (ignorada por git) hasta que se decida qué se commitea.
 
 ## 10. R5: IA desactivable
@@ -198,11 +198,11 @@ interface LlmAdapter { readonly name: string; readonly modelId: string; extract(
 - Lista blanca: un adaptador de red sin bandera o con hash fuera de la lista no corre.
 - Cobertura propuesta: ≥ 90 % de líneas en reconciliación y validación. Falta confirmarla con la cátedra.
 
-## 13. Cambios que esta spec pide a `spec-esquema-pdf.md` (a aprobar)
+## 13. Cambios que esta spec pide a `spec-esquema-pdf.md`
 
-1. `PdfReading` (ok): campo opcional `evidence?: Evidence` (§4).
-2. `PdfReading` (no ok): razón `lectura-fallida`.
-3. §8.3: reemplazar la mención "borrador del 3/11" por la referencia a esta spec (`spec-extraccion-pdf-v0.3.md`, con su ruta en `docs/`).
+1. `PdfReading` (ok): campo opcional `evidence?: Evidence` (§4). **Aprobado por el equipo el 3/11; falta aplicarlo en §8 de la spec del esquema.**
+2. `PdfReading` (no ok): razón `lectura-fallida`. **Aprobado por el equipo el 3/11; falta aplicarlo en §8 y en el catálogo de §7.3.**
+3. §8.3: reemplazar el párrafo de privacidad por la autorización de Casa Mueble del 3/11 y la referencia a esta spec (`spec-extraccion-pdf-v0.3.md`, con su ruta en `docs/`). Redactado; falta pegarlo en la spec del esquema.
 4. Si se adopta la alternativa de §5.3, modificar §7.3 (hoy "siempre `dudosa`").
 
 ## 14. Trazabilidad

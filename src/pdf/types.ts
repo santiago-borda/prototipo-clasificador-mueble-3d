@@ -145,6 +145,20 @@ export interface PdfTextInput {
   elements: readonly PdfTextElement[];
 }
 
-export type PdfReadingFailure = "sin-capa-de-texto" | "estructura-no-reconocida" | "unidad-no-soportada" | "hoja-incompleta";
+// --- Evidencia de OcrLlm (docs/spec-extraccion-pdf.md §4) ---
 
-export type PdfReading = { ok: true; document: CutListPdf } | { ok: false; reason: PdfReadingFailure; detail: string };
+/** Lecturas crudas de cada fuente para un campo; la pantalla de revisión las muestra. No las lee el validador. */
+export interface FieldEvidence {
+  candidates: { ocr?: string; llm?: string; pixels?: string };
+  agreement: "acuerdo" | "discrepancia" | "fuente-unica" | "ilegible";
+  bbox?: { page: number; x: number; y: number; w: number; h: number };
+}
+
+/** Clave = ruta JSON del campo, igual que `PendingField.path`. */
+export type Evidence = Record<string, FieldEvidence>;
+
+/** `lectura-fallida`: fallaron todas las pasadas de un adaptador; no hay resultado parcial (spec-extraccion §7). */
+export type PdfReadingFailure = "sin-capa-de-texto" | "estructura-no-reconocida" | "unidad-no-soportada" | "hoja-incompleta" | "lectura-fallida";
+
+/** `evidence`: solo la devuelve OcrLlm (spec-esquema §8). */
+export type PdfReading = { ok: true; document: CutListPdf; evidence?: Evidence } | { ok: false; reason: PdfReadingFailure; detail: string };

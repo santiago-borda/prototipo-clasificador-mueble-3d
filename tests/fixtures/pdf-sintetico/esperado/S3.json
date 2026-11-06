@@ -1,0 +1,26 @@
+{
+  "schema": "cutlist-pdf/1",
+  "source": { "fileName": "sintetico-S3.pdf", "pdfId": null, "reader": "transcripcion-manual", "readerVersion": "esperado/1", "producer": "fixture-sintetico", "hasTextLayer": false },
+  "header": { "material": "Fondo Sintético", "thicknessMm": 3, "generatedAt": "01/01/2030 9:00am", "unit": "mm", "project": "FIXTURE SINTÉTICO — NO ES DATO REAL - Mueble sintético.skp - Escena1" },
+  "summary": {
+    "settings": { "Espesor de hoja de sierra": "3,2 mm", "Recorte": "5 mm", "Optimización": "Avanzada" },
+    "fillRatePct": 26.26,
+    "cutCount": 8,
+    "cutLengthM": 4.36,
+    "boards": [{ "material": "Fondo Sintético", "thicknessMm": 3, "count": 1, "lengthMm": 2590, "widthMm": 1830, "areaM2": 4.74, "parts": 4 }]
+  },
+  "columns": { "adjusted": false, "edgeStrips": false },
+  "boards": [
+    {
+      "index": 1, "total": 1, "pages": [2], "material": "Fondo Sintético", "thicknessMm": 3, "lengthMm": 2590, "widthMm": 1830, "kind": "Tablero estándar",
+      "pieceCount": 4, "cutLengthM": 4.36, "efficiencyPct": 25.95,
+      "pieces": [
+        { "letter": "A", "code": "9999-91-M01-C08", "name": "Fondo", "quantity": 1, "finalL": 891, "finalA": 683, "edges": "columna-ausente" },
+        { "letter": "B", "code": "9999-92-M01-C09", "name": "Fondo de cajón", "quantity": 2, "finalL": 541, "finalA": 367, "edges": "columna-ausente" },
+        { "letter": "C", "code": "9999-92-M01-C10", "name": "Fondo trasero", "quantity": 1, "finalL": 577, "finalA": 389, "edges": "columna-ausente" }
+      ],
+      "diagram": [{ "letter": "A", "count": 1 }, { "letter": "B", "count": 2 }, { "letter": "C", "count": 1 }]
+    }
+  ],
+  "pending": []
+}

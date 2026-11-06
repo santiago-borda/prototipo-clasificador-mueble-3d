@@ -8,5 +8,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     include: ["tests/**/*.test.ts"],
+    // Sin red en la suite: fetch falla (TS-10, docs/spec-fixture-sintetico.md).
+    setupFiles: ["tests/setup/sinRed.ts"],
   },
 });

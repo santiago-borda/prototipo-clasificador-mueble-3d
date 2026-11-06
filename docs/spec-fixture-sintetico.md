@@ -31,14 +31,14 @@ Tener un conjunto de PDF **falsos** que imitan el formato real de OpenCutList pa
 | Marca | Valor | Para qué |
 |---|---|---|
 | Código de proyecto | `9999` (códigos `9999-9X-M0X-Cxx`, formato válido de §7.1) | Nunca coincide con el código de proyecto del proyecto real (primer y segundo fixture) |
-| Leyenda en cada página | "FIXTURE SINTÉTICO — NO ES DATO REAL", en el título del recuadro y al pie | Visible en la imagen y en la salida del OCR |
+| Leyenda en cada página | "FIXTURE SINTÉTICO — NO ES DATO REAL", en el título del recuadro y en el margen superior de cada página (§12) | Visible en la imagen y en la salida del OCR |
 | Nombre de archivo | prefijo `sintetico-` | Legible para personas |
 | Metadato `/Subject` | `fixture-sintetico/1` | Legible para personas |
 | Manifiesto | `tests/fixtures/pdf-sintetico/manifiesto.json` con `synthetic: true` y el sha256 de cada PDF | Fuente de la lista sintética (§6) |
 
 **Regla:** ninguna de estas marcas habilita nada. La compuerta (§6) decide **solo por sha256**; las marcas sirven a las personas y a las pruebas de TS-12.
 
-Datos prohibidos en el fixture (prueba TS-12): el código de proyecto del proyecto real, los nombres de los muebles reales (incluido el nombre anterior del primero), los materiales reales y las medidas de tablero copiadas de los PDF reales. **La lista vive solo en la prueba y no se escribe en claro en el repo** (ni en esta spec): ver TS-12 en §9. Los parámetros de regla (por ejemplo la constante 0,066) sí se usan: son de la spec, no del cliente.
+Datos prohibidos en el fixture (prueba TS-12): el código de proyecto del proyecto real, los nombres de los muebles reales (incluido el nombre anterior del primero), los materiales reales y las medidas de pieza (L, A) de los PDF reales. **La lista vive solo en la prueba y no se escribe en claro en el repo** (ni en esta spec): ver TS-12 en §9. Los parámetros de regla (por ejemplo la constante 0,066) sí se usan: son de la spec, no del cliente.
 
 ## 3. Arquitectura: una fuente, cuatro salidas
 
@@ -94,6 +94,7 @@ Función pura `puedeEnviar(pdfBytes, env) → { ok: true } | { ok: false; motivo
 2. Si el hash está en la **lista sintética** (sale de `manifiesto.json`) → permitido.
 3. Si no, exige `<bandera> = permitir` (nombre en D1) **y** el hash en la **lista blanca real** (fuera del repo) → permitido.
 4. En cualquier otro caso → bloqueado, con motivo. Nunca decide por nombre de archivo, metadatos ni leyenda.
+5. Antes que todo: si `PERMITIR_DATOS_REALES` (en desuso) está definida, con cualquier valor, la compuerta lanza un error explícito y no decide nada (falla cerrada), aunque el PDF sea sintético.
 
 Salidas de Vision: solo en `.ocr-data/` (ignorada por git), en `.ocr-data/sintetico/<sha256>.json`. Credenciales: solo por `GOOGLE_APPLICATION_CREDENTIALS` (`$HOME\.secrets\gcp`); nada del fixture las toca.
 
@@ -123,7 +124,7 @@ Se aplican en memoria sobre el `PdfTextInput` ideal o sobre la respuesta simulad
 | Id | Caso | Resultado esperado |
 |---|---|---|
 | TS-01 | Generar dos veces | Mismos bytes; sha256 igual al del manifiesto |
-| TS-02 | PDF generado sin `/Font` | `TextoPdf` devuelve `sin-capa-de-texto` (cubre TP-52 sin PDF real) |
+| TS-02 | PDF generado sin `/Font` | `probeTextLayer` devuelve `sin-capa-de-texto` (cubre TP-52 sin PDF real; la extracción de `TextoPdf` sigue pendiente) |
 | TS-03 | Marcado | Leyenda en cada página, prefijo, `/Subject` y manifiesto presentes |
 | TS-04 | Parser con `PdfTextInput` ideal de S1, S2 y S3 | Igual a `esperado/*.json` |
 | TS-05 | Adaptador con la respuesta simulada ideal | `PdfTextInput` equivalente al ideal (tolerancia de coordenadas a fijar en la implementación); todas las filas `dudosa` con `origen-ocr` |
@@ -131,9 +132,9 @@ Se aplican en memoria sobre el `PdfTextInput` ideal o sobre la respuesta simulad
 | TS-07 | Cantos (§5) | 0 marcas mal asignadas; s1 + s4 correcto; respaldo por constante; desplazada → `pending` |
 | TS-08 | S2 en lotes | El adaptador arma 2 pedidos (5 + 1 páginas) y une el resultado en orden |
 | TS-09 | S3 | `columns.edgeStrips = false`; ninguna fila con "sin canto" inventado |
-| TS-10 | Compuerta | Sintético sin bandera: pasa. PDF desconocido con metadatos "sintético": bloqueado. Real con bandera y sin hash: bloqueado. Espía de `fetch`: 0 llamadas en toda la suite |
+| TS-10 | Compuerta | Sintético sin bandera: pasa. PDF desconocido con metadatos "sintético": bloqueado. Real con bandera y sin hash: bloqueado. `PERMITIR_DATOS_REALES` definida: error. Espía de `fetch`: 0 llamadas en toda la suite |
 | TS-11 | TP-72 | `git ls-files` sin ningún `.pdf` |
-| TS-12 | Sin datos reales | `fuente.ts` y `esperado/` no contienen la lista prohibida de §2 |
+| TS-12 | Sin datos reales | `fuente.ts`, el manifiesto y `esperado/` no contienen la lista prohibida de §2 (hashes, ver §12); todos los códigos son `9999-`; ninguna medida de pieza (L, A) repite una del primer fixture, ni del segundo si está la carpeta local (si falta, ese caso se saltea con el motivo en el título) |
 | TS-13 | Prueba en vivo (manual) | `npm run ocr:sintetico` guarda en `.ocr-data/sintetico/` y reporta diferencias contra `esperado/`; **no es métrica de calidad** |
 
 ## 10. Límites
@@ -152,3 +153,31 @@ Se aplican en memoria sobre el `PdfTextInput` ideal o sobre la respuesta simulad
 | D3 | Generador sin dependencias (fuente de trazos propia) o una dependencia (por ejemplo pdf-lib) | Sin dependencias: pdf-lib con fuentes estándar crearía capa de texto |
 | D4 | PDF regenerado y no commiteado | Sí (TP-72) |
 | D5 | ¿TS-13 cierra la parte de P-02 "files:annotate con PDF inline y lotes"? | Sí; P-02 sigue parcial hasta la prueba con el segundo fixture |
+## 12. Implementación (6/11, rama `pdf-fixture-sintetico`)
+
+Estado: TS-01 a TS-12 implementadas y en verde (`tests/pdf.sintetico.test.ts`, 34 casos). TS-13 escrita y **sin correr** (`scripts/ocr-sintetico.ts`).
+
+| Pieza | Dónde |
+|---|---|
+| Fuente (datos y geometría) | `tests/fixtures/pdf-sintetico/fuente.ts` |
+| Esperado (a mano) | `tests/fixtures/pdf-sintetico/esperado/S1.json`, `S2.json`, `S3.json` |
+| Manifiesto (sha256) | `tests/fixtures/pdf-sintetico/manifiesto.json` |
+| Generador (layout, fuente de trazos, PDF, salidas) | `tests/helpers/pdfSintetico/` |
+| Conversión Vision → `PdfTextInput` (pura) | `src/pdf/ocr/vision.ts` (`visionToTextInput`) |
+| Lotes (puro, tamaño como parámetro: depende de P-12) | `src/pdf/ocr/batches.ts` (`pageBatches`) |
+| Palabras de OCR → `CutListPdf` con `reader = "ocr-llm"` | `src/pdf/ocr/readWords.ts` (`parseOcrWords`) |
+| Compuerta | `src/pdf/ocr/gate.ts` (`puedeEnviar`, `BanderaEnDesusoError`) |
+| ¿Capa de texto? | `src/pdf/textLayer.ts` (`probeTextLayer`) |
+| Sin red en la suite | `tests/setup/sinRed.ts` (todo `fetch` falla; `setupFiles` de vitest) |
+| Comandos | `npm run fixture:sintetico [-- --actualizar]`, `npm run ocr:sintetico` (corren con `vite-node`, que ya viene con vitest: sin dependencias nuevas) |
+
+Desvíos y decisiones respecto de las secciones anteriores:
+
+- **Leyenda:** va en el título del recuadro y en el **margen superior** de cada página, no al pie. El parser toma como filas todo el texto que está debajo de la tabla hasta el pie de la hoja, y una página de continuación no tiene pie: una leyenda abajo se leería como dato de la última fila.
+- **TS-12, lista prohibida:** son los SHA-256 de los términos normalizados (sin tildes, en minúsculas), **sin sal**, comparados contra los grupos de 1 a 3 palabras de cada archivo. El test cuenta los archivos con coincidencias y no imprime qué término coincidió. Un autocontrol verifica que el hash detecte los materiales y el título del primer fixture real (leídos de `tests/fixtures/pdf/olmo.json`), sin escribirlos. Las medidas prohibidas son las de **pieza** (par L, A sin orden), leídas de los fixtures reales al correr el test.
+- **Límite del hash (TS-12):** el SHA-256 de una palabra común se revierte probando un diccionario. La lista no queda a la vista ni aparece con un `grep`, pero no está protegida contra quien la busque a propósito. Además, `src/`, `tests/` y `CLAUDE.md` ya nombran los muebles reales en claro (solo la prosa de `docs/` está anonimizada).
+- **TS-02:** no hay extracción de `TextoPdf` (sigue pendiente, consulta 58). `probeTextLayer` busca `/Font` en el PDF sin comprimir; con object streams (`/ObjStm`) responde "desconocido".
+- **Íconos:** en el PDF son rombos dibujados. En los elementos ideales, el de la designación entra como un carácter de uso privado (lo que entregaría una capa de texto; el parser lo descarta). En la respuesta simulada de Vision no aparece: es un dibujo.
+- **Texto de canto:** 4 renglones de 4,5 pt ("Canto <1ª palabra>", resto del material, "~0 mm x", "19 mm"). Con 5,5 pt, la segunda línea de dos marcas vecinas quedaba a menos de un alto de distancia y el parser la unía en un solo segmento.
+- **Verificación visual:** no se pudo mirar el PDF renderizado (no hay rasterizador local, P-12). La legibilidad de la fuente de trazos se ve recién con TS-13.
+- **TS-13:** usa `@google-cloud/vision` (ya en `package.json`) con `batchAnnotateFiles`, PDF inline, lotes de 5 y `DOCUMENT_TEXT_DETECTION`. Antes de cualquier llamada pasa por la compuerta y exige `via = "sintetico"`. Guarda la respuesta cruda en `.ocr-data/sintetico/<sha256>.json` y por consola muestra solo conteos (palabras, pendientes, campos distintos de `esperado/`). La forma de la respuesta que asume `visionToTextInput` (página en `context.pageNumber`, tamaño en puntos, `normalizedVertices`) se verifica con esa primera corrida.

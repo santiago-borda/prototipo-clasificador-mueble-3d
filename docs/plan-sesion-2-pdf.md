@@ -19,6 +19,8 @@ Sin OCR, sin red y sin dependencias nuevas. No toca el visor, las fichas, el imp
 
 ## Sesión 2 — Adaptador de OCR
 
+**Avance (6/11, rama `pdf-fixture-sintetico`):** los puntos 1 y 2 están hechos para Vision, como funciones puras: `src/pdf/ocr/vision.ts` (respuesta de `files:annotate` → `PdfTextInput`) y `src/pdf/ocr/readWords.ts` (`parseOcrWords`, con `reader = "ocr-llm"`), probados con el fixture sintético (`docs/spec-fixture-sintetico.md` §12). Falta el punto 3 con salidas reales y conectar el cliente (P-02, P-04 y P-12). La 2b sigue: `docs/spec-sesion-2b-listado-cruce.md`.
+
 Objetivo (`CLAUDE.md`): adaptador de OCR con fixtures y **el mismo parser** de la sesión 1 (§8.3, propuesta del 3/11). De la salida de un OCR a `PdfTextInput`, y de ahí a `parseCutListText`. Sin LLM: eso es la sesión 3.
 
 1. **`src/pdf/ocrAdapter.ts`, puro:** palabras con caja de un OCR (formato a fijar) → `PdfTextElement[]` y `pageWidths`, con origen arriba a la izquierda. Sin llamadas de red en la función: la salida del OCR se recibe ya hecha.

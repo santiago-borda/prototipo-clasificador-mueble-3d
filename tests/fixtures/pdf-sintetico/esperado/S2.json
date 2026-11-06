@@ -1,0 +1,112 @@
+{
+  "schema": "cutlist-pdf/1",
+  "source": { "fileName": "sintetico-S2.pdf", "pdfId": null, "reader": "transcripcion-manual", "readerVersion": "esperado/1", "producer": "fixture-sintetico", "hasTextLayer": false },
+  "header": { "material": "Roble Sintético", "thicknessMm": 18, "generatedAt": "01/01/2030 9:00am", "unit": "mm", "project": "FIXTURE SINTÉTICO — NO ES DATO REAL - Mueble sintético.skp - Escena1" },
+  "summary": {
+    "settings": { "Espesor de hoja de sierra": "3,2 mm", "Recorte": "5 mm", "Optimización": "Avanzada" },
+    "fillRatePct": 31.05,
+    "cutCount": 70,
+    "cutLengthM": 25.24,
+    "boards": [{ "material": "Roble Sintético", "thicknessMm": 18, "count": 3, "lengthMm": 2590, "widthMm": 1830, "areaM2": 14.22, "parts": 35 }]
+  },
+  "columns": { "adjusted": true, "edgeStrips": true },
+  "boards": [
+    {
+      "index": 1, "total": 3, "pages": [2, 3], "material": "Roble Sintético", "thicknessMm": 18, "lengthMm": 2590, "widthMm": 1830, "kind": "Tablero estándar",
+      "pieceCount": 10, "cutLengthM": 10.19, "efficiencyPct": 46.94,
+      "pieces": [
+        { "letter": "A", "code": "9999-93-M01-C01", "name": "Costado", "quantity": 2, "finalL": 731, "finalA": 451,
+          "edges": { "s1": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s2": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s3": null,
+                     "s4": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" } } },
+        { "letter": "B", "code": "9999-93-M01-C02", "name": "Techo", "quantity": 1, "finalL": 869, "finalA": 451,
+          "edges": { "s1": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s2": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s3": null, "s4": null } },
+        { "letter": "C", "code": "9999-93-M01-C03", "name": "Piso", "quantity": 1, "finalL": 869, "finalA": 451,
+          "edges": { "s1": null,
+                     "s2": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s3": null, "s4": null } },
+        { "letter": "D", "code": "9999-93-M01-C04", "name": "Estante", "quantity": 2, "finalL": 833, "finalA": 311,
+          "edges": { "s1": null,
+                     "s2": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s3": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s4": null } },
+        { "letter": "E", "code": "9999-93-M01-C05", "name": "Travesaño trasero", "quantity": 2, "finalL": 97, "finalA": 833,
+          "edges": { "s1": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s2": null, "s3": null, "s4": null } },
+        { "letter": "F", "code": "9999-93-M01-C06", "name": "Lateral de cajón", "quantity": 2, "finalL": 389, "finalA": 131,
+          "edges": { "s1": null,
+                     "s2": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s3": null, "s4": null } }
+      ],
+      "diagram": [
+        { "letter": "A", "count": 2 }, { "letter": "B", "count": 1 }, { "letter": "C", "count": 1 },
+        { "letter": "D", "count": 2 }, { "letter": "E", "count": 2 }, { "letter": "F", "count": 2 }
+      ]
+    },
+    {
+      "index": 2, "total": 3, "pages": [4, 5], "material": "Roble Sintético", "thicknessMm": 18, "lengthMm": 2590, "widthMm": 1830, "kind": "Tablero estándar",
+      "pieceCount": 12, "cutLengthM": 9.26, "efficiencyPct": 36.31,
+      "pieces": [
+        { "letter": "G", "code": "9999-93-M01-C07", "name": "Puerta izquierda", "quantity": 1, "finalL": 719, "finalA": 409,
+          "edges": { "s1": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s2": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s3": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s4": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" } } },
+        { "letter": "H", "code": "9999-93-M01-C08", "name": "Puerta derecha", "quantity": 1, "finalL": 719, "finalA": 409,
+          "edges": { "s1": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s2": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s3": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s4": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" } } },
+        { "letter": "I", "code": "9999-93-M01-C09", "name": "Frente de cajón", "quantity": 3, "finalL": 409, "finalA": 157,
+          "edges": { "s1": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s2": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s3": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s4": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" } } },
+        { "letter": "J", "code": "9999-93-M01-C10", "name": "Tapa de cajón", "quantity": 2, "finalL": 413, "finalA": 157,
+          "edges": { "s1": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s2": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s3": null, "s4": null } },
+        { "letter": "K", "code": "9999-93-M01-C11", "name": "Base de mueble", "quantity": 1, "finalL": 841, "finalA": 389,
+          "edges": { "s1": null,
+                     "s2": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s3": null, "s4": null } },
+        { "letter": "L", "code": "9999-93-M01-C12", "name": "Divisor", "quantity": 2, "finalL": 377, "finalA": 293,
+          "edges": { "s1": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s2": null, "s3": null,
+                     "s4": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" } } },
+        { "letter": "M", "code": "9999-93-M01-C13", "name": "Repisa", "quantity": 2, "finalL": 563, "finalA": 233,
+          "edges": { "s1": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s2": null, "s3": null,
+                     "s4": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" } } }
+      ],
+      "diagram": [
+        { "letter": "G", "count": 1 }, { "letter": "H", "count": 1 }, { "letter": "I", "count": 3 }, { "letter": "J", "count": 2 },
+        { "letter": "K", "count": 1 }, { "letter": "L", "count": 2 }, { "letter": "M", "count": 2 }
+      ]
+    },
+    {
+      "index": 3, "total": 3, "pages": [6], "material": "Roble Sintético", "thicknessMm": 18, "lengthMm": 2590, "widthMm": 1830, "kind": "Tablero estándar",
+      "pieceCount": 13, "cutLengthM": 5.79, "efficiencyPct": 8.98,
+      "pieces": [
+        { "letter": "F", "code": "9999-93-M01-C06", "name": "Lateral de cajón", "quantity": 4, "finalL": 389, "finalA": 131,
+          "edges": { "s1": null,
+                     "s2": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s3": null, "s4": null } },
+        { "letter": "N", "code": "9999-93-M01-C14", "name": "Refuerzo", "quantity": 3, "finalL": 541, "finalA": 83,
+          "edges": { "s1": null, "s2": null,
+                     "s3": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s4": null } },
+        { "letter": "O", "code": "9999-93-M01-C15", "name": "Listón", "quantity": 2, "finalL": 611, "finalA": 59,
+          "edges": { "s1": null, "s2": null, "s3": null,
+                     "s4": { "label": "Canto Roble Sintético ~0 mm x 19 mm", "material": "Roble Sintético", "widthMm": 19, "thicknessText": "~0 mm" } } },
+        { "letter": "P", "code": "9999-93-M01-C16", "name": "Taco", "quantity": 4, "finalL": 71, "finalA": 53,
+          "edges": { "s1": null, "s2": null, "s3": null, "s4": null } }
+      ],
+      "diagram": [{ "letter": "F", "count": 4 }, { "letter": "N", "count": 3 }, { "letter": "O", "count": 2 }, { "letter": "P", "count": 4 }]
+    }
+  ],
+  "pending": []
+}

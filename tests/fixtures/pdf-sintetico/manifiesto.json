@@ -1,0 +1,24 @@
+{
+  "synthetic": true,
+  "subject": "fixture-sintetico/1",
+  "files": [
+    {
+      "id": "S1",
+      "fileName": "sintetico-S1.pdf",
+      "pages": 3,
+      "sha256": "sha256:7d8d582ed916220f55447a0c4efa38914dad85d702a3180fbe6f646060e9d900"
+    },
+    {
+      "id": "S2",
+      "fileName": "sintetico-S2.pdf",
+      "pages": 6,
+      "sha256": "sha256:28aa637e9236d30d04d1b29734985270657f01692c08eea49d1cd11f72c75370"
+    },
+    {
+      "id": "S3",
+      "fileName": "sintetico-S3.pdf",
+      "pages": 2,
+      "sha256": "sha256:1c1d23d57cfaaaad726f426d83d0e45665eae5c70495d60eb921e663c6892a75"
+    }
+  ]
+}

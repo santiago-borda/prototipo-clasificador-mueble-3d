@@ -1,0 +1,53 @@
+{
+  "schema": "cutlist-pdf/1",
+  "source": { "fileName": "sintetico-S1.pdf", "pdfId": null, "reader": "transcripcion-manual", "readerVersion": "esperado/1", "producer": "fixture-sintetico", "hasTextLayer": false },
+  "header": { "material": "Gris Sintético", "thicknessMm": 18, "generatedAt": "01/01/2030 9:00am", "unit": "mm", "project": "FIXTURE SINTÉTICO — NO ES DATO REAL - Mueble sintético.skp - Escena1" },
+  "summary": {
+    "settings": { "Espesor de hoja de sierra": "3,2 mm", "Recorte": "5 mm", "Optimización": "Avanzada" },
+    "fillRatePct": 53.17,
+    "cutCount": 20,
+    "cutLengthM": 10.81,
+    "boards": [{ "material": "Gris Sintético", "thicknessMm": 18, "count": 1, "lengthMm": 2610, "widthMm": 1840, "areaM2": 4.8, "parts": 10 }]
+  },
+  "columns": { "adjusted": true, "edgeStrips": true },
+  "boards": [
+    {
+      "index": 1, "total": 1, "pages": [2, 3], "material": "Gris Sintético", "thicknessMm": 18, "lengthMm": 2610, "widthMm": 1840, "kind": "Tablero estándar",
+      "pieceCount": 10, "cutLengthM": 10.81, "efficiencyPct": 52.86,
+      "pieces": [
+        { "letter": "A", "code": "9999-91-M01-C01", "name": "Lateral", "quantity": 2, "finalL": 703, "finalA": 487,
+          "edges": { "s1": { "label": "Canto Gris Sintético ~0 mm x 19 mm", "material": "Gris Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s2": { "label": "Canto Gris Sintético ~0 mm x 19 mm", "material": "Gris Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s3": null, "s4": null } },
+        { "letter": "B", "code": "9999-91-M01-C02", "name": "Tapa superior", "quantity": 1, "finalL": 913, "finalA": 487,
+          "edges": { "s1": { "label": "Canto Gris Sintético ~0 mm x 19 mm", "material": "Gris Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s2": { "label": "Canto Gris Sintético ~0 mm x 19 mm", "material": "Gris Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s3": { "label": "Canto Gris Sintético ~0 mm x 19 mm", "material": "Gris Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s4": { "label": "Canto Gris Sintético ~0 mm x 19 mm", "material": "Gris Sintético", "widthMm": 19, "thicknessText": "~0 mm" } } },
+        { "letter": "C", "code": "9999-91-M01-C03", "name": "Estante interior regulable", "quantity": 2, "finalL": 871, "finalA": 293,
+          "edges": { "s1": null,
+                     "s2": { "label": "Canto Gris Sintético ~0 mm x 19 mm", "material": "Gris Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s3": null, "s4": null } },
+        { "letter": "D", "code": "9999-91-M01-C04", "name": "Zócalo", "quantity": 1, "finalL": 117, "finalA": 871,
+          "edges": { "s1": null, "s2": null,
+                     "s3": { "label": "Canto Gris Sintético ~0 mm x 19 mm", "material": "Gris Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s4": { "label": "Canto Gris Sintético ~0 mm x 19 mm", "material": "Gris Sintético", "widthMm": 19, "thicknessText": "~0 mm" } } },
+        { "letter": "E", "code": "9999-92-M01-C05", "name": "Puerta", "quantity": 2, "finalL": 611, "finalA": 397,
+          "edges": { "s1": { "label": "Canto Gris Sintético ~0 mm x 19 mm", "material": "Gris Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s2": { "label": "Canto Gris Sintético ~0 mm x 19 mm", "material": "Gris Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s3": { "label": "Canto Gris Sintético ~0 mm x 19 mm", "material": "Gris Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s4": { "label": "Canto Gris Sintético ~0 mm x 19 mm", "material": "Gris Sintético", "widthMm": 19, "thicknessText": "~0 mm" } } },
+        { "letter": "F", "code": "9999-92-M01-C06", "name": "Frente de cajón", "quantity": 1, "finalL": 143, "finalA": 577,
+          "edges": { "s1": { "label": "Canto Gris Sintético ~0 mm x 19 mm", "material": "Gris Sintético", "widthMm": 19, "thicknessText": "~0 mm" },
+                     "s2": null, "s3": null, "s4": null } },
+        { "letter": "G", "code": "9999-92-M01-C07", "name": "Base", "quantity": 1, "finalL": 577, "finalA": 397,
+          "edges": { "s1": null, "s2": null, "s3": null, "s4": null } }
+      ],
+      "diagram": [
+        { "letter": "A", "count": 2 }, { "letter": "B", "count": 1 }, { "letter": "C", "count": 2 }, { "letter": "D", "count": 1 },
+        { "letter": "E", "count": 2 }, { "letter": "F", "count": 1 }, { "letter": "G", "count": 1 }
+      ]
+    }
+  ],
+  "pending": []
+}

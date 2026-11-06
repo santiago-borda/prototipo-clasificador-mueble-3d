@@ -16,6 +16,7 @@ export const PDF_REASONS = [
   "suma-resumen-no-coincide",
   "diagrama-no-coincide",
   "hoja-incompleta",
+  "lectura-fallida",
   "pieza-mayor-que-tablero",
   "cantos-inconsistentes",
   "codigo-con-distinto-material",

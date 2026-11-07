@@ -3,10 +3,6 @@
 
 import { describe, it } from "vitest";
 
-describe("sesión 2b: cruce con el .dae (§7.2) y conversión al listado (§6)", () => {
-  it.todo("TP-40: Olmo contra su .dae");
-});
-
 describe("pendiente de otra definición", () => {
   it.todo("TP-23: columna de cantos ausente, [] o null (ABIERTO: PDF-2, spec §6)");
   it.todo("TP-55: extracción real de TextoPdf con un PDF con texto (consulta 58)");

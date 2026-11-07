@@ -1,16 +1,19 @@
 // Cruce del listado con las observaciones del .dae (docs/spec-sesion-2b-listado-cruce.md §2.3, §4 y §5).
 // Observaciones escritas a mano: los casos de nombres (`_`, `__`, sin código) no se pueden armar con el .dae real.
 
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import type { EdgeId } from "@/data/types";
+import { olmoDef } from "@/data/furniture.mock";
+import type { EdgeId, FurnitureDef } from "@/data/types";
 import type { Observation } from "@/engine/types";
 import { CrossCheckInputError, MuebleDistintoError, crossCheck, type CrossCheckContext, type CrossCheckFinding } from "@/pdf/crossCheck";
 import { toListing, type ListedPiece } from "@/pdf/listing";
 import { PDF_REASONS } from "@/pdf/reasons";
 import type { CutListPdf } from "@/pdf/types";
 import { validateFurniture } from "@/pdf/validate";
+import { observationsFromDae } from "./helpers/observations";
+import { HAS_SABRINA_FIXTURE, olmoDocuments, sabrinaDocuments } from "./helpers/pdfFixtures";
 
 const CODE = "9999-01-M01-C04";
 const OTHER = "9999-01-M01-C05";
@@ -373,5 +376,65 @@ describe("2b-S2: cruce del sintético", () => {
     const { findings } = crossCheck(pieces, perturb(base), S_CONTEXT);
     const changed = findings.filter((f) => f.reason !== "canteado-sin-definir");
     expect(reasons(changed)).toEqual([reason]);
+  });
+});
+
+// --- TP-40 y TP-40b: con el .dae real (D2), mediante el adaptador de prueba tests/helpers/observations.ts. ---
+
+const ROOT = path.resolve(__dirname, "..");
+
+describe("TP-40: primer fixture contra su .dae", () => {
+  const context: CrossCheckContext = { furnitureId: olmoDef.furniture.id, modelId: olmoDef.modelUrl, toleranceMm: olmoDef.toleranceMm };
+  const listing = toListing(context.furnitureId, validateFurniture(olmoDocuments()));
+  const observations = observationsFromDae(path.join(ROOT, "public", "models", "Olmo", "olmo.dae"), context.modelId);
+
+  it("21 códigos con instancias, cantidades y medidas dentro de 2 mm, canteado sin-definir, nada que baje el nivel", () => {
+    expect(context.toleranceMm).toBe(2);
+    if (listing.status === "bloqueado") throw new Error(listing.reason);
+    expect(listing.pieces).toHaveLength(21);
+    expect(observations).toHaveLength(33);
+    const { findings, edges } = crossCheck(listing.pieces, observations, context);
+    expect(levelFindings(findings)).toEqual([]);
+    expect(Object.keys(edges)).toHaveLength(21);
+    for (const piece of listing.pieces) expect(edges[piece.code], piece.code).toBe("sin-definir");
+    // Solo el informativo del canteado, uno por código; ni instancias-sin-fila (el `__` de C01 se normaliza).
+    expect(findings.map((f) => [f.code, f.reason])).toEqual(listing.pieces.map((p) => [p.code, "canteado-sin-definir"]));
+  });
+
+  it('el .dae no trae caras Canto_*: con el canteado definido daría "no-disponible"', () => {
+    if (listing.status === "bloqueado") throw new Error(listing.reason);
+    expect(observations.every((o) => o.edgeRunsMm === "no-disponible")).toBe(true);
+    const defined = listing.pieces.map((p) => ({ ...p, edgeBanding: [] as EdgeId[] }));
+    const { findings, edges } = crossCheck(defined, observations, context);
+    expect(findings).toEqual([]);
+    expect(new Set(Object.values(edges))).toEqual(new Set(["no-disponible"]));
+  });
+});
+
+// Segundo fixture: local (carpeta ignorada). Se saltea si falta, como sabrina.test.ts; no escribe códigos ni cifras.
+const SABRINA = path.join(ROOT, "Sabrina");
+const SABRINA_DEF = path.join(SABRINA, "data", "sabrina.def.ts");
+const SABRINA_DAE_DIR = path.join(SABRINA, "Archivo Collada");
+const sabrinaDae = existsSync(SABRINA_DAE_DIR) ? readdirSync(SABRINA_DAE_DIR).find((name) => name.toLowerCase().endsWith(".dae")) : undefined;
+const hasSabrina = HAS_SABRINA_FIXTURE && existsSync(SABRINA_DEF) && sabrinaDae !== undefined;
+const sabrinaDef: FurnitureDef | undefined = hasSabrina ? ((await import(/* @vite-ignore */ SABRINA_DEF)) as { sabrinaDef: FurnitureDef }).sabrinaDef : undefined;
+
+describe.skipIf(!hasSabrina)("TP-40b: segundo fixture contra su .dae (local)", () => {
+  it("sin hallazgos que bajen el nivel, con su tolerancia; solo informativos de canteado sin definir", () => {
+    const def = sabrinaDef as FurnitureDef;
+    const context: CrossCheckContext = { furnitureId: def.furniture.id, modelId: def.modelUrl, toleranceMm: def.toleranceMm };
+    const listing = toListing(context.furnitureId, validateFurniture(sabrinaDocuments()));
+    if (listing.status === "bloqueado") throw new Error(listing.reason);
+    expect(listing.status).toBe("publicable");
+    const observations = observationsFromDae(path.join(SABRINA_DAE_DIR, sabrinaDae as string), context.modelId);
+    const { findings, edges } = crossCheck(listing.pieces, observations, context);
+    expect(levelFindings(findings)).toEqual([]);
+    expect(new Set(findings.map((f) => f.reason))).toEqual(new Set(findings.length > 0 ? ["canteado-sin-definir"] : []));
+    // Con columna de cantos, el canteado se comparó contra las caras del .dae y cumple (o es neutral).
+    for (const piece of listing.pieces) {
+      if (piece.edgeBanding === "sin-definir") expect(edges[piece.code]).toBe("sin-definir");
+      else expect(["cumple", "neutral", "no-disponible"]).toContain(edges[piece.code]);
+    }
+    expect(Object.values(edges)).toContain("cumple");
   });
 });

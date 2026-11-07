@@ -12,7 +12,6 @@ describe("sesión 2b: cruce con el .dae (§7.2) y conversión al listado (§6)",
   it.todo("TP-44: medidas en el borde (k = 0,95 / 1,00 / 1,05)");
   it.todo("TP-45: canteado-no-coincide");
   it.todo("TP-46: canteado neutral con |L - A| <= tolerancia");
-  it.todo("TP-60: conversión del Olmo a PieceType");
 });
 
 describe("pendiente de otra definición", () => {

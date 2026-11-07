@@ -1,6 +1,6 @@
 # Especificación — Sesión 2b: conversión al listado y cruce con el .dae
 
-Versión: **v0.3 (7/11/2026), aprobada.** D1 a D5 resueltas (§6). Sesión de solo especificación: la implementación va en una sesión nueva.
+Versión: **v0.3 (7/11/2026), aprobada; implementada el 7/11** (rama `pdf-sesion-2b`). D1 a D5 resueltas (§6). Las precisiones que la implementación tuvo que tomar donde la spec no decía nada están en §8, a revisar por el equipo.
 Antecedentes: `docs/spec-esquema-pdf.md` §6 (conversión), §7.2 (cruce), §7.3 (nivel y catálogo de razones), §11 (PDF-2), INV-12 e INV-14; `docs/test-plan-esquema-pdf.md` (TP-10, TP-11, TP-23, TP-40 a TP-46, TP-60 a TP-63); `docs/plan-sesion-2-pdf.md` (orden acordado: 2b antes de 2); `docs/spec-motor-asociacion.md` v3 §5.2 (`Observation`) y §5.3 (`Evidence`).
 Si esta spec choca con `spec-esquema-pdf.md`, manda aquella.
 
@@ -197,8 +197,26 @@ En `tests/pdf.listing.test.ts`, `tests/pdf.crossCheck.test.ts` y `tests/pdf.leve
 - Deducir módulos (de los grupos del .dae o de cualquier otra cosa) y la pantalla de revisión que usa `combinarNivel`.
 - Consultas 42 y 44: no tocar (el código sigue opaco; no cambian los QR de mueble y módulo).
 
-## 8. Historial
+## 8. Precisiones de la implementación (7/11, a revisar por el equipo)
+
+Casos que la spec v0.3 no cubre. Se resolvieron del lado conservador, sin cambiar nada de lo aprobado:
+
+| Id | Caso | Resolución en el código |
+|---|---|---|
+| I1 | `ListedPiece` hereda `quantity`, `lengthMm` y `widthMm` como `number`, pero un código puede tener `total: null`, `finalL`/`finalA` `null`, o filas que difieren en nombre, medidas, canteado, material o espesor (INV-10, INV-11) | El código **no entra** a `pieces` y el listado queda `borrador` (sus filas ya son `dudosa`). No se elige la primera fila ni se inventa un valor. `listing.ts` |
+| I2 | Entradas que contradicen sus propias invariantes | Errores tipados: `ListingInputError` (bloqueado sin razón de rechazo; un total sin filas) y `CrossCheckInputError` (tolerancia no finita o negativa; código repetido en el listado) |
+| I3 | Orden de las comprobaciones de canteado | Primero `"sin-definir"`; si ninguna instancia trae caras `Canto_*` (o no hay instancias), `"no-disponible"`; si \|L − A\| ≤ tol, `"neutral"`; si no, se compara |
+| I4 | Instancias de un mismo código, unas con caras `Canto_*` y otras sin | `"no-coincide"` + `canteado-no-coincide`: el modelo no es parejo y no se supone nada |
+| I5 | Una cara de canto que mide L y A dentro de la tolerancia (posible con tol < \|L − A\| ≤ 2·tol) | Va al más cercano; si empata, queda sin clasificar y la instancia da `"no-coincide"`. Una cara que no mide ni L ni A también |
+| I6 | Caja con un valor no numérico (NaN) | No cumple medidas (`medida-no-coincide`) |
+| I7 | `canteado-sin-definir` en un código sin instancias | Sale igual, uno por código, junto a `codigo-sin-instancias` |
+| I8 | Orden de los hallazgos | El del listado; por código: `codigo-sin-instancias` o `cantidad-no-coincide`, `medida-no-coincide`, canteado. Al final, `instancias-sin-fila` por código en orden binario. Medidas y canteado: un hallazgo por código con una `Evidence` por instancia que falla |
+| I9 | TP-40 y TP-40b (D2) | El adaptador de prueba (`tests/helpers/observations.ts`) **no necesitó lógica del motor**: el cruce no usa marco, orientación, posición ni espejo, y esos campos llevan valores fijos marcados como no reales. Ninguna de las dos queda `todo`. `modelId` = `FurnitureDef.modelUrl`, distinto de `furnitureId` (ejercita 2b-C6b con datos reales). El primer fixture no trae caras `Canto_*`: con el canteado definido daría `"no-disponible"` |
+| I10 | Cobertura | No hay proveedor de cobertura instalado (`@vitest/coverage-v8` sería una dependencia nueva): las ramas de I1 a I8 tienen prueba, revisadas a mano |
+
+## 9. Historial
 
 - **v0.1 (6/11):** borrador con D1 a D4 abiertas.
 - **v0.2 (7/11):** D1 a D4 aprobadas con cambios. `Observation` y `Evidence` con fuente única en `src/engine/types.ts`, sin copia (D1). TP-40 con el .dae real (verificado que `loadModel.ts` corre en Node), TP-40b local para el segundo fixture y casos a mano para `_`, `__`, sin código y códigos de un solo lado (D2). `"sin-definir"` separado de "sin canto", sin comparar el canteado, con enlace a PDF-2; `null` deja de ser salida de la conversión (D3). `findings` con `evidence`, `affectsLevel` y razones del catálogo, y `combinarNivel` pura con "gana el peor" (D4). Agregado: el cruce va por (mueble, código), con `MuebleDistintoError` si se mezclan muebles, y el módulo no se deduce de los grupos del .dae. Nueva D5 (razón del hallazgo informativo).
 - **v0.3 (7/11), aprobada:** D5 aprobada (`canteado-sin-definir`, primero en spec-esquema §7.2 y §7.3). `crossCheck` recibe `{ furnitureId, modelId, toleranceMm }`: `modelId` ≠ `furnitureId`, y `MuebleDistintoError` si una observación trae otro `modelId`. `CrossCheckFinding` como unión que fuerza `affectsLevel` por razón. `Evidence.kind` verificado contra spec-motor v3 §5.3. Orden de gravedad con `satisfies Record<RowLevel, number>`. `combinarNivel(level, code, findings)` filtra por código adentro. `reason` del bloqueo de tipo `PdfReason`. Pruebas nuevas: 2b-C6b, 2b-N6, 2b-T1, TP-62b.
+- **v0.3, implementación (7/11):** `src/engine/types.ts`, `src/pdf/listing.ts`, `src/pdf/crossCheck.ts`, `src/pdf/level.ts` y `canteado-sin-definir` en `reasons.ts`, con sus pruebas. Precisiones I1 a I10 en §8, sin cambiar lo aprobado. TP-23 sigue `todo` (PDF-2).

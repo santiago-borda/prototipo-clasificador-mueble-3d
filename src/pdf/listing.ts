@@ -190,3 +190,19 @@ export function toListing(furnitureId: string, furniture: FurnitureValidation): 
   }
   return { status: "borrador", furnitureId, pieces, excluded, unkeyedRows };
 }
+
+/** Un listado `bloqueado` o `borrador` no se publica (docs/spec-adapter-observation-listadoid.md §2.3, E2). */
+export class ListadoNoPublicableError extends Error {
+  constructor(readonly status: "bloqueado" | "borrador") {
+    super(`El listado está ${status}: no se publica.`);
+    this.name = "ListadoNoPublicableError";
+  }
+}
+
+/**
+ * Guarda de publicación: el eval la llama antes de `--publicar`. A un borrador le faltan los códigos de `excluded`,
+ * y el hash de un listado incompleto no debe quedar como versión publicada. Sin crypto: el hash vive en el motor.
+ */
+export function assertPublicable(l: Listing): asserts l is Extract<Listing, { status: "publicable" }> {
+  if (l.status !== "publicable") throw new ListadoNoPublicableError(l.status);
+}

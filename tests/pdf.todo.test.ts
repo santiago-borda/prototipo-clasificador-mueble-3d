@@ -6,6 +6,5 @@ import { describe, it } from "vitest";
 describe("pendiente de otra definición", () => {
   it.todo("TP-23: columna de cantos ausente, [] o null (ABIERTO: PDF-2, spec §6)");
   it.todo("TP-55: extracción real de TextoPdf con un PDF con texto (consulta 58)");
-  it.todo("TP-61: listadoId con la función del motor (src/engine/ solo tiene tipos: la función no existe todavía)");
   it.todo("TP-70: casillas de R4 (supuesto PROVISORIO, spec §9)");
 });

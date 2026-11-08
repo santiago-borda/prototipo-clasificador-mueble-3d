@@ -5,7 +5,14 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { olmoDef } from "@/data/furniture.mock";
-import { ListingInputError, toListing, type ListedPiece, type Listing } from "@/pdf/listing";
+import {
+  assertPublicable,
+  ListadoNoPublicableError,
+  ListingInputError,
+  toListing,
+  type ListedPiece,
+  type Listing,
+} from "@/pdf/listing";
 import type { CutListPdf } from "@/pdf/types";
 import { validateFurniture, type FurnitureValidation } from "@/pdf/validate";
 import { olmoDocuments } from "./helpers/pdfFixtures";
@@ -310,3 +317,30 @@ function deepFreeze<T>(value: T): T {
   }
   return value;
 }
+
+describe("TP-61b: guarda de publicación (docs/spec-adapter-observation-listadoid.md §2.3)", () => {
+  const bloqueado: Listing = { status: "bloqueado", furnitureId: "mueble", reason: "esquema-invalido" };
+  const borrador: Listing = { status: "borrador", furnitureId: "mueble", pieces: [], excluded: [], unkeyedRows: [] };
+  const publicable: Listing = { status: "publicable", furnitureId: "mueble", pieces: [], excluded: [], unkeyedRows: [] };
+
+  it.each([bloqueado, borrador])("lanza ListadoNoPublicableError con $status", (listing) => {
+    let error: unknown;
+    try {
+      assertPublicable(listing);
+    } catch (e) {
+      error = e;
+    }
+    expect(error).toBeInstanceOf(ListadoNoPublicableError);
+    expect(error).toMatchObject({ status: listing.status });
+  });
+
+  it("no lanza con publicable", () => {
+    expect(() => assertPublicable(publicable)).not.toThrow();
+  });
+
+  it("no lanza con el listado del primer fixture", () => {
+    const listing = list(olmoDocuments());
+    assertPublicable(listing);
+    expect(listing.pieces).toHaveLength(21);
+  });
+});

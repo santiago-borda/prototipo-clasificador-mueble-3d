@@ -137,7 +137,8 @@ Por criterio, no por porcentaje de líneas:
 | Id | Caso | Entrada | Resultado esperado |
 |---|---|---|---|
 | TP-60 | Conversión del primer fixture | `olmo.json` | 21 `PieceType`; códigos, medidas y cantidades iguales a las del mock; `edgeBanding` según TP-23 (PENDIENTE de PDF-2), nunca los lados del mock |
-| TP-61 | `listadoId` reutiliza §5.1 | listado de TP-60 | mismo hash que la función del motor sobre los mismos `PieceType` (sin función propia) |
+| TP-61 | `listadoId` reutiliza §5.1 (enmendada, `docs/spec-adapter-observation-listadoid.md` §2) | `toListing(olmo).pieces` (listado de TP-60) | `listadoId` igual al **literal** escrito en el test (calculado una vez aparte) e igual a `listadoId` de las mismas filas armadas a mano como `ListadoRow`; ninguna función de hash del listado en `src/pdf/`; `createHash` solo se admite en `src/pdf/ocr/gate.ts`, que hashea bytes del PDF |
+| TP-61b | Guarda de publicación | `Listing` `bloqueado`, `borrador` y `publicable` | `assertPublicable` lanza `ListadoNoPublicableError` con `bloqueado` y con `borrador`; no lanza con `publicable` |
 | TP-62 | Bloqueo por rechazo | documento rechazado | no hay conversión |
 | TP-63 | Bloqueo por dudosa | una fila `dudosa` | conversión disponible solo como borrador, marcada "requiere revisión" |
 

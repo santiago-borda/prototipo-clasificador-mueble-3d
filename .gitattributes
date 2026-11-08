@@ -1,0 +1,2 @@
+# Los .dae se guardan tal cual, sin convertir fines de línea (modelId, docs/plan-motor-asociacion.md T1, Q4).
+*.dae binary

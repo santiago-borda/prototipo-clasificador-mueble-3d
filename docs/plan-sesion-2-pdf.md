@@ -4,6 +4,8 @@ Estado: **plan, sin empezar** (3/11/2026). Sigue a la sesión 1 (`src/pdf/`: tip
 
 ## Sesión 2b — Conversión al listado y cruce con el .dae (código puro)
 
+**Hecha (7/11, rama `pdf-sesion-2b`):** ver `docs/spec-sesion-2b-listado-cruce.md` (v0.3 y sus precisiones de implementación, §8). Lo de abajo es el plan original.
+
 Sin OCR, sin red y sin dependencias nuevas. No toca el visor, las fichas, el importador ni `PieceType`.
 
 1. **Conversión al listado (§6, INV-14):** `src/pdf/listing.ts`. De `FurnitureValidation` a una fila por código con los campos de `PieceType` que salen del PDF (`qrId` y `moduleId` no salen: los asigna el sistema).

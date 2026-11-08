@@ -30,6 +30,8 @@ export const PDF_REASONS = [
   "cantidad-no-coincide",
   "medida-no-coincide",
   "canteado-no-coincide",
+  // Solo informativa: la produce el cruce cuando falta la columna de cantos; nunca baja el nivel (§7.2, D5 de la sesión 2b).
+  "canteado-sin-definir",
 ] as const;
 
 export type PdfReason = (typeof PDF_REASONS)[number];

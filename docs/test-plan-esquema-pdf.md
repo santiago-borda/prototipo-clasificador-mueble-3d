@@ -88,7 +88,7 @@ Por criterio, no por porcentaje de líneas:
 
 | Id | Caso | Entrada | Resultado esperado |
 |---|---|---|---|
-| TP-40 | Primer fixture contra su .dae | `olmo.json` + `Observation` del .dae del primer fixture | 21 códigos con instancias; cantidades y medidas cumplen (tolerancia 2 mm); canteado `no-disponible` (sin caras `Canto_*`, columna ausente). El C01 del .dae es anómalo: lo informa el motor, no esta lectura |
+| TP-40 | Primer fixture contra su .dae | `olmo.json` + `Observation` del .dae del primer fixture | 21 códigos con instancias; cantidades y medidas cumplen (tolerancia 2 mm); canteado `"sin-definir"` (columna ausente; tiene prioridad sobre `no-disponible`, spec-esquema §7.2 y `docs/spec-sesion-2b-listado-cruce.md` §4). El C01 del .dae es anómalo: lo informa el motor, no esta lectura |
 | TP-41 | Sin instancias | código del PDF que no está en el .dae | `codigo-sin-instancias` |
 | TP-42 | Instancias sin fila | .dae con un código que el PDF no trae | `instancias-sin-fila` |
 | TP-43 | Cantidad | total 2 contra 3 instancias | `cantidad-no-coincide` |

@@ -1,6 +1,6 @@
 # Especificación — Sesión 2b: conversión al listado y cruce con el .dae
 
-Versión: **v0.3 (7/11/2026), aprobada.** D1 a D5 resueltas (§6). Sesión de solo especificación: la implementación va en una sesión nueva.
+Versión: **v0.4 (7/11/2026)**, implementada (rama `pdf-sesion-2b`). D1 a D5 resueltas (§6). v0.4 agrega, por decisión del equipo, `excluded` y `unkeyedRows` en el listado y `excludedCodes` en el cruce (I11, §8). Las demás precisiones de la implementación (I2 a I10, §8) siguen a revisar por el equipo.
 Antecedentes: `docs/spec-esquema-pdf.md` §6 (conversión), §7.2 (cruce), §7.3 (nivel y catálogo de razones), §11 (PDF-2), INV-12 e INV-14; `docs/test-plan-esquema-pdf.md` (TP-10, TP-11, TP-23, TP-40 a TP-46, TP-60 a TP-63); `docs/plan-sesion-2-pdf.md` (orden acordado: 2b antes de 2); `docs/spec-motor-asociacion.md` v3 §5.2 (`Observation`) y §5.3 (`Evidence`).
 Si esta spec choca con `spec-esquema-pdf.md`, manda aquella.
 
@@ -49,14 +49,29 @@ type ListedPiece = Omit<PieceType, "qrId" | "moduleId" | "edgeBanding"> & {
   rows: { document: number; board: number; piece: number }[];
 };
 
+/** Código con filas que no entra a `pieces` (I1). */
+interface ExcludedCode {
+  code: string;
+  reasons: PdfReason[];   // sin duplicados, en el orden de PDF_REASONS; nunca vacía
+  rows: { document: number; board: number; piece: number }[];
+}
+
+/** Fila sin código válido (codigo-ausente, formato-invalido): no tiene código con el que agruparse. */
+interface UnkeyedRow {
+  row: { document: number; board: number; piece: number };
+  reasons: PdfReason[];   // las de la fila en validateFurniture, sin duplicados, en el orden de PDF_REASONS
+}
+
 type Listing =
-  | { status: "bloqueado"; furnitureId: string; reason: PdfReason }                       // INV-14 (TP-62)
-  | { status: "borrador" | "publicable"; furnitureId: string; pieces: ListedPiece[] };    // borrador = "requiere revisión" (TP-63)
+  | { status: "bloqueado"; furnitureId: string; reason: PdfReason }                                                         // INV-14 (TP-62)
+  | { status: "borrador"; furnitureId: string; pieces: ListedPiece[]; excluded: ExcludedCode[]; unkeyedRows: UnkeyedRow[] }  // "requiere revisión" (TP-63)
+  | { status: "publicable"; furnitureId: string; pieces: ListedPiece[]; excluded: []; unkeyedRows: [] };                     // vacíos por tipo
 
 function toListing(furnitureId: string, furniture: FurnitureValidation): Listing;
 ```
 
 - **`reason` del bloqueo:** la primera razón de `REJECTING_REASONS` (`src/pdf/reasons.ts`) entre los hallazgos de los documentos rechazados, en el orden de los documentos y de sus hallazgos. Sin documentos (`validateFurniture` también da `bloqueado`), `esquema-invalido`: no hay nada con la forma esperada.
+- **Nada se pierde en silencio (v0.4, I11).** Un código con filas que no entra a `pieces` va a `excluded`, ordenado por código (orden binario), con sus razones y sus filas; ningún código está a la vez en `pieces` y en `excluded`. Un código sin cantidad total también va a `excluded` (`campo-pendiente`). Las filas sin código válido no entran a `excluded` (no tienen código): van a `unkeyedRows`, en el orden de documento, hoja y fila, con las razones de su fila. `publicable` los tiene vacíos por tipo; si alguno no está vacío, el listado es `borrador`.
 - La conversión **nunca produce `null`** en `edgeBanding`: el PDF o trae la columna (lados o `[]`) o no la trae (`"sin-definir"`). `null` ("sin dato") sigue existiendo solo en `PieceType`, fuera de 2b.
 - **Sin módulo.** `ListedPiece` no tiene `moduleId`, y ni la conversión ni el cruce lo deducen: tampoco de los grupos, capas ni nodos padre del .dae. La agrupación en módulos sigue siendo un supuesto del prototipo y la consulta 44 sigue sin tocar.
 
@@ -89,13 +104,16 @@ function crossCheck(
   pieces: readonly ListedPiece[],
   observations: readonly Observation[],
   context: CrossCheckContext,
-): { findings: CrossCheckFinding[]; edges: Record<string, EdgeCheck> };   // edges: por código
+  options?: { excludedCodes?: readonly string[] },   // v0.4, I11: Listing.excluded
+): { findings: CrossCheckFinding[]; edges: Record<string, EdgeCheck> };   // edges: por código del listado
 
 // src/pdf/level.ts
 function combinarNivel(level: RowLevel, code: string, findings: readonly CrossCheckFinding[]): RowLevel;
 ```
 
 **Clave del cruce: (mueble, código).** `modelId` y `furnitureId` son identificadores distintos: quien llama dice cuál es el modelo de ese mueble. El cruce empareja una fila con observaciones solo si la observación es de ese modelo (`Observation.modelId` = `context.modelId`) y coincide el código normalizado; los hallazgos salen con `context.furnitureId`. Un código no se interpreta fuera de su mueble (la colisión de códigos entre el primer y el segundo fixture es real, A5). Si llega una observación con otro `modelId`, `crossCheck` lanza un error tipado (`MuebleDistintoError`, con el `modelId` esperado y el recibido): mezclar muebles es un error de quien llama, no una discrepancia que se informa.
+
+**Códigos excluidos (v0.4, I11).** Un código de `excludedCodes` no genera **ningún** hallazgo: ni `instancias-sin-fila` (sí tiene filas en el PDF; decir que "el PDF no lo trae" sería falso), ni cantidad, ni medidas, ni canteado, y no aparece en `edges`. Su revisión sale de `Listing.excluded`. Un código que está a la vez en `pieces` y en `excludedCodes` es un error de quien llama: `CodigoExcluidoYListadoError` (subclase de `CrossCheckInputError`, con el `code`). Un código que no está en ninguna de las dos listas y sí en el .dae sigue dando `instancias-sin-fila`.
 
 **Evidencia.** Cada hallazgo lleva al menos una `Evidence` del motor, con `kind` ∈ {`codigo`, `cantidad`, `medidas`, `canto`} (verificado el 7/11: los cuatro están en `Evidence.kind` de spec-motor v3 §5.3), `result` y un `detail` con los valores comparados (p. ej. `"L 1200 · A 550 · e 18 contra caja [18, 550, 1201,5]; tol 2"`). `rule` no se usa.
 
@@ -197,8 +215,28 @@ En `tests/pdf.listing.test.ts`, `tests/pdf.crossCheck.test.ts` y `tests/pdf.leve
 - Deducir módulos (de los grupos del .dae o de cualquier otra cosa) y la pantalla de revisión que usa `combinarNivel`.
 - Consultas 42 y 44: no tocar (el código sigue opaco; no cambian los QR de mueble y módulo).
 
-## 8. Historial
+## 8. Precisiones de la implementación (7/11, a revisar por el equipo)
+
+Casos que la spec v0.3 no cubre. Se resolvieron del lado conservador, sin cambiar nada de lo aprobado:
+
+| Id | Caso | Resolución en el código |
+|---|---|---|
+| I1 | `ListedPiece` hereda `quantity`, `lengthMm` y `widthMm` como `number`, pero un código puede tener `total: null`, `finalL`/`finalA` `null`, o filas que difieren en nombre, medidas, canteado, material o espesor (INV-10, INV-11) | El código **no entra** a `pieces`: va a `excluded` (I11) con sus razones del catálogo, y el listado queda `borrador` (sus filas ya son `dudosa`). No se elige la primera fila ni se inventa un valor. Razones: total, L o A ilegibles → `campo-pendiente`; material o espesor distintos → `codigo-con-distinto-material`; L o A distintos → `codigo-con-distintas-medidas`; canteado distinto → `codigo-con-distinto-canteado`; nombre distinto → `codigo-con-distinto-nombre`. `listing.ts` |
+| I2 | Entradas que contradicen sus propias invariantes | Errores tipados: `ListingInputError` (bloqueado sin razón de rechazo; un total sin filas) y `CrossCheckInputError` (tolerancia no finita o negativa; código repetido en el listado) |
+| I3 | Orden de las comprobaciones de canteado | Primero `"sin-definir"`; si ninguna instancia trae caras `Canto_*` (o no hay instancias), `"no-disponible"`; si \|L − A\| ≤ tol, `"neutral"`; si no, se compara |
+| I4 | Instancias de un mismo código, unas con caras `Canto_*` y otras sin | `"no-coincide"` + `canteado-no-coincide`: el modelo no es parejo y no se supone nada |
+| I5 | Una cara de canto que mide L y A dentro de la tolerancia (posible con tol < \|L − A\| ≤ 2·tol) | Va al más cercano; si empata, queda sin clasificar y la instancia da `"no-coincide"`. Una cara que no mide ni L ni A también |
+| I6 | Caja con un valor no numérico (NaN) | No cumple medidas (`medida-no-coincide`) |
+| I7 | `canteado-sin-definir` en un código sin instancias | Sale igual, uno por código, junto a `codigo-sin-instancias` |
+| I8 | Orden de los hallazgos | El del listado; por código: `codigo-sin-instancias` o `cantidad-no-coincide`, `medida-no-coincide`, canteado. Al final, `instancias-sin-fila` por código en orden binario. Medidas y canteado: un hallazgo por código con una `Evidence` por instancia que falla |
+| I9 | TP-40 y TP-40b (D2) | El adaptador de prueba (`tests/helpers/observations.ts`) **no necesitó lógica del motor**: el cruce no usa marco, orientación, posición ni espejo, y esos campos llevan valores fijos marcados como no reales. Ninguna de las dos queda `todo`. `modelId` = `FurnitureDef.modelUrl`, distinto de `furnitureId` (ejercita 2b-C6b con datos reales). El primer fixture no trae caras `Canto_*`: con el canteado definido daría `"no-disponible"` |
+| I11 | **Decisión del equipo (7/11, v0.4):** que el borrador diga explícitamente qué quedó fuera y por qué, para que la pantalla de revisión no lo pierda | `Listing` suma `excluded: ExcludedCode[]` (por código, orden binario, razones sin duplicados en el orden del catálogo) y `unkeyedRows: UnkeyedRow[]` (filas sin código válido, con las razones de su fila); los dos vacíos por tipo en `publicable`. `crossCheck` recibe `options.excludedCodes`: esos códigos no generan ningún hallazgo; un código en `pieces` y en `excludedCodes` lanza `CodigoExcluidoYListadoError`. Las cuatro razones `codigo-con-distint*` ya estaban en `reasons.ts` (la de medidas se escribe `codigo-con-distintas-medidas`): no hizo falta ninguna nueva |
+| I10 | Cobertura | No hay proveedor de cobertura instalado (`@vitest/coverage-v8` sería una dependencia nueva): las ramas de I1 a I8 tienen prueba, revisadas a mano |
+
+## 9. Historial
 
 - **v0.1 (6/11):** borrador con D1 a D4 abiertas.
 - **v0.2 (7/11):** D1 a D4 aprobadas con cambios. `Observation` y `Evidence` con fuente única en `src/engine/types.ts`, sin copia (D1). TP-40 con el .dae real (verificado que `loadModel.ts` corre en Node), TP-40b local para el segundo fixture y casos a mano para `_`, `__`, sin código y códigos de un solo lado (D2). `"sin-definir"` separado de "sin canto", sin comparar el canteado, con enlace a PDF-2; `null` deja de ser salida de la conversión (D3). `findings` con `evidence`, `affectsLevel` y razones del catálogo, y `combinarNivel` pura con "gana el peor" (D4). Agregado: el cruce va por (mueble, código), con `MuebleDistintoError` si se mezclan muebles, y el módulo no se deduce de los grupos del .dae. Nueva D5 (razón del hallazgo informativo).
 - **v0.3 (7/11), aprobada:** D5 aprobada (`canteado-sin-definir`, primero en spec-esquema §7.2 y §7.3). `crossCheck` recibe `{ furnitureId, modelId, toleranceMm }`: `modelId` ≠ `furnitureId`, y `MuebleDistintoError` si una observación trae otro `modelId`. `CrossCheckFinding` como unión que fuerza `affectsLevel` por razón. `Evidence.kind` verificado contra spec-motor v3 §5.3. Orden de gravedad con `satisfies Record<RowLevel, number>`. `combinarNivel(level, code, findings)` filtra por código adentro. `reason` del bloqueo de tipo `PdfReason`. Pruebas nuevas: 2b-C6b, 2b-N6, 2b-T1, TP-62b.
+- **v0.3, implementación (7/11):** `src/engine/types.ts`, `src/pdf/listing.ts`, `src/pdf/crossCheck.ts`, `src/pdf/level.ts` y `canteado-sin-definir` en `reasons.ts`, con sus pruebas. Precisiones I1 a I10 en §8, sin cambiar lo aprobado. TP-23 sigue `todo` (PDF-2).
+- **v0.4 (7/11):** decisión I11 del equipo: `Listing` suma `excluded` y `unkeyedRows` (vacíos por tipo en `publicable`) y `crossCheck` recibe `excludedCodes`, que no generan hallazgos, con `CodigoExcluidoYListadoError` si un código está en las dos listas. I1 actualizada con las razones de cada exclusión. Pruebas nuevas en `tests/pdf.listing.test.ts` y `tests/pdf.crossCheck.test.ts` (también con el .dae real del primer fixture).

@@ -2,10 +2,12 @@
 // cambiando un solo campo (mutación mínima).
 
 import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { normalizeCode } from "@/pdf/code";
 import { edgeStripsToEdgeIds } from "@/pdf/edges";
-import { PDF_REASONS } from "@/pdf/reasons";
+import { PDF_REASONS, REJECTING_REASONS } from "@/pdf/reasons";
 import type { CutListPdf, EdgeStrip, EdgeStrips } from "@/pdf/types";
 import { validateCutListPdf, validateFurniture, type DocumentValidation, type ValidatedDocument } from "@/pdf/validate";
 import { HAS_SABRINA_FIXTURE, olmoDocuments, sabrinaDocuments } from "./helpers/pdfFixtures";
@@ -51,6 +53,19 @@ describe("catálogo de razones", () => {
     expect(new Set(PDF_REASONS).size).toBe(PDF_REASONS.length);
     expect(PDF_REASONS).toContain("hoja-incompleta");
     expect(PDF_REASONS).toContain("campo-pendiente");
+  });
+
+  it("es el mismo catálogo de spec-esquema §7.3, en el mismo orden (incluye canteado-sin-definir)", () => {
+    const spec = readFileSync(path.resolve(__dirname, "..", "docs", "spec-esquema-pdf.md"), "utf8");
+    const line = spec.split(/\r?\n/).find((l) => l.startsWith("Catálogo cerrado de razones:"));
+    expect(line).toBeDefined();
+    const listed = [...(line ?? "").matchAll(/`([a-z-]+)`/g)].map((m) => m[1]);
+    expect(PDF_REASONS).toEqual(listed);
+  });
+
+  it("canteado-sin-definir es informativa: no rechaza documentos", () => {
+    expect(PDF_REASONS).toContain("canteado-sin-definir");
+    expect(REJECTING_REASONS).not.toContain("canteado-sin-definir");
   });
 });
 

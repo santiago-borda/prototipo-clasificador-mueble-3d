@@ -11,8 +11,9 @@ import type { FurnitureDef } from "@/data/types";
 import { componentCode } from "@/model/ids";
 import { verifyModel } from "@/model/verifyModel";
 import { computeEdgeLayout } from "@/model/edgeLayout";
-import { collectEdgeFaces } from "./helpers/edgeFaces";
-import { loadDaeModel, loadDaeScene } from "./helpers/loadModel";
+import { normalizeName } from "@/engine/normalize";
+import { observeDae } from "@/model/observe";
+import { loadDaeModel } from "./helpers/loadModel";
 
 // S2: totales por material del listado de Sabrina. Constantes documentadas, no leídas de los PDF en el test:
 // la transcripción salió de los PDF de corte (Blanco 18 mm, Cedro 18 mm, Fondo blanco 3 mm) y se cruzó con el .dae
@@ -119,8 +120,15 @@ describe.skipIf(!available)("Sabrina (modelo real)", () => {
   // A8 -------------------------------------------------------------------------------------------
   // Canteado: tabla "Tiras de cantos" de los PDF (leyenda del equipo, ASUMIDO), contrastada con las caras de canto
   // del .dae: cada instancia tiene tantos lados largos y cortos como caras de canto largas y cortas.
+  // Caras de canto por instancia: las del adapter del motor (observeDae, edgeRunsMm), con el código de su rawName.
   const tolMm = def?.toleranceMm ?? 0.5;
-  const edgeFaces = available ? collectEdgeFaces(loadDaeScene(path.join(DAE_DIR, daeName as string))) : [];
+  const edgeFaces = available
+    ? observeDae(fs.readFileSync(path.join(DAE_DIR, daeName as string))).observations.map((o) => {
+        const name = normalizeName(o.rawName);
+        if (name.kind !== "canonico" && name.kind !== "anomalo") throw new Error(`${o.instanceKey}: sin código válido`);
+        return { code: name.code, runsMm: o.edgeRunsMm === "no-disponible" ? [] : o.edgeRunsMm };
+      })
+    : [];
   const lengthOf = (code: string) => def.pieceTypes.find((p) => p.code === code);
 
   it("A8: el canteado está completo: ninguna pieza queda sin dato y los fondos de 3 mm no llevan canto", () => {

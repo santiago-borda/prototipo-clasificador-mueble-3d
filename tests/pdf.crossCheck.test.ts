@@ -20,7 +20,7 @@ import { toListing, type ListedPiece } from "@/pdf/listing";
 import { PDF_REASONS } from "@/pdf/reasons";
 import type { CutListPdf } from "@/pdf/types";
 import { validateFurniture } from "@/pdf/validate";
-import { observationsFromDae } from "./helpers/observations";
+import { observeDae } from "@/model/observe";
 import { HAS_SABRINA_FIXTURE, olmoDocuments, sabrinaDocuments } from "./helpers/pdfFixtures";
 
 const CODE = "9999-01-M01-C04";
@@ -421,20 +421,30 @@ describe("2b-S2: cruce del sintético", () => {
   });
 });
 
-// --- TP-40 y TP-40b: con el .dae real (D2), mediante el adaptador de prueba tests/helpers/observations.ts. ---
+// --- TP-40 y TP-40b: con el .dae real (D2), mediante el adapter del motor (observeDae, plan T4; spec adapter §3.3). ---
+// context.modelId = el modelId de las observaciones (hash del .dae), nunca el furnitureId (I6).
 
 const ROOT = path.resolve(__dirname, "..");
 
 describe("TP-40: primer fixture contra su .dae", () => {
-  const context: CrossCheckContext = { furnitureId: olmoDef.furniture.id, modelId: olmoDef.modelUrl, toleranceMm: olmoDef.toleranceMm };
+  const observed = observeDae(readFileSync(path.join(ROOT, "public", "models", "Olmo", "olmo.dae")));
+  const context: CrossCheckContext = { furnitureId: olmoDef.furniture.id, modelId: observed.modelId, toleranceMm: olmoDef.toleranceMm };
   const listing = toListing(context.furnitureId, validateFurniture(olmoDocuments()));
-  const observations = observationsFromDae(path.join(ROOT, "public", "models", "Olmo", "olmo.dae"), context.modelId);
+  const observations = observed.observations;
+
+  it("I6: el modelId del cruce es el hash del .dae, no el furnitureId", () => {
+    expect(context.modelId).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(context.modelId).not.toBe(context.furnitureId);
+    for (const o of observations) expect(o.modelId).toBe(context.modelId);
+  });
 
   it("21 códigos con instancias, cantidades y medidas dentro de 2 mm, canteado sin-definir, nada que baje el nivel", () => {
     expect(context.toleranceMm).toBe(2);
     if (listing.status === "bloqueado") throw new Error(listing.reason);
     expect(listing.pieces).toHaveLength(21);
-    expect(observations).toHaveLength(33);
+    // 33 instancias de componente + 6 mallas sin componente (rawName null), que el cruce no toma (§4).
+    expect(observations).toHaveLength(39);
+    expect(observations.filter((o) => o.rawName === null)).toHaveLength(6);
     const { findings, edges } = crossCheck(listing.pieces, observations, context);
     expect(levelFindings(findings)).toEqual([]);
     expect(Object.keys(edges)).toHaveLength(21);
@@ -479,11 +489,13 @@ const sabrinaDef: FurnitureDef | undefined = hasSabrina ? ((await import(/* @vit
 describe.skipIf(!hasSabrina)("TP-40b: segundo fixture contra su .dae (local)", () => {
   it("sin hallazgos que bajen el nivel, con su tolerancia; solo informativos de canteado sin definir", () => {
     const def = sabrinaDef as FurnitureDef;
-    const context: CrossCheckContext = { furnitureId: def.furniture.id, modelId: def.modelUrl, toleranceMm: def.toleranceMm };
+    const observed = observeDae(readFileSync(path.join(SABRINA_DAE_DIR, sabrinaDae as string)));
+    const context: CrossCheckContext = { furnitureId: def.furniture.id, modelId: observed.modelId, toleranceMm: def.toleranceMm };
+    expect(context.modelId).not.toBe(context.furnitureId);
     const listing = toListing(context.furnitureId, validateFurniture(sabrinaDocuments()));
     if (listing.status === "bloqueado") throw new Error(listing.reason);
     expect(listing.status).toBe("publicable");
-    const observations = observationsFromDae(path.join(SABRINA_DAE_DIR, sabrinaDae as string), context.modelId);
+    const observations = observed.observations;
     const { findings, edges } = crossCheck(listing.pieces, observations, context);
     expect(levelFindings(findings)).toEqual([]);
     expect(new Set(findings.map((f) => f.reason))).toEqual(new Set(findings.length > 0 ? ["canteado-sin-definir"] : []));

@@ -52,7 +52,7 @@ Por eso el esquema registra **qué columnas trae** cada documento (`columns`, §
 | RP6 | El sistema compara con el .dae y **avisa** las discrepancias; no corrige | Reunión 20/10 | Verbal |
 | RP7 | La designación es proyecto-mueble-módulo-corte; el número de corte es continuo en el proyecto | Reunión 20/10 | Verbal. **No se usa**: el código sigue opaco (AS1 del motor, consulta 42) hasta la confirmación escrita |
 | RP8 | `TextoPdf` es determinista y sin IA; `OcrLlm` solo hace análisis previo, se valida con el esquema y contra el .dae, y **nunca decide** | Pedido del equipo (28/10); principios del motor | Decisión del equipo |
-| RP9 | Se reutilizan `PieceType` y la serialización de `listadoId` (motor §5.1) | Pedido del equipo | Decisión del equipo |
+| RP9 | Se reutilizan `PieceType` y la serialización de `listadoId` (motor §5.1, **enmendada** por `docs/spec-adapter-observation-listadoid.md` §2.1: filas `ListadoRow`, `edgeBanding` admite `"sin-definir"`) | Pedido del equipo | Decisión del equipo; enmienda aprobada el 7/11 (E1) |
 | RP10 | R4: el "listado de cortes" es la **lista de piezas por tablero** (no una secuencia de cortes) | Equipo, 28/10 | **Supuesto PROVISORIO**, a confirmar con Casa Mueble (§9); formato de Gabriel PENDIENTE (consultas 35–37) |
 | RP11 | Nada del segundo fixture entra al repo | `CLAUDE.md` | Vigente hasta que el equipo decida qué se commitea. **3/11:** Casa Mueble aprobó el uso de los archivos del segundo fixture sin restricciones de titularidad (confirmación escrita pendiente) y el repo es público por acuerdo con Casa Mueble: la titularidad ya no lo impide |
 
@@ -201,7 +201,7 @@ Se verifican sobre un `CutListPdf` (INV-1 a INV-9, INV-13, INV-15), sobre el con
 
 ## 6. Conversión al listado (`PieceType[]`) y `listadoId`
 
-Se reutilizan `PieceType` (`src/data/types.ts`) y la serialización canónica del motor (§5.1) **sin cambios**. Un tipo por código, con:
+Se reutilizan `PieceType` (`src/data/types.ts`) y la serialización canónica del motor (§5.1). **Enmienda (7/11, E1):** §5.1 hashea filas `ListadoRow` (`docs/spec-adapter-observation-listadoid.md` §2.1), a las que `PieceType` y `ListedPiece` son asignables; `edgeBanding` tiene tres formas distintas en el hash (lista de `EdgeId`, `null` y `"sin-definir"`), y solo un listado `publicable` se publica (`assertPublicable`, §2.3 de esa spec). Un tipo por código, con:
 
 | Campo de `PieceType` | Sale de |
 |---|---|

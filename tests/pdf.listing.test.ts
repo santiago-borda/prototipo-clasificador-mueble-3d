@@ -111,42 +111,130 @@ describe("TP-63: borrador", () => {
   });
 });
 
-describe("datos que no se pueden tomar sin elegir: el código queda fuera y el listado es borrador", () => {
-  it("total ilegible (cantidad pendiente)", () => {
+type Row = CutListPdf["boards"][number]["pieces"][number];
+type Borrador = Extract<Listing, { status: "borrador" }>;
+
+function borrador(listing: Listing): Borrador {
+  if (listing.status !== "borrador") throw new Error(`se esperaba borrador y es ${listing.status}`);
+  return listing;
+}
+
+/** Agrega `row` como fila nueva (letra Z) en la hoja 0 del documento `target`, ajustando pie, diagrama y resumen. */
+function addRow(documents: CutListPdf[], target: number, row: Row): void {
+  const board = documents[target].boards[0];
+  board.pieces.push({ ...row, letter: "Z", quantity: 1 });
+  board.pieceCount += 1;
+  if (board.diagram !== "pendiente") board.diagram.push({ letter: "Z", count: 1 });
+  documents[target].summary.boards[0].parts += 1;
+}
+
+const binary = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
+describe("I1 / I11: datos que no se pueden tomar sin elegir -> excluded, con sus razones y filas", () => {
+  it("total ilegible (cantidad pendiente): campo-pendiente", () => {
     const documents = olmoDocuments();
     const row = documents[0].boards[0].pieces[0];
     row.quantity = null;
     documents[0].pending.push({ path: "boards[0].pieces[0].quantity", reason: "ilegible" });
-    const listing = list(documents);
-    expect(listing.status).toBe("borrador");
-    expect(piecesOf(listing).map((p) => p.code)).not.toContain(row.code);
-    expect(piecesOf(listing)).toHaveLength(20);
+    const listing = borrador(list(documents));
+    expect(listing.pieces.map((p) => p.code)).not.toContain(row.code);
+    expect(listing.pieces).toHaveLength(20);
+    expect(listing.excluded).toEqual([{ code: row.code, reasons: ["campo-pendiente"], rows: [{ document: 0, board: 0, piece: 0 }] }]);
+    expect(listing.unkeyedRows).toEqual([]);
   });
 
-  it("L ilegible", () => {
+  it("L y total ilegibles en el mismo código: campo-pendiente una sola vez", () => {
     const documents = olmoDocuments();
     const row = documents[0].boards[0].pieces[0];
     row.finalL = null;
-    documents[0].pending.push({ path: "boards[0].pieces[0].finalL", reason: "ilegible" });
-    const listing = list(documents);
-    expect(listing.status).toBe("borrador");
-    expect(piecesOf(listing).map((p) => p.code)).not.toContain(row.code);
+    row.quantity = null;
+    documents[0].pending.push({ path: "boards[0].pieces[0].finalL", reason: "ilegible" }, { path: "boards[0].pieces[0].quantity", reason: "ilegible" });
+    expect(borrador(list(documents)).excluded).toEqual([{ code: row.code, reasons: ["campo-pendiente"], rows: [{ document: 0, board: 0, piece: 0 }] }]);
   });
 
-  it.each([
-    ["medidas distintas", (p: CutListPdf["boards"][number]["pieces"][number]) => ({ ...p, finalA: (p.finalA ?? 0) + 1 })],
-    ["nombre distinto", (p: CutListPdf["boards"][number]["pieces"][number]) => ({ ...p, name: `${p.name} bis` })],
-  ])("mismo código en dos PDF con %s (INV-10 / INV-11)", (_, change) => {
+  it("mismo código en otro PDF (3 mm) con otra A: material y medidas, en el orden del catálogo", () => {
     const documents = olmoDocuments();
     const row = documents[0].boards[0].pieces[0];
-    const fondo = documents[2].boards[0];
-    fondo.pieces.push({ ...change(row), letter: "Z", quantity: 1 });
-    fondo.pieceCount += 1;
-    if (fondo.diagram !== "pendiente") fondo.diagram.push({ letter: "Z", count: 1 });
-    documents[2].summary.boards[0].parts += 1;
-    const listing = list(documents);
-    expect(listing.status).toBe("borrador");
-    expect(piecesOf(listing).map((p) => p.code)).not.toContain(row.code);
+    addRow(documents, 2, { ...row, finalA: (row.finalA ?? 0) + 1 });
+    const listing = borrador(list(documents));
+    expect(listing.pieces.map((p) => p.code)).not.toContain(row.code);
+    const zRow = { document: 2, board: 0, piece: documents[2].boards[0].pieces.length - 1 };
+    expect(listing.excluded).toEqual([
+      { code: row.code, reasons: ["codigo-con-distinto-material", "codigo-con-distintas-medidas"], rows: [{ document: 0, board: 0, piece: 0 }, zRow] },
+    ]);
+  });
+
+  it("mismo código en la misma hoja con otro nombre: solo codigo-con-distinto-nombre", () => {
+    const documents = olmoDocuments();
+    const row = documents[0].boards[0].pieces[0];
+    addRow(documents, 0, { ...row, name: `${row.name} bis` });
+    expect(borrador(list(documents)).excluded).toMatchObject([{ code: row.code, reasons: ["codigo-con-distinto-nombre"] }]);
+  });
+
+  it("mismo código en la misma hoja, una fila con subcolumnas y otra sin columna: codigo-con-distinto-canteado", () => {
+    const documents = olmoDocuments();
+    const row = documents[0].boards[0].pieces[0];
+    addRow(documents, 0, { ...row, edges: { s1: null, s2: null, s3: null, s4: null } });
+    expect(borrador(list(documents)).excluded).toMatchObject([{ code: row.code, reasons: ["codigo-con-distinto-canteado"] }]);
+  });
+
+  it("excluded va en orden binario por código, y ningún código está a la vez en pieces y en excluded", () => {
+    const documents = olmoDocuments();
+    // Se excluyen las filas 0 y 2, puestas en el pending en orden inverso al de sus códigos.
+    for (const p of [2, 0]) {
+      documents[0].boards[0].pieces[p].quantity = null;
+      documents[0].pending.push({ path: `boards[0].pieces[${p}].quantity`, reason: "ilegible" });
+    }
+    const listing = borrador(list(documents));
+    const codes = listing.excluded.map((e) => e.code);
+    expect(codes).toHaveLength(2);
+    expect(codes).toEqual([...codes].sort(binary));
+    const listed = new Set(listing.pieces.map((p) => p.code));
+    expect(codes.some((code) => listed.has(code))).toBe(false);
+    expect(listing.pieces.length + listing.excluded.length).toBe(21);
+  });
+});
+
+describe("I11: filas sin código válido -> unkeyedRows, con las razones de su fila", () => {
+  it("código ilegible: campo-pendiente y codigo-ausente, en el orden del catálogo", () => {
+    const documents = olmoDocuments();
+    documents[1].boards[0].pieces[2].code = null;
+    documents[1].pending.push({ path: "boards[0].pieces[2].code", reason: "ilegible" });
+    const listing = borrador(list(documents));
+    expect(listing.unkeyedRows).toEqual([{ row: { document: 1, board: 0, piece: 2 }, reasons: ["campo-pendiente", "codigo-ausente"] }]);
+    expect(listing.excluded).toEqual([]);
+  });
+
+  it("formato inválido: formato-invalido; varias filas en el orden de documento, hoja y fila", () => {
+    const documents = olmoDocuments();
+    documents[2].boards[0].pieces[0].code = "PATA-01";
+    documents[0].boards[0].pieces[1].code = "OTRA";
+    const listing = borrador(list(documents));
+    expect(listing.unkeyedRows.map((u) => u.row)).toEqual([
+      { document: 0, board: 0, piece: 1 },
+      { document: 2, board: 0, piece: 0 },
+    ]);
+    for (const unkeyed of listing.unkeyedRows) expect(unkeyed.reasons).toContain("formato-invalido");
+  });
+});
+
+describe("I11: publicable no deja nada fuera (por tipo)", () => {
+  it("el primer fixture es publicable con excluded y unkeyedRows vacíos", () => {
+    const listing = list(olmoDocuments());
+    if (listing.status !== "publicable") throw new Error(listing.status);
+    expect(listing.excluded).toEqual([]);
+    expect(listing.unkeyedRows).toEqual([]);
+  });
+
+  it("un publicable con excluded o unkeyedRows no compila", () => {
+    const excluded = { code: "9999-01-M01-C04", reasons: ["campo-pendiente" as const], rows: [] };
+    const unkeyed = { row: { document: 0, board: 0, piece: 0 }, reasons: ["codigo-ausente" as const] };
+    // @ts-expect-error publicable no puede dejar códigos fuera
+    const withExcluded: Listing = { status: "publicable", furnitureId: "a", pieces: [], excluded: [excluded], unkeyedRows: [] };
+    // @ts-expect-error publicable no puede tener filas sin código
+    const withUnkeyed: Listing = { status: "publicable", furnitureId: "a", pieces: [], excluded: [], unkeyedRows: [unkeyed] };
+    const fine: Listing = { status: "borrador", furnitureId: "a", pieces: [], excluded: [excluded], unkeyedRows: [unkeyed] };
+    expect([withExcluded, withUnkeyed, fine]).toHaveLength(3);
   });
 });
 

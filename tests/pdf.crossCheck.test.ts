@@ -7,7 +7,15 @@ import { describe, expect, it } from "vitest";
 import { olmoDef } from "@/data/furniture.mock";
 import type { EdgeId, FurnitureDef } from "@/data/types";
 import type { Observation } from "@/engine/types";
-import { CrossCheckInputError, MuebleDistintoError, crossCheck, type CrossCheckContext, type CrossCheckFinding } from "@/pdf/crossCheck";
+import {
+  CodigoExcluidoYListadoError,
+  CrossCheckInputError,
+  MuebleDistintoError,
+  crossCheck,
+  type CrossCheckContext,
+  type CrossCheckFinding,
+  type CrossCheckOptions,
+} from "@/pdf/crossCheck";
 import { toListing, type ListedPiece } from "@/pdf/listing";
 import { PDF_REASONS } from "@/pdf/reasons";
 import type { CutListPdf } from "@/pdf/types";
@@ -59,8 +67,8 @@ const levelFindings = (findings: readonly CrossCheckFinding[]) => findings.filte
 
 // Hallazgos de los casos de §4, para 2b-C9.
 const collected: CrossCheckFinding[] = [];
-function check(pieces: readonly ListedPiece[], observations: readonly Observation[], context: CrossCheckContext = CONTEXT) {
-  const result = crossCheck(pieces, observations, context);
+function check(pieces: readonly ListedPiece[], observations: readonly Observation[], context: CrossCheckContext = CONTEXT, options?: CrossCheckOptions) {
+  const result = crossCheck(pieces, observations, context, options);
   collected.push(...result.findings);
   return result;
 }
@@ -254,6 +262,40 @@ describe("2b-C1 a 2b-C8: nombres, muebles y canteado", () => {
   });
 });
 
+describe("I11: códigos excluidos del listado (excludedCodes)", () => {
+  it("un código excluido presente en el .dae no genera ningún hallazgo (ni instancias-sin-fila)", () => {
+    const { findings, edges } = check([piece()], [observation(), observation({ rawName: `_${OTHER}`, instanceKey: `${OTHER}#1` })], CONTEXT, { excludedCodes: [OTHER] });
+    expect(findings).toEqual([]);
+    expect(Object.keys(edges)).toEqual([CODE]);
+  });
+
+  it("un código excluido sin instancias tampoco genera hallazgos", () => {
+    expect(check([piece()], [observation()], CONTEXT, { excludedCodes: [OTHER] }).findings).toEqual([]);
+  });
+
+  it("un código ausente de las dos listas y presente en el .dae sigue dando instancias-sin-fila", () => {
+    const third = "9999-01-M01-C06";
+    const { findings } = check([piece()], [observation(), observation({ rawName: `_${third}`, instanceKey: `${third}#1` })], CONTEXT, { excludedCodes: [OTHER] });
+    expect(findings).toHaveLength(1);
+    expect(findings[0]).toMatchObject({ code: third, reason: "instancias-sin-fila", affectsLevel: false });
+  });
+
+  it("un código en el listado y entre los excluidos -> CodigoExcluidoYListadoError", () => {
+    try {
+      crossCheck([piece()], [observation()], CONTEXT, { excludedCodes: [CODE] });
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(CodigoExcluidoYListadoError);
+      expect(error).toBeInstanceOf(CrossCheckInputError);
+      expect(error).toMatchObject({ code: CODE, name: "CodigoExcluidoYListadoError" });
+    }
+  });
+
+  it("sin opciones se comporta como antes", () => {
+    expect(reasons(crossCheck([piece()], [observation(), observation({ rawName: `_${OTHER}`, instanceKey: `${OTHER}#1` })], CONTEXT).findings)).toEqual(["instancias-sin-fila"]);
+  });
+});
+
 describe("entradas que el cruce no interpreta", () => {
   it.each([Number.NaN, -1, Number.POSITIVE_INFINITY])("tolerancia %s -> CrossCheckInputError", (toleranceMm) => {
     expect(() => crossCheck([piece()], [], { ...CONTEXT, toleranceMm })).toThrow(CrossCheckInputError);
@@ -408,6 +450,21 @@ describe("TP-40: primer fixture contra su .dae", () => {
     const { findings, edges } = crossCheck(defined, observations, context);
     expect(findings).toEqual([]);
     expect(new Set(Object.values(edges))).toEqual(new Set(["no-disponible"]));
+  });
+  it("I11 con el .dae real: un código excluido del listado no aparece como instancias-sin-fila", () => {
+    const documents = olmoDocuments();
+    documents[0].boards[0].pieces[0].quantity = null;
+    documents[0].pending.push({ path: "boards[0].pieces[0].quantity", reason: "ilegible" });
+    const draft = toListing(context.furnitureId, validateFurniture(documents));
+    if (draft.status !== "borrador") throw new Error(draft.status);
+    expect(draft.excluded).toHaveLength(1);
+    const excludedCodes = draft.excluded.map((e) => e.code);
+    const withOption = crossCheck(draft.pieces, observations, context, { excludedCodes });
+    expect(withOption.findings.filter((f) => excludedCodes.includes(f.code))).toEqual([]);
+    expect(levelFindings(withOption.findings)).toEqual([]);
+    // Sin la opción, el código aparecería como "el PDF no lo trae": es lo que la opción evita.
+    const without = crossCheck(draft.pieces, observations, context);
+    expect(without.findings.filter((f) => excludedCodes.includes(f.code)).map((f) => f.reason)).toEqual(["instancias-sin-fila"]);
   });
 });
 

@@ -62,6 +62,22 @@ export class CrossCheckInputError extends Error {
   }
 }
 
+/** Un código está a la vez en el listado y entre los excluidos: quien llama mezcló dos listados. */
+export class CodigoExcluidoYListadoError extends CrossCheckInputError {
+  constructor(readonly code: string) {
+    super(`El código ${code} está en el listado y también entre los excluidos.`);
+    this.name = "CodigoExcluidoYListadoError";
+  }
+}
+
+export interface CrossCheckOptions {
+  /**
+   * Códigos que `toListing` dejó fuera (`Listing.excluded`): no generan ningún hallazgo, ni `instancias-sin-fila`
+   * (sí tienen filas en el PDF), ni cantidad, ni medidas, ni canteado. Su revisión sale de `excluded` (I11).
+   */
+  excludedCodes?: readonly string[];
+}
+
 /** Número para el texto de la evidencia: hasta 2 decimales, con coma. Solo para mostrar; no se compara con esto. */
 const mm = (value: number) => String(Math.round(value * 100) / 100).replace(".", ",");
 const box = (values: readonly number[]) => `[${values.map(mm).join("; ")}]`;
@@ -122,7 +138,12 @@ function compareEdges(piece: ListedPiece, instances: readonly Observation[], tol
   return evidence.length > 0 ? { check: "no-coincide", evidence } : { check: "cumple", evidence: [] };
 }
 
-export function crossCheck(pieces: readonly ListedPiece[], observations: readonly Observation[], context: CrossCheckContext): CrossCheckResult {
+export function crossCheck(
+  pieces: readonly ListedPiece[],
+  observations: readonly Observation[],
+  context: CrossCheckContext,
+  options: CrossCheckOptions = {},
+): CrossCheckResult {
   const { furnitureId, modelId, toleranceMm } = context;
   if (!Number.isFinite(toleranceMm) || toleranceMm < 0) throw new CrossCheckInputError(`Tolerancia inválida: ${toleranceMm}.`);
   for (const observation of observations) {
@@ -133,6 +154,8 @@ export function crossCheck(pieces: readonly ListedPiece[], observations: readonl
     if (listed.has(piece.code)) throw new CrossCheckInputError(`El código ${piece.code} aparece dos veces en el listado.`);
     listed.add(piece.code);
   }
+  const excludedCodes = new Set(options.excludedCodes ?? []);
+  for (const code of excludedCodes) if (listed.has(code)) throw new CodigoExcluidoYListadoError(code);
 
   // Mallas sin componente y nombres que no dan un código válido no entran (§4).
   const byCode = new Map<string, Observation[]>();
@@ -183,7 +206,7 @@ export function crossCheck(pieces: readonly ListedPiece[], observations: readonl
     if (edgeOutcome.check === "no-coincide") level(piece.code, "canteado-no-coincide", edgeOutcome.evidence);
   }
 
-  const extra = [...byCode.keys()].filter((code) => !listed.has(code)).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const extra = [...byCode.keys()].filter((code) => !listed.has(code) && !excludedCodes.has(code)).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   for (const code of extra) {
     const count = byCode.get(code)?.length ?? 0;
     info(code, "instancias-sin-fila", [{ kind: "codigo", result: "no-cumple", detail: `${code}: ${count} instancias en el modelo "${modelId}" y ninguna fila en el listado.` }]);

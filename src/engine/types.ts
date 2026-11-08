@@ -1,6 +1,29 @@
 // Tipos del motor de asociación: fuente única (docs/spec-sesion-2b-listado-cruce.md §2.1, D1).
 // Tal como están en docs/spec-motor-asociacion.md v3 §5.2 (`Observation`) y §5.3 (`Evidence`).
-// Si esa spec cambia, cambia este archivo; nadie copia estos tipos. Solo tipos: el motor no existe todavía.
+// Si esa spec cambia, cambia este archivo; nadie copia estos tipos. Además: `ListadoRow` (§5.1 enmendada), los
+// contratos de resultados (§5.3), los catálogos cerrados (§5.4) y los parámetros (plan T2). El único valor es DEFAULT_PARAMS.
+
+import type { EdgeId } from "@/data/types"; // solo tipo: @/data/types no trae three ni DOM
+
+/**
+ * Canteado de una fila del listado (spec-motor §5.1, enmendada por docs/spec-adapter-observation-listadoid.md §2.1):
+ * lista de lados con canto (`[]` = sin canto), `null` = sin dato, `"sin-definir"` = columna ausente en el PDF (D3).
+ * Las tres formas son distintas en el hash.
+ */
+export type ListadoEdgeBanding = readonly EdgeId[] | null | "sin-definir";
+
+/** Fila del listado que entra al `listadoId`. `PieceType` (mock) y `ListedPiece` (PDF) son asignables. */
+export interface ListadoRow {
+  code: string;
+  name: string;
+  lengthMm: number;
+  widthMm: number;
+  thicknessMm: number;
+  material: string;
+  quantity: number;
+  edgeBanding: ListadoEdgeBanding;
+  notes: string | null;
+}
 
 /** Salida del adapter, única entrada geométrica del motor (spec-motor §5.2). */
 export interface Observation {
@@ -33,4 +56,80 @@ export interface Evidence {
   detail: string;
   /** Id de la regla de vocabulario, si aplica. */
   rule?: string;
+}
+
+type Score = number;
+
+/** 7 números, menor = mejor, comparación lexicográfica (plan, "Decisiones"; spec-motor §6.3). */
+export type ScoreTuple = [Score, Score, Score, Score, Score, Score, Score];
+
+export type Level = "segura" | "dudosa" | "sin-asociar";
+
+/** Razones de nivel (spec-motor §5.4). */
+export type Reason =
+  | "codigo-exacto"
+  | "nombre-anomalo"
+  | "formato-invalido"
+  | "codigo-inexistente"
+  | "codigo-duplicado"
+  | "medida-fuera-de-tolerancia"
+  | "cupo-excedido"
+  | "geometria-no-alineada"
+  | "sin-componente"
+  | "empate";
+
+/** Advertencias: evidencia blanda que no coincide (spec-motor §5.4). */
+export type Warning = "orientacion-no-coincide" | "posicion-no-coincide" | "canto-no-coincide";
+
+/** Inconsistencias de corrida (spec-motor §5.4). */
+export interface Inconsistency {
+  kind: "faltante" | "sin-confirmar" | "cupo-excedido" | "cupo-completo-sugerido" | "conflicto" | "sin-componente";
+  pieceCode: string | null;
+  instanceKeys: string[];
+  detail: string;
+}
+
+export interface Candidate {
+  pieceCode: string;
+  tuple: ScoreTuple;
+  cupoCompleto: boolean;
+  /** P. ej. "tipo del código; medidas no coinciden". */
+  notes: string[];
+  evidence: Evidence[];
+}
+
+export interface InstanceResult {
+  instanceKey: string;
+  level: Level;
+  /** Solo si es segura. */
+  pieceCode: string | null;
+  /** Catálogo cerrado; puede llevar más de una, en el orden en que se evalúan (§6.1, §6.2). */
+  reasons: Reason[];
+  warnings: Warning[];
+  /** Top-3 por tupla y luego por código; [] para segura, sin-componente y dudosas sin tipo que cumpla medidas. */
+  candidates: Candidate[];
+  evidence: Evidence[];
+}
+
+export interface EngineParams {
+  /** FurnitureDef.toleranceMm (AS8). */
+  toleranceMm: number;
+  epsilonMm: number;
+  tupleRoundingMm: number;
+}
+
+export const DEFAULT_PARAMS: Omit<EngineParams, "toleranceMm"> = { epsilonMm: 1e-6, tupleRoundingMm: 0.01 };
+
+/** Sin fechas ni tiempos: la misma entrada da la misma salida, byte a byte (§5.3). */
+export interface AssociationRun {
+  furnitureId: string;
+  modelId: string;
+  listadoId: string;
+  engineRunId: string;
+  versions: { engine: string; vocabulary: string; frame: string };
+  params: EngineParams;
+  /** Ordenados por instanceKey, comparación binaria (no por locale). */
+  results: InstanceResult[];
+  typeSummary: { pieceCode: string; quantity: number; claimants: number; seguras: number }[];
+  inconsistencies: Inconsistency[];
 }

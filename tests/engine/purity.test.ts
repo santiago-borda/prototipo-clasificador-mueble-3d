@@ -3,7 +3,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { ENGINE_VERSION, FRAME_VERSION } from "@/engine/versions";
+import { ENGINE_VERSION, FRAME_VERSION, VOCABULARY_VERSION } from "@/engine/versions";
 
 const ENGINE = path.resolve(__dirname, "..", "..", "src", "engine");
 const files = readdirSync(ENGINE, { recursive: true, encoding: "utf8" })
@@ -13,7 +13,7 @@ const files = readdirSync(ENGINE, { recursive: true, encoding: "utf8" })
 describe("M3: pureza de src/engine/", () => {
   it("hay archivos que revisar", () => {
     expect(files.map((f) => path.basename(f)).sort()).toEqual(
-      expect.arrayContaining(["associate.ts", "evidence.ts", "hash.ts", "normalize.ts", "types.ts", "versions.ts"]),
+      expect.arrayContaining(["associate.ts", "evidence.ts", "hash.ts", "normalize.ts", "run.ts", "types.ts", "versions.ts"]),
     );
   });
 
@@ -34,8 +34,9 @@ describe("M3: pureza de src/engine/", () => {
 });
 
 describe("versiones", () => {
-  it("motor/1 y marco/1", () => {
+  it("motor/1, marco/1 y vocabulario/0 (T10-E5)", () => {
     expect(ENGINE_VERSION).toBe("motor/1");
+    expect(VOCABULARY_VERSION).toBe("vocabulario/0");
     expect(FRAME_VERSION).toBe("marco/1");
   });
 });

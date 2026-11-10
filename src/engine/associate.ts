@@ -14,6 +14,11 @@ export interface AssociateInput {
   observations: readonly Observation[];
   listado: readonly ListadoRow[];
   params: EngineParams;
+  /**
+   * Códigos que `toListing` dejó en `excluded` (T10-E4): `Listing.excluded.map((e) => e.code)`. Sus instancias salen
+   * `dudosa` con `codigo-excluido`; no entran en cupo, faltante, sin-confirmar ni typeSummary.
+   */
+  excludedCodes?: readonly string[];
 }
 
 export interface Pass1Result {
@@ -34,6 +39,14 @@ export class ModeloDistintoError extends Error {
   ) {
     super(`La observación ${instanceKey} es del modelo "${receivedModelId}" y la asociación es del modelo "${expectedModelId}".`);
     this.name = "ModeloDistintoError";
+  }
+}
+
+/** Un código a la vez en el listado y en `excludedCodes` (como `CodigoExcluidoYListadoError` del cruce 2b, T10-E4). */
+export class CodigoExcluidoYListadoError extends Error {
+  constructor(readonly code: string) {
+    super(`El código ${code} está en el listado y en los códigos excluidos.`);
+    this.name = "CodigoExcluidoYListadoError";
   }
 }
 
@@ -91,6 +104,9 @@ export function associatePass1(input: AssociateInput): Pass1Result {
     else rows.push(r);
   }
 
+  const excluded = new Set(input.excludedCodes ?? []);
+  for (const c of excluded) if (rowsByCode.has(c)) throw new CodigoExcluidoYListadoError(c);
+
   const results: InstanceResult[] = [];
   const inconsistencies: Inconsistency[] = [];
   const claimantsByCode = new Map<string, Claimant[]>();
@@ -114,6 +130,15 @@ export function associatePass1(input: AssociateInput): Pass1Result {
     // Paso 1a: techo dudosa.
     const reasons: Reason[] = name.kind === "anomalo" ? ["nombre-anomalo"] : [];
     const rows = rowsByCode.get(name.code);
+
+    // Paso 1c': código excluido del listado (T10-E4); como codigo-duplicado, sin medir ni cupo.
+    if (excluded.has(name.code)) {
+      reasons.push("codigo-excluido");
+      results.push(
+        dudosa(o.instanceKey, reasons, [{ kind: "codigo", result: "no-cumple", detail: `código ${name.code}, excluido del listado (datos no tomables)` }]),
+      );
+      continue;
+    }
 
     // Paso 1c: sin tipo.
     if (rows === undefined) {

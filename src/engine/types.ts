@@ -72,6 +72,8 @@ export type Reason =
   | "formato-invalido"
   | "codigo-inexistente"
   | "codigo-duplicado"
+  /** spec-motor v3.1 (T10-E4): el código está en el PDF pero toListing lo dejó en `excluded` (datos no tomables). */
+  | "codigo-excluido"
   | "medida-fuera-de-tolerancia"
   | "cupo-excedido"
   | "geometria-no-alineada"
@@ -128,6 +130,8 @@ export interface AssociationRun {
   engineRunId: string;
   versions: { engine: string; vocabulary: string; frame: string };
   params: EngineParams;
+  /** spec-motor v3.1 (T10-E2): pasadas corridas. 1 = sin ranking (dudosas con `candidates: []` = "no se rankeó"). No entra en el engineRunId. */
+  passes: 1 | 2;
   /** Ordenados por instanceKey, comparación binaria (no por locale). */
   results: InstanceResult[];
   typeSummary: { pieceCode: string; quantity: number; claimants: number; seguras: number }[];

@@ -13,7 +13,7 @@ const files = readdirSync(ENGINE, { recursive: true, encoding: "utf8" })
 describe("M3: pureza de src/engine/", () => {
   it("hay archivos que revisar", () => {
     expect(files.map((f) => path.basename(f)).sort()).toEqual(
-      expect.arrayContaining(["evidence.ts", "hash.ts", "normalize.ts", "types.ts", "versions.ts"]),
+      expect.arrayContaining(["associate.ts", "evidence.ts", "hash.ts", "normalize.ts", "types.ts", "versions.ts"]),
     );
   });
 
@@ -22,6 +22,14 @@ describe("M3: pureza de src/engine/", () => {
     expect(src).not.toMatch(/from\s+["'](three|@react-three)[^"']*["']/);
     expect(src).not.toMatch(/from\s+["']@\/model\//); // el adapter es la única capa con three
     expect(src).not.toMatch(/\b(DOMParser|XMLSerializer|document|window)\b/);
+  });
+
+  // T8-E1: la pasada 1 no arma ids; listadoId y engineRunId son de T10.
+  it("associate.ts no importa node:crypto ni ./hash", () => {
+    const src = readFileSync(path.join(ENGINE, "associate.ts"), "utf8");
+    expect(src).not.toMatch(/from\s+["'](node:)?crypto["']/);
+    expect(src).not.toMatch(/from\s+["'](\.\/hash|@\/engine\/hash)["']/);
+    expect(src).not.toMatch(/\b(createHash|require)\b/);
   });
 });
 

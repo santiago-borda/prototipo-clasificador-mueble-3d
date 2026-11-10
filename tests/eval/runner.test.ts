@@ -68,7 +68,7 @@ describe("T5: runner del eval (M20)", () => {
     };
     // Lista actual del repo (10/11), no la del plan T5: @google-cloud/vision y @vercel/blob entraron antes de T5.
     expect(Object.keys(pkg.dependencies).sort()).toEqual([
-      "@google-cloud/vision", // PENDIENTE DE APROBACIÓN DEL EQUIPO (CLAUDE.md, "Credenciales de Google Cloud"): está instalada, la aprobación no consta.
+      "@google-cloud/vision", // Aprobada por el equipo el 10/11 (CLAUDE.md, "Credenciales de Google Cloud"). No autoriza enviar datos reales: la compuerta por sha256 sigue.
       "@react-three/drei",
       "@react-three/fiber",
       "@vercel/blob",

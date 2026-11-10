@@ -13,7 +13,7 @@ const files = readdirSync(ENGINE, { recursive: true, encoding: "utf8" })
 describe("M3: pureza de src/engine/", () => {
   it("hay archivos que revisar", () => {
     expect(files.map((f) => path.basename(f)).sort()).toEqual(
-      expect.arrayContaining(["hash.ts", "normalize.ts", "types.ts", "versions.ts"]),
+      expect.arrayContaining(["evidence.ts", "hash.ts", "normalize.ts", "types.ts", "versions.ts"]),
     );
   });
 

@@ -7,7 +7,7 @@
 | Versión | 0.3.1 (v0.3 aprobada el 3/11; reemplaza a la 0.2). La 0.3.1 es una corrección de mantenimiento del 5/11: credenciales fuera del repo, rutas del esquema y bandera de procesamiento externo. No cambia el diseño aprobado |
 | Fecha | 03/11/2026 (ajustes del 05/11 en §8, §9, §12, §14 y P-02/P-15: credenciales y salidas del OCR). 05/11: prueba de humo de Cloud Vision, credenciales y conectividad OK en local; no valida calidad del OCR |
 | Autores | Santiago Borda, Lautaro Salina |
-| Estado | **Aprobada el 3/11** (por el equipo y el profesor). Siguen abiertos los puntos de §15 y la decisión de §5.3; el adaptador de OCR no se programa antes de resolver P-02 y P-12. P-02 está **parcial** (no resuelta): se resuelve con la prueba con una página del segundo fixture (depende de P-04) |
+| Estado | **Aprobada el 3/11** (por el equipo y el profesor). Siguen abiertos los puntos de §15 y la decisión de §5.3; el adaptador de OCR no se programa antes de resolver P-02 y P-12, **salvo el script manual `scripts/ocr-real.ts` con un único PDF real** (`docs/spec-ocr-prueba-real.md`, SPEC-B2, 10/11). P-02 está **parcial** (no resuelta): script listo, a correr por una persona con su clave; P-04 (captura escrita) sigue sin archivar |
 | Contrato del que depende | `docs/spec-esquema-pdf.md` (aprobada el 3/11): `CutListPdf`, `FuenteDePdf`, INV-0 a INV-15, catálogo cerrado de razones. **Si esta spec y aquella chocan, manda aquella.** |
 | Lo consume | Motor de asociación A (`spec-motor-asociacion.md`), detector de inconsistencias C, sección de cortes (R4) |
 | Ubicación propuesta | `docs/spec-extraccion-pdf.md` |
@@ -164,7 +164,7 @@ interface LlmAdapter { readonly name: string; readonly modelId: string; extract(
 | 3 | `LlmAdapter` (Gemini, capa gratis), reconciliación, detector de marcas y harness | Lista blanca por hash; ID del modelo en variable de entorno |
 
 - Cambiar de proveedor implica solo un adaptador nuevo; el ID del modelo va en una variable de entorno.
-- Un adaptador que usa la red **se niega a correr** si no están activas la bandera `PROCESAMIENTO_EXTERNO=permitir` y la lista blanca por sha256 que incluye al PDF. La lista blanca real arranca vacía y vive fuera del repo.
+- Un adaptador que usa la red **se niega a correr** si no están activas la bandera `PROCESAMIENTO_EXTERNO=permitir` y la lista blanca por sha256 que incluye al PDF. La lista blanca real arranca vacía y vive fuera del repo. **Cargador (SPEC-B2, 10/11):** archivo de texto con un sha256 por línea (con o sin `sha256:`; `#` comenta), cuya ruta va en `OCR_LISTA_BLANCA`; el script `ocr:real` admite exactamente una entrada. Detalle en `docs/spec-ocr-prueba-real.md` §5.
 - **Lista sintética (propuesta, pendiente de aprobación; ver `spec-fixture-sintetico.md` §6):** los PDF del fixture sintético se identifican por el sha256 de su manifiesto y pasan sin lista blanca real. La decisión es solo por hash: ninguna marca, leyenda ni nombre de archivo habilita un envío.
 - Variables de entorno: `OCR_PROVIDER`, `LLM_PROVIDER`, `GEMINI_MODEL_ID`, `GOOGLE_APPLICATION_CREDENTIALS`, `PROCESAMIENTO_EXTERNO`.
 
@@ -186,6 +186,7 @@ interface LlmAdapter { readonly name: string; readonly modelId: string; extract(
 ## 9. Privacidad
 
 - **Autorización (3/11, informada por el equipo):** Casa Mueble aprobó enviar los PDF de OpenCutList a servicios externos de lectura (Cloud Vision y Gemini) para pruebas y desarrollo, con la aclaración de que en la capa gratis de Gemini Google puede usar el contenido y personas de su equipo pueden leerlo. **Falta guardar la captura del mensaje como confirmación escrita (P-04).** Los términos de Cloud Vision no están verificados, y tampoco se sabe aún si Vision usa el contenido enviado.
+- **Reconfirmación (10/11):** Santiago Borda reconfirmó con Casa Mueble que se pueden enviar los PDF de OpenCutList, incluidos los del segundo fixture, a Cloud Vision y Gemini (atribución a Casa Mueble). **No hay captura ni confirmación escrita archivada: P-04 sigue abierta.** Habilita la prueba manual de `docs/spec-ocr-prueba-real.md`; la lista blanca sigue decidiendo cuál PDF sale.
 - Casa Mueble confirmó también el uso de los archivos del segundo fixture y autorizó enviar sus PDF a esos servicios (3/11, informado por el equipo). Se aplican las mismas reglas que al primer fixture: bandera `PROCESAMIENTO_EXTERNO=permitir` y lista blanca por sha256, sin la cual el adaptador de red se niega a correr.
 - Un PDF real entra a la lista blanca solo cuando el equipo agrega su sha256 de forma explícita, sea del primer fixture o del segundo fixture. La autorización de Casa Mueble habilita el envío; la lista blanca decide cuáles PDF se envían de verdad.
 - Los fixtures de replay con palabras del segundo fixture viven en `Sabrina/` (ignorada por git) hasta que se decida qué se commitea.
@@ -267,9 +268,9 @@ type PdfReading =
 | ID | Pendiente |
 |---|---|
 | P-01 | Calibrar el detector de marcas por color con el segundo fixture (¿hay colores de canto además de azul y rojo?). Sesión 3. |
-| P-02 | Si Cloud Vision acepta API key o exige cuenta de servicio. Para la sesión 2 se usa la cuenta de servicio con clave JSON (5/11); el uso de API key no está verificado. **Parcial:** credenciales y conectividad verificadas en local con una imagen sin datos de Casa Mueble (5/11); falta la prueba con una página del segundo fixture (depende de P-04). La prueba en vivo con el PDF sintético (`spec-fixture-sintetico.md`, TS-13) cubriría `files:annotate` con PDF inline y lotes, sin cerrar P-02. |
+| P-02 | Si Cloud Vision acepta API key o exige cuenta de servicio. Para la sesión 2 se usa la cuenta de servicio con clave JSON (5/11); el uso de API key no está verificado. **Parcial:** credenciales y conectividad verificadas en local con una imagen sin datos de Casa Mueble (5/11); falta correr la prueba con una página del segundo fixture: **el script `scripts/ocr-real.ts` está listo (SPEC-B2, 10/11) y lo corre una persona con su clave**; el equipo decide si cierra P-02 con el resultado. La prueba en vivo con el PDF sintético (`spec-fixture-sintetico.md`, TS-13) cubriría `files:annotate` con PDF inline y lotes, sin cerrar P-02. |
 | P-03 | Límites vigentes de la capa gratis de Gemini y del modelo elegido. |
-| P-04 | Guardar la captura de la confirmación escrita de Casa Mueble: envío de PDF a APIs externas (con la aclaración sobre la capa gratis), uso y envío de los archivos del segundo fixture. Pendiente de respuesta: consulta 56 (orden 1 a 4 informado; falta cara de referencia, espejadas y la confirmación escrita). |
+| P-04 | **Sigue sin archivar** (a 10/11, aun con la reconfirmación verbal de Santiago Borda). Guardar la captura de la confirmación escrita de Casa Mueble: envío de PDF a APIs externas (con la aclaración sobre la capa gratis), uso y envío de los archivos del segundo fixture. Pendiente de respuesta: consulta 56 (orden 1 a 4 informado; falta cara de referencia, espejadas y la confirmación escrita). |
 | P-05 | Límite de cuerpo de las funciones de Vercel con subida a Blob (si B se despliega allí). |
 | P-06 | Alcance de R5 para B con la cátedra. |
 | P-07 | Origen del listado de cortes de R4: el PDF actual no lo trae. |

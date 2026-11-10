@@ -232,6 +232,8 @@ const TEMPLATES: RegExp[] = [
   /^páginas leídas: \d+$/,
   /^palabras: \d+$/,
   /^lectura: (leído|rechazado \([a-z-]+\))$/,
+  /^regla: [a-z]+(-[a-z]+)*$/,
+  /^página: (\d+|-)$/,
   /^filas: \d+$/,
   /^pending: code=\d+ name=\d+ finalL=\d+ finalA=\d+ quantity=\d+ cantos=\d+ otros=\d+$/,
   /^hoja-incompleta: (sí|no)$/,
@@ -273,7 +275,7 @@ describe("OR-08 salidas", () => {
 
 describe("formatSummary", () => {
   it("hoja-incompleta: sí solo cuando la razón del rechazo es hoja-incompleta", () => {
-    const incomplete = formatSummary({ pages: 5, words: 10, reading: { ok: false, reason: "hoja-incompleta", detail: "texto con 9999-91-M01-C01" }, comparison: null });
+    const incomplete = formatSummary({ pages: 5, words: 10, reading: { ok: false, reason: "hoja-incompleta", detail: "texto con 9999-91-M01-C01", rule: "hoja-sin-pie", page: 3 }, comparison: null });
     expect(incomplete).toContain("lectura: rechazado (hoja-incompleta)");
     expect(incomplete).toContain("hoja-incompleta: sí");
     expect(incomplete.join("\n")).not.toContain("9999");
@@ -315,6 +317,8 @@ describe("OR-09 consola: solo conteos", () => {
     expect(result.exitCode).toBe(0);
     for (const line of h.lines) expect(TEMPLATES.some((t) => t.test(line))).toBe(true);
     expect(h.lines).toContain("lectura: rechazado (sin-capa-de-texto)");
+    expect(h.lines).toContain("regla: documento-sin-texto");
+    expect(h.lines).toContain("página: -");
     expect(h.lines).toContain("filas: 0");
     expect(h.lines).toContain("hoja-incompleta: no");
     for (const text of forbidden()) if (text !== "") expect(h.lines.join("\n")).not.toContain(text);
@@ -323,6 +327,31 @@ describe("OR-09 consola: solo conteos", () => {
     expect(reading.ok).toBe(false);
     expect(reading.detail).toBeTruthy();
     expect(h.lines.join("\n")).not.toContain(reading.detail as string);
+  });
+});
+
+describe("OR-17 diagnóstico del rechazo (D-a): regla y página, nunca el detail", () => {
+  const secret = 'El PDF dice "Centimetro 9999-91-M01-C01 Lateral secreto": solo se admite Milimetro.';
+  const rejected = (page: number | null) =>
+    formatSummary({ pages: 5, words: 1190, reading: { ok: false, reason: "unidad-no-soportada", detail: secret, rule: "resumen-unidad-no-soportada", page }, comparison: null });
+
+  it("imprime regla y página debajo de lectura, con valores del catálogo", () => {
+    const lines = rejected(1);
+    const at = lines.indexOf("lectura: rechazado (unidad-no-soportada)");
+    expect(at).toBeGreaterThan(-1);
+    expect(lines.slice(at + 1, at + 3)).toEqual(["regla: resumen-unidad-no-soportada", "página: 1"]);
+    for (const line of lines) expect(TEMPLATES.some((t) => t.test(line))).toBe(true);
+  });
+  it("página null se imprime como '-'", () => {
+    expect(rejected(null)).toContain("página: -");
+  });
+  it("ni el detail ni ningún fragmento suyo aparece", () => {
+    const text = rejected(1).join("\n");
+    for (const fragment of [secret, "Centimetro", "9999-91", "Lateral", "secreto"]) expect(text).not.toContain(fragment);
+  });
+  it("una lectura leída no imprime regla ni página", () => {
+    const lines = formatSummary({ pages: 3, words: 1, reading: { ok: true, document: structuredClone(EXPECTED_S1) }, comparison: null });
+    expect(lines.some((line) => line.startsWith("regla:") || line.startsWith("página:"))).toBe(false);
   });
 });
 
@@ -400,7 +429,7 @@ describe("OR-12 compareReading", () => {
     expect(result.counts.distintosSinPending).toBe(2);
   });
   it("una lectura rechazada no se compara", () => {
-    expect(compareReading({ ok: false, reason: "estructura-no-reconocida", detail: "x" }, EXPECTED_S1)).toEqual({ result: "lectura-rechazada" });
+    expect(compareReading({ ok: false, reason: "estructura-no-reconocida", detail: "x", rule: "resumen-sin-unidad", page: 1 }, EXPECTED_S1)).toEqual({ result: "lectura-rechazada" });
   });
 });
 

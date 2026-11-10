@@ -49,7 +49,10 @@ function differingPaths(a: unknown, b: unknown, at = ""): string[] {
 }
 
 const content = (document: CutListPdf) => ({ ...withoutSource(document), pending: [] });
-const differences = (document: CutListPdf, truth: CutListPdf) => differingPaths(content(document), content(truth));
+/** N-1 (spec-revision-ocr-real §8, 10/11): `generatedAt` se compara ignorando espacios. */
+const sameDate = (a: string, b: string) => a.replace(/\s+/g, "") === b.replace(/\s+/g, "");
+const differences = (document: CutListPdf, truth: CutListPdf) =>
+  differingPaths(content(document), content(truth)).filter((field) => field !== "header.generatedAt" || !sameDate(document.header.generatedAt, truth.header.generatedAt));
 
 /** Un campo está cubierto si el documento tiene un `pending` en su ruta o en una ruta que lo contiene. */
 const covered = (document: CutListPdf, field: string) => document.pending.some(({ path: p }) => field === p || field.startsWith(`${p}.`) || field.startsWith(`${p}[`));
@@ -100,13 +103,12 @@ describe("replay de la respuesta real de Vision (10/11)", () => {
 
   // Los campos que difieren del esperado SIN un `pending` en su ruta. Se fijan a propósito: un campo nuevo en esta lista
   // es un error de lectura sin marcar y tiene que revisarse, no agregarse. Ninguno es un valor (medida, cantidad, código).
-  //  - header.generatedAt: "9:00" + "am" quedan separados por un espacio (cosmético; informativo).
+  //  - header.generatedAt ya no figura: "9:00" + "am" separados por un espacio es igual ignorando espacios (N-1).
   //  - header.project: el OCR lee "Escenal" por "Escena1" y el guion largo como "-" (informativo; no lo usa ninguna fila).
   //  - edges.sK.label: el OCR pierde el "~" o lo separa ("~ 0 mm"); material, ancho y espesor quedan en `pending`.
   //  - pieces[1].name (S1): el código "M01-C02" se leyó "MO1 CO2", no se pudo separar del nombre; la fila lleva `pending` en `.code`.
   const UNMARKED: Record<"S1" | "S3", string[]> = {
     S1: [
-      "header.generatedAt",
       "header.project",
       "boards[0].pieces[0].edges.s2.label",
       "boards[0].pieces[1].name",
@@ -116,7 +118,7 @@ describe("replay de la respuesta real de Vision (10/11)", () => {
       "boards[0].pieces[4].edges.s2.label",
       "boards[0].pieces[4].edges.s3.label",
     ],
-    S3: ["header.generatedAt", "header.project"],
+    S3: ["header.project"],
   };
 
   it.each(["S1", "S3"] as const)("%s: los campos distintos del esperado sin pending son exactamente los conocidos", (id) => {

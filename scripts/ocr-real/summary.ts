@@ -36,6 +36,8 @@ export function formatSummary({ pages, words, reading, comparison }: SummaryInpu
     `páginas leídas: ${pages}`,
     `palabras: ${words}`,
     `lectura: ${reading.ok ? "leído" : `rechazado (${reading.reason})`}`,
+    // D-a (spec-revision-ocr-real §6.1): id del catálogo cerrado y número de página; el `detail` nunca se imprime.
+    ...(reading.ok ? [] : [`regla: ${reading.rule}`, `página: ${reading.page ?? "-"}`]),
     `filas: ${rows}`,
     `pending: code=${pending.code} name=${pending.name} finalL=${pending.finalL} finalA=${pending.finalA} quantity=${pending.quantity} cantos=${pending.cantos} otros=${pending.otros}`,
     `hoja-incompleta: ${!reading.ok && reading.reason === "hoja-incompleta" ? "sí" : "no"}`,

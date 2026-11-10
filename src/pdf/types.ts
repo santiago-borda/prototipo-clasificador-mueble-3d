@@ -1,6 +1,8 @@
 // Esquema de la salida del PDF de OpenCutList (docs/spec-esquema-pdf.md §4 y §8).
 // Solo tipos: los usan el validador y el parser, y más adelante los adaptadores de extracción.
 
+import type { PdfRejectRule } from "./rejectRules";
+
 export type PdfReader = "texto-pdf" | "ocr-llm" | "transcripcion-manual";
 
 /** Documento leído de UN archivo PDF de OpenCutList (un material + espesor). */
@@ -179,5 +181,11 @@ export type Evidence = Record<string, FieldEvidence>;
 /** `lectura-fallida`: fallaron todas las pasadas de un adaptador; no hay resultado parcial (spec-extraccion §7). */
 export type PdfReadingFailure = "sin-capa-de-texto" | "estructura-no-reconocida" | "unidad-no-soportada" | "hoja-incompleta" | "lectura-fallida";
 
-/** `evidence`: solo la devuelve OcrLlm (spec-esquema §8). */
-export type PdfReading = { ok: true; document: CutListPdf; evidence?: Evidence } | { ok: false; reason: PdfReadingFailure; detail: string };
+/**
+ * `evidence`: solo la devuelve OcrLlm (spec-esquema §8). En el rechazo, `detail` es texto libre y puede citar texto del
+ * documento (solo para archivos locales); `rule` y `page` (enmienda C2, 10/11) no llevan texto del documento y son lo
+ * único que una consola puede mostrar. `page` es null si el rechazo no es de una página.
+ */
+export type PdfReading =
+  | { ok: true; document: CutListPdf; evidence?: Evidence }
+  | { ok: false; reason: PdfReadingFailure; detail: string; rule: PdfRejectRule; page: number | null };

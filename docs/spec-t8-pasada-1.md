@@ -1,6 +1,6 @@
 # Especificación — T8: pasada 1 del motor (código, medidas, cupo)
 
-Versión: **v0.1 (10/11/2026), borrador a aprobar** por el equipo. **No implementada.**
+Versión: **v0.2 (10/11/2026), aprobada** por el equipo (10/11): T8-E1 a T8-E8, todas sí. Implementada en la rama `motor-t8`.
 Antecedentes: `docs/plan-motor-asociacion.md` T8 (M5 parte pasada 1, M15), `docs/spec-motor-asociacion.md` v3 §3, §5.3, §5.4, §6.1 y §6.2, `docs/spec-adapter-observation-listadoid.md` v0.2.1 §3.4 y §4 (recorte del 20/11, E6), `docs/spec-t7-verificaciones-duras.md` v0.2 (T7 hecho, rama `motor-t7`).
 **Es una enmienda, no un diseño nuevo:** se implementa T8 como está en el plan, salvo lo que dice §2. Si choca con el plan, manda el plan salvo en lo que esta spec enmienda explícitamente.
 
@@ -126,11 +126,11 @@ Con `f(x) = x.toFixed(2)`, en este orden y solo si se evaluó:
 
 ## 5. Después de T8
 
-T10 mínimo (`AssociationRun` con `listadoId`, `engineRunId`, `versions`, determinismo y permutaciones; resuelve T8-E5) → T11 mínimo → T12 → T14 (spec-adapter §4).
+T10 mínimo (`AssociationRun` con `listadoId`, `engineRunId`, `versions`, determinismo y permutaciones; resuelve T8-E5; borrador en `docs/spec-t10-run-minimo.md` v0.1) → T11 mínimo → T12 → T14 (spec-adapter §4).
 
-## 6. Decisiones a aprobar
+## 6. Decisiones (aprobadas por el equipo el 10/11)
 
-| Id | Pregunta | Propuesta |
+| Id | Pregunta | Decisión |
 |---|---|---|
 | T8-E1 | ¿T8 exporta `associatePass1` (sin ids) y T10 arma el `AssociationRun`? | Sí |
 | T8-E2 | ¿Las dudosas salen con `candidates: []` el 20/11 y el reporte no mide "sin candidatos"? | Sí |
@@ -141,6 +141,24 @@ T10 mínimo (`AssociationRun` con `listadoId`, `engineRunId`, `versions`, determ
 | T8-E7 | ¿Una inconsistencia `sin-componente` por malla? | Sí |
 | T8-E8 | ¿Un código duplicado no entra en `typeSummary`? | Sí |
 
-## 7. Historial
+## 7. Precisiones de la implementación (10/11)
+
+Lo que la spec no fijaba y la implementación tuvo que decidir. Todas **a revisar** por el equipo; ninguna cambia un nivel ni una razón de §3.2.
+
+- **`detail` de cada `Inconsistency`** (el campo es obligatorio y §3.3 solo fija el de la evidencia). Texto fijo, sin números con decimales:
+  - `faltante` y `cupo-excedido`: `reclamantes <r>, cantidad del listado <q>` (el mismo texto que la evidencia `cantidad`).
+  - `sin-confirmar`: `seguras <s>, reclamantes <r>`.
+  - `sin-componente`: `malla sin componente`.
+- **Error de modelo:** `ModeloDistintoError(expectedModelId, receivedModelId, instanceKey)`, definido en `src/engine/associate.ts`. No se reutiliza `MuebleDistintoError` de `src/pdf/crossCheck.ts` para que el motor no dependa de `src/pdf/`.
+- **Variante de `codigo` con dos condiciones:** un nombre anómalo cuyo código no existe o está duplicado lleva el texto de *inexistente* o de *duplicado*; la anomalía queda en `reasons` (`nombre-anomalo` primero). El texto "nombre anómalo …" es solo para anómalo y existente en una sola fila.
+- **`cupo-excedido` se agrega después de la razón de medidas:** un reclamante fuera de medida con cupo excedido queda `["medida-fuera-de-tolerancia", "cupo-excedido"]` (orden de §3.2).
+- **Evidencia `cantidad`** en todo reclamante de un tipo único, también en los no alineados y en los fuera de medida; es la misma para todos los reclamantes de un tipo.
+- **Comparación binaria:** `a < b` sobre cadenas de JS (unidades UTF-16), igual que `src/engine/hash.ts`. spec-motor §5.3 dice "por punto de código": coinciden para claves y códigos ASCII, que son todos los actuales. Se revisa en T10 junto con el orden del run.
+- **Helper nuevo:** `tests/helpers/engineFixtures.ts` (`obs`, `row`, `code`, `input`; `"C01"` se expande a `9999-01-M01-C01`, también dentro de un nombre como `"_C01__"`).
+- **Pruebas de más** (no cambian el contrato): K6 mira que `espesor` y `medidas` salgan `no-disponible`; K9 suma un reclamante fuera de medida; "formato inválido e inexistente no son reclamantes de ningún tipo"; K15 suma "no depende del orden de entrada" (mismo JSON con observaciones y filas permutadas a mano; las permutaciones con semilla son de T10).
+- **K17 coincidió sin tocar nada:** 32 `segura`, 1 `dudosa` (`["nombre-anomalo"]`, C01), 6 `sin-asociar`; inconsistencias: 6 `sin-componente` y el `sin-confirmar` de C01, ni `faltante` ni `cupo-excedido`. **K17b** corrió en local con la carpeta presente y pasó.
+
+## 8. Historial
 
 - **v0.1 (10/11/2026):** borrador, escrito al cerrar T7. Sin implementar.
+- **v0.2 (10/11/2026):** aprobada (T8-E1 a T8-E8, sí). Implementada: `src/engine/associate.ts` (`associatePass1`, `ModeloDistintoError`), `tests/engine/associate.pass1.test.ts` (K1 a K17, K17b), `tests/helpers/engineFixtures.ts` y `associate.ts` en M3 (sin `node:crypto` ni `./hash`). Precisiones en §7.

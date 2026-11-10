@@ -226,3 +226,30 @@ describe("granularidad con OCR: casos sobre las palabras ideales de S1", () => {
     if (validation.status === "validado") expect(validation.rows[0].reasons).toContain("campo-pendiente");
   });
 });
+
+// --- Parámetros de layout ---
+
+describe("PdfTextInput.layout", () => {
+  const OCR = { joinGapRatio: 1.5, glueGapRatio: 0.4, rowToleranceRatio: 0.3 };
+
+  it("parseCutListText respeta layout: con los valores de OCR lee la respuesta real igual que parseOcrWords", () => {
+    const viaLayout = readOk(parseCutListText({ ...loadReplay("S1"), layout: OCR }));
+    const viaOcr = readOk(parseOcrWords(loadReplay("S1")));
+    expect(content(viaLayout)).toEqual(content(viaOcr));
+    expect(viaLayout.source.reader).toBe("texto-pdf");
+  });
+
+  it("parseOcrWords deja que el llamador reemplace un valor: con joinGapRatio 1 la respuesta real vuelve a no leerse", () => {
+    expect(parseOcrWords({ ...loadReplay("S1"), layout: { joinGapRatio: 1 } })).toMatchObject({ ok: false, reason: "estructura-no-reconocida" });
+  });
+
+  it("un campo omitido toma el valor de TextoPdf, no el de OCR", () => {
+    expect(parseCutListText({ ...loadReplay("S1"), layout: { glueGapRatio: 0.4 } })).toMatchObject({ ok: false, reason: "estructura-no-reconocida" });
+  });
+
+  it.each([-1, Number.NaN, Number.POSITIVE_INFINITY])("un valor inválido (%s) es un error de programación: RangeError, no una lectura", (value) => {
+    expect(() => parseCutListText({ ...loadReplay("S1"), layout: { joinGapRatio: value } })).toThrow(RangeError);
+    expect(() => parseCutListText({ ...loadReplay("S1"), layout: { glueGapRatio: value } })).toThrow(RangeError);
+    expect(() => parseCutListText({ ...loadReplay("S1"), layout: { rowToleranceRatio: value } })).toThrow(RangeError);
+  });
+});

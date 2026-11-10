@@ -17,6 +17,7 @@ import type {
   PdfReadingFailure,
   PdfTextElement,
   PdfTextInput,
+  PdfTextLayout,
   PendingField,
   SummaryBoardRow,
 } from "./types";
@@ -41,6 +42,33 @@ const DIAGRAM_LETTER = /^[A-Z]$/;
 const EDGE_LABEL = new RegExp(String.raw`^Canto\s+(.+?)\s*(~\s*${NUMBER}\s*mm)\s*[x×]\s*(${NUMBER})\s*mm$`, "i");
 const PRIVATE_USE = /[-]/gu;
 const HAS_LETTER_OR_DIGIT = /[\p{L}\p{N}]/u;
+
+/** `PdfTextLayout` con todos los campos resueltos. `glueGapRatio: null` = no se pega nada (TextoPdf). */
+interface ResolvedLayout {
+  joinGapRatio: number;
+  glueGapRatio: number | null;
+  rowToleranceRatio: number;
+}
+
+/** Valores de TextoPdf: los que rigen sin `layout` (spec-esquema §8.2). */
+const TEXT_LAYOUT: ResolvedLayout = { joinGapRatio: 1, glueGapRatio: null, rowToleranceRatio: 0 };
+
+/** Un parámetro fuera de [0, ∞) o no finito es un error de programación de quien llama, no un problema del PDF. */
+function resolveLayout(layout: PdfTextLayout | undefined): ResolvedLayout {
+  const read = (name: keyof PdfTextLayout): number | undefined => {
+    const value = layout?.[name];
+    if (value !== undefined && (!Number.isFinite(value) || value < 0)) throw new RangeError(`layout.${name} tiene que ser un número finito ≥ 0 (llegó ${value}).`);
+    return value;
+  };
+  return {
+    joinGapRatio: read("joinGapRatio") ?? TEXT_LAYOUT.joinGapRatio,
+    glueGapRatio: read("glueGapRatio") ?? TEXT_LAYOUT.glueGapRatio,
+    rowToleranceRatio: read("rowToleranceRatio") ?? TEXT_LAYOUT.rowToleranceRatio,
+  };
+}
+
+/** Un trozo sin letras ni dígitos (".", "~", "-"): el único que `glueGapRatio` permite pegar. */
+const isSign = (text: string) => !HAS_LETTER_OR_DIGIT.test(text);
 
 /** Error interno: corta la lectura y se convierte en `{ ok: false }`. Nunca sale del módulo. */
 class ReadFailure extends Error {
@@ -75,7 +103,7 @@ const segmentCenter = (segment: Segment) => (segment.x0 + segment.x1) / 2;
 const order = (a: number, b: number) => a - b;
 
 /** Agrupa en renglones: cajas que se solapan verticalmente al menos la mitad de la más baja. */
-function toLines(elements: readonly PdfTextElement[]): Line[] {
+function toLines(elements: readonly PdfTextElement[], layout: ResolvedLayout): Line[] {
   const sorted = [...elements].sort((a, b) => centerY(a) - centerY(b) || a.x - b.x || compareText(a.text, b.text));
   const lines: Line[] = [];
   for (const element of sorted) {
@@ -90,21 +118,26 @@ function toLines(elements: readonly PdfTextElement[]): Line[] {
   }
   for (const line of lines) {
     line.elements.sort((a, b) => a.x - b.x || compareText(a.text, b.text));
-    line.segments = toSegments(line.elements);
+    line.segments = toSegments(line.elements, layout);
   }
   return lines;
 }
 
 const compareText = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
-/** Une elementos contiguos de un renglón: separación ≤ alto del más bajo de los dos (§8.2). */
-function toSegments(elements: readonly PdfTextElement[]): Segment[] {
+/**
+ * Une elementos contiguos de un renglón: separación ≤ `joinGapRatio` × alto del más bajo de los dos (§8.2). Con
+ * `glueGapRatio`, un signo suelto casi pegado a su vecino se concatena sin espacio.
+ */
+function toSegments(elements: readonly PdfTextElement[], layout: ResolvedLayout): Segment[] {
   const segments: Segment[] = [];
   let previous: PdfTextElement | null = null;
   for (const element of elements) {
     const last = segments[segments.length - 1];
-    if (last && previous && element.x - last.x1 <= Math.min(previous.height, element.height)) {
-      last.text = `${last.text} ${element.text}`;
+    const lowest = previous ? Math.min(previous.height, element.height) : 0;
+    if (last && previous && element.x - last.x1 <= lowest * layout.joinGapRatio) {
+      const glued = layout.glueGapRatio !== null && element.x - last.x1 <= lowest * layout.glueGapRatio && (isSign(previous.text) || isSign(element.text));
+      last.text = glued ? `${last.text}${element.text}` : `${last.text} ${element.text}`;
       last.x1 = Math.max(last.x1, element.x + element.width);
       last.y0 = Math.min(last.y0, element.y);
       last.y1 = Math.max(last.y1, element.y + element.height);
@@ -294,8 +327,8 @@ function readTableLayout(lines: readonly Line[]): TableLayout | null {
   };
 }
 
-function readSheetPage(page: number, elements: PdfTextElement[]): SheetPage {
-  const lines = toLines(elements);
+function readSheetPage(page: number, elements: PdfTextElement[], layout: ResolvedLayout): SheetPage {
+  const lines = toLines(elements, layout);
   const sheet = findSegment(lines, (text) => SHEET.test(text));
   const sheetMatch = sheet && SHEET.exec(sheet.segment.text);
   if (!sheetMatch) throw new ReadFailure("hoja-incompleta", `La página ${page} no tiene el encabezado "i / N".`);
@@ -390,7 +423,7 @@ interface RawRow {
   edge: PdfTextElement[];
 }
 
-function readRows(page: SheetPage, table: TableLayout, isFirstPage: boolean): RawRow[] {
+function readRows(page: SheetPage, table: TableLayout, isFirstPage: boolean, layout: ResolvedLayout): RawRow[] {
   const bottom = Math.min(...page.lines.filter((line) => line.segments.some((s) => FOOTER_LINE.test(s.text))).map((line) => line.y0), Infinity);
   // Con el encabezado de la tabla en esta página, los datos empiezan debajo; si no, debajo del de la hoja.
   const top = page.table ? page.table.bottom : page.headerBottom;
@@ -398,8 +431,10 @@ function readRows(page: SheetPage, table: TableLayout, isFirstPage: boolean): Ra
   const isAnchor = (element: PdfTextElement) => LETTER.test(element.text) && Math.abs(centerX(element) - table.no.center) <= table.no.width;
   const anchors = data.filter(isAnchor).sort((a, b) => a.y - b.y);
 
+  // Una fila empieza `tolerance` antes del borde superior de su letra: las cajas de un OCR se desplazan en vertical.
+  const tolerance = (anchors[0]?.height ?? 0) * layout.rowToleranceRatio;
   const firstRow = anchors[0]?.y ?? Infinity;
-  const before = data.filter((element) => element.y < firstRow - 1e-9);
+  const before = data.filter((element) => element.y < firstRow - tolerance - 1e-9);
   if (!isFirstPage && before.some((element) => DIAGRAM_LETTER.test(element.text))) {
     throw new ReadFailure("hoja-incompleta", `La página ${page.page} tiene letras de diagrama y no es la primera de su hoja.`);
   }
@@ -410,10 +445,10 @@ function readRows(page: SheetPage, table: TableLayout, isFirstPage: boolean): Ra
 
   const edgeZoneStart = table.edgeLabelCenter === null ? Infinity : table.finalA + (table.finalA - table.finalL) / 2;
   return anchors.map((anchor, i) => {
-    const end = anchors[i + 1]?.y ?? Infinity;
+    const end = (anchors[i + 1]?.y ?? Infinity) - tolerance;
     const row: RawRow = { letter: anchor.text, designation: [], cant: [], finalL: [], finalA: [], edge: [] };
     for (const element of data) {
-      if (element === anchor || centerY(element) < anchor.y || centerY(element) >= end) continue;
+      if (element === anchor || centerY(element) < anchor.y - tolerance || centerY(element) >= end) continue;
       const x = centerX(element);
       if (x > edgeZoneStart) row.edge.push(element);
       else if (Math.abs(x - table.cant.center) <= table.cant.width) row.cant.push(element);
@@ -438,12 +473,12 @@ const cellText = (elements: readonly PdfTextElement[]) =>
         .join(" ");
 
 /** Une los renglones de la designación y descarta los íconos (§7.1). */
-function readDesignation(elements: readonly PdfTextElement[], path: string, pending: PendingField[]): { code: string | null; name: string } {
+function readDesignation(elements: readonly PdfTextElement[], path: string, pending: PendingField[], layout: ResolvedLayout): { code: string | null; name: string } {
   const clean = elements.flatMap((element) => {
     const text = element.text.replace(PRIVATE_USE, "").trim();
     return HAS_LETTER_OR_DIGIT.test(text) ? [{ ...element, text }] : [];
   });
-  const rows = toLines(clean).map((line) => line.segments.map((s) => s.text).join(" "));
+  const rows = toLines(clean, layout).map((line) => line.segments.map((s) => s.text).join(" "));
 
   let code: string | null = null;
   let nameRows: string[] = rows;
@@ -476,17 +511,17 @@ interface EdgeMark {
  * anterior; la marca suma lo que tiene debajo y se solapa horizontalmente (el texto ocupa 3 renglones). Devuelve
  * además si quedó texto sin atribuir: sin marca, o solapado con más de una.
  */
-function readMarks(elements: readonly PdfTextElement[]): { marks: EdgeMark[]; stray: boolean } {
+function readMarks(elements: readonly PdfTextElement[], layout: ResolvedLayout): { marks: EdgeMark[]; stray: boolean } {
   const groups: { x0: number; x1: number; parts: string[] }[] = [];
   const opensMark = (text: string) => /^Canto\b/i.test(text);
   let stray = false;
-  for (const line of toLines(elements)) {
+  for (const line of toLines(elements, layout)) {
     const runs: PdfTextElement[][] = [];
     for (const element of line.elements) {
       if (opensMark(element.text) || runs.length === 0) runs.push([element]);
       else runs[runs.length - 1].push(element);
     }
-    for (const segment of runs.flatMap(toSegments)) {
+    for (const segment of runs.flatMap((run) => toSegments(run, layout))) {
       if (opensMark(segment.text)) {
         groups.push({ x0: segment.x0, x1: segment.x1, parts: [segment.text] });
         continue;
@@ -544,7 +579,7 @@ function assignEdges(marks: readonly EdgeMark[], stray: boolean, center: number,
   return edges;
 }
 
-function buildBoard(sheet: readonly SheetPage[], b: number, pageWidths: PdfTextInput["pageWidths"], pending: PendingField[]): Board {
+function buildBoard(sheet: readonly SheetPage[], b: number, pageWidths: PdfTextInput["pageWidths"], pending: PendingField[], layout: ResolvedLayout): Board {
   const first = sheet[0];
   const table = first.table;
   if (!table || !first.size || !first.kind) throw new ReadFailure("estructura-no-reconocida", `La página ${first.page} no tiene el encabezado completo de la hoja o de la tabla.`);
@@ -554,14 +589,14 @@ function buildBoard(sheet: readonly SheetPage[], b: number, pageWidths: PdfTextI
   if (footer.cutLengthM === null) pending.push({ path: `${path}.cutLengthM`, reason: 'No se leyó "Longitud de cortes".' });
   if (footer.efficiencyPct === null) pending.push({ path: `${path}.efficiencyPct`, reason: 'No se leyó "Eficiencia".' });
 
-  const raw = sheet.flatMap((page, i) => readRows(page, page.table ?? table, i === 0));
-  const marks = raw.map((row) => (table.edgeLabelCenter === null ? { marks: [], stray: false } : readMarks(row.edge)));
+  const raw = sheet.flatMap((page, i) => readRows(page, page.table ?? table, i === 0, layout));
+  const marks = raw.map((row) => (table.edgeLabelCenter === null ? { marks: [], stray: false } : readMarks(row.edge, layout)));
   const pageWidth = pageWidths.find((p) => p.page === first.page)?.width ?? null;
   const pitch = edgePitch(marks.map((m) => m.marks), pageWidth);
 
   const pieces = raw.map((row, p): BoardPiece => {
     const piecePath = `${path}.pieces[${p}]`;
-    const { code, name } = readDesignation(row.designation, piecePath, pending);
+    const { code, name } = readDesignation(row.designation, piecePath, pending, layout);
     const value = (cell: readonly PdfTextElement[], field: string) => {
       const parsed = readNumber(cellText(cell));
       if (parsed === null) pending.push({ path: `${piecePath}.${field}`, reason: `No se leyó ${field}.` });
@@ -600,6 +635,7 @@ function buildBoard(sheet: readonly SheetPage[], b: number, pageWidths: PdfTextI
 }
 
 function readDocument(input: PdfTextInput): CutListPdf {
+  const layout = resolveLayout(input.layout);
   const elements = input.elements.map((element) => ({ ...element, text: element.text.normalize("NFC").trim() })).filter((element) => element.text !== "");
   if (elements.length === 0) throw new ReadFailure("sin-capa-de-texto", "No hay elementos de texto.");
 
@@ -613,12 +649,12 @@ function readDocument(input: PdfTextInput): CutListPdf {
   if (!summaryElements) throw new ReadFailure("estructura-no-reconocida", "Falta la página 1 (resumen).");
 
   const pending: PendingField[] = [];
-  const { header, summary } = readSummary(toLines(summaryElements), pending);
+  const { header, summary } = readSummary(toLines(summaryElements, layout), pending);
 
   const pages = [...byPage.keys()]
     .filter((page) => page !== 1)
     .sort(order)
-    .map((page) => readSheetPage(page, byPage.get(page) ?? []));
+    .map((page) => readSheetPage(page, byPage.get(page) ?? [], layout));
   if (pages.length === 0) throw new ReadFailure("estructura-no-reconocida", "El PDF no tiene hojas de tablero.");
   const sheets = groupSheets(pages);
 
@@ -626,7 +662,7 @@ function readDocument(input: PdfTextInput): CutListPdf {
   const variants = new Set(firstTables.map((table) => (table ? `${table.adjusted}|${table.edgeLabelCenter !== null}` : "sin-tabla")));
   if (variants.size > 1 || firstTables[0] === null) throw new ReadFailure("estructura-no-reconocida", "Las hojas no tienen las mismas columnas.");
 
-  const boards = sheets.map((sheet, b) => buildBoard(sheet, b, input.pageWidths, pending));
+  const boards = sheets.map((sheet, b) => buildBoard(sheet, b, input.pageWidths, pending, layout));
 
   return {
     schema: "cutlist-pdf/1",

@@ -1,10 +1,10 @@
 // Respuesta de Cloud Vision `files:annotate` → PdfTextInput (docs/spec-extraccion-pdf.md §5, paso 3a).
 // Función pura: no llama a la red ni lee archivos. El cliente que hace el pedido vive fuera de `src/` (TS-13).
 //
-// Forma de la respuesta tomada de la documentación de Vision (AnnotateFileResponse); sin verificar con una salida
-// real hasta correr TS-13 (docs/spec-fixture-sintetico.md §10). Con un PDF, cada página trae `width` y `height`
-// en puntos y las cajas en `normalizedVertices` (0 a 1, origen arriba a la izquierda). En JSON, un 0 puede venir
-// omitido: se lee como 0.
+// Forma de la respuesta tomada de la documentación de Vision (AnnotateFileResponse) y verificada el 10/11 con la
+// salida real de TS-13 (docs/spec-fixture-sintetico.md §12). Con un PDF, cada página trae `width` y `height`
+// en puntos (enteros: Vision los redondea) y las cajas en `normalizedVertices` (0 a 1, origen arriba a la izquierda).
+// En JSON, un 0 puede venir omitido: se lee como 0.
 
 import type { PdfTextElement, PdfTextInput } from "../types";
 

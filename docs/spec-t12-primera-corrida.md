@@ -69,7 +69,7 @@ Se revisa **cada una de las observaciones** del primer fixture (39 según `alias
 5. **La dudosa por nombre anómalo.** Confirmar que es la pieza de código C01 (del proyecto del fixture), que su `rawName` es el que trae el `__` y que las medidas coinciden con el tipo del listado. Debe quedar con `pieceCode: null`, razón `nombre-anomalo` y una `sin-confirmar` del código.
 6. **Las sin asociar.** Confirmar una por una que son las mallas sueltas de ~20 x 35 x 10 mm (material `Color_M06`, sin código) que CLAUDE.md describe, y que ninguna es una pieza real sin nombre.
 7. **Candidatos.** Con `passes: 1` todos los `top3` son `[]` (T10-E2, T8-E2): se confirma que no hay candidatos en ninguna. Si apareciera alguno, es un bug.
-8. **Cabecera del run.** `passes: 1`; `listadoId` igual al literal de TP-61; `modelId` igual al de `public/models/Olmo/olmo.dae` (`modelId`, con `\\r\\n` → `\\n`); `versions` = `motor/1`, `vocabulario/0`, `marco/1`; el listado es `publicable` (sin `excluded` ni `unkeyedRows`).
+8. **Cabecera del run.** `passes: 1`; `listadoId` igual al literal de TP-61; `modelId` igual al de `public/models/Olmo/olmo.dae` (`modelId`, con `\r\n` → `\n`); `versions` = `motor/1`, `vocabulario/0`, `marco/1`; el listado es `publicable` (sin `excluded` ni `unkeyedRows`).
 9. **Contraste independiente de la corrida.** Las cifras de la verificación de desarrollo y de A6 (21 tipos, 33 instancias con código, 1 anomalía, 6 mallas sin código, 0 líneas) coinciden con lo que muestra el reporte. Se cuentan a mano, no con el motor.
 10. **Archivos.** `eval/esperados.json` tiene una sola entrada (el `modelId` del primer fixture) y no trae evidencia (solo la proyección).
 

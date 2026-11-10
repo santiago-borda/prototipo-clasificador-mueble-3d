@@ -5,7 +5,7 @@
 import { createHash } from "node:crypto";
 import type { EdgeId } from "@/data/types";
 import { isCode } from "./normalize";
-import type { ListadoEdgeBanding, ListadoRow } from "./types";
+import type { AssociationRun, EngineParams, ListadoEdgeBanding, ListadoRow } from "./types";
 
 export type Sha256Id = `sha256:${string}`;
 
@@ -101,4 +101,19 @@ export function modelId(bytes: Uint8Array): Sha256Id {
 /** Hex sin el prefijo, para nombres de archivo. */
 export function hashFileName(id: Sha256Id): string {
   return id.slice("sha256:".length);
+}
+
+/**
+ * Id del run (spec-motor §3; docs/spec-t10-run-minimo.md §3.2): sha256 del JSON armado a mano, claves en orden fijo
+ * (no se confía en el orden del objeto de entrada). `furnitureId` y `passes` no entran.
+ */
+export function engineRunId(x: { modelId: string; listadoId: string; versions: AssociationRun["versions"]; params: EngineParams }): Sha256Id {
+  return sha256(
+    JSON.stringify({
+      modelId: x.modelId,
+      listadoId: x.listadoId,
+      versions: { engine: x.versions.engine, vocabulary: x.versions.vocabulary, frame: x.versions.frame },
+      params: { toleranceMm: x.params.toleranceMm, epsilonMm: x.params.epsilonMm, tupleRoundingMm: x.params.tupleRoundingMm },
+    }),
+  );
 }

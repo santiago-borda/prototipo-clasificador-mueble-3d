@@ -157,13 +157,14 @@ describe("H10: dónde corre hash.ts", () => {
     readdirSync(path.join(ROOT, dir), { recursive: true, encoding: "utf8" })
       .filter((f) => /\.(ts|tsx)$/.test(f))
       .map((f) => path.join(ROOT, dir, f));
-  const IMPORTS_HASH = /from\s+["'](@\/engine\/hash|[./]+(engine\/)?hash)["']/;
+  // T10-E1: run.ts importa hash.ts y tiene la misma regla.
+  const IMPORTS_HASH = /from\s+["'](@\/engine\/(hash|run)|[./]+(engine\/)?(hash|run))["']/;
 
-  it("ningún archivo de src/pdf/ importa @/engine/hash", () => {
-    for (const file of filesUnder("src/pdf")) expect(readFileSync(file, "utf8"), file).not.toMatch(/from\s+["']@\/engine\/hash["']/);
+  it("ningún archivo de src/pdf/ importa @/engine/hash ni @/engine/run", () => {
+    for (const file of filesUnder("src/pdf")) expect(readFileSync(file, "utf8"), file).not.toMatch(IMPORTS_HASH);
   });
 
-  it("ningún archivo con \"use client\" importa @/engine/hash", () => {
+  it("ningún archivo con \"use client\" importa @/engine/hash ni @/engine/run", () => {
     const clients = filesUnder("src").filter((f) => /^\s*["']use client["']/.test(readFileSync(f, "utf8")));
     expect(clients.length).toBeGreaterThan(0);
     for (const file of clients) expect(readFileSync(file, "utf8"), file).not.toMatch(IMPORTS_HASH);

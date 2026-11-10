@@ -225,6 +225,7 @@ interface AssociationRun {
   engineRunId: string;
   versions: { engine: string; vocabulary: string; frame: string };
   params: { toleranceMm: number; epsilonMm: number; tupleRoundingMm: number /* y todo otro parámetro, §6.3 */ };
+  passes: 1 | 2;              // v3.1: pasadas corridas; con 1, `candidates: []` en una dudosa = "no se rankeó". No entra en el engineRunId
   results: InstanceResult[];  // ordenados por instanceKey, comparación binaria (por punto de código), no por locale
   typeSummary: { pieceCode: string; quantity: number; claimants: number; seguras: number }[];
   inconsistencies: Inconsistency[];
@@ -244,6 +245,7 @@ interface AssociationRun {
 | `formato-invalido` | el nombre no matchea ni canónico ni anómalo (§3) |
 | `codigo-inexistente` | código canónico o anómalo que no está en el listado |
 | `codigo-duplicado` | el código aparece en dos filas del listado |
+| `codigo-excluido` | **v3.1:** el código está en el PDF pero el listado lo excluyó (datos no tomables sin elegir); como `codigo-duplicado`, fuera de `faltante`, `sin-confirmar` y `typeSummary` |
 | `medida-fuera-de-tolerancia` | medidas o espesor fuera de la tolerancia del tipo del código |
 | `cupo-excedido` | más reclamantes que `quantity` |
 | `geometria-no-alineada` | normales fuera de los ejes; no se mide |
@@ -797,3 +799,4 @@ Numeración continua con `Consultas y respuestas Casa Mueble y cátedra.md` (la 
 - **Borrador del 16/10:** diseño inicial en el chat de diseño.
 - **v2 (16/10, revisión final):** decisiones del equipo (`sin-candidato` eliminado; etiqueta Casa Mueble; se espera la reexportación; motor en paralelo; pre-entrega con MVP en contexto real); consulta 34 como cerrada; RF/AS en lugar de R/S; RF9 y RF10; adapter lee del XML; criterios M15–M20 y pruebas concretas; consultas renumeradas desde la 48; `listadoId` sin `qrId` ni `moduleId`; criterios de G5; lista blanca de reportes públicos; modelo saneado para etiquetar.
 - **v3 (16/10, re-revisión con Opus, chat nuevo):** resueltos los 3 bloqueantes de la revisión — B1 "no ejecutado" ya no hace fallar el gate (§9.1, §9.6, M13); B2 unifica `nombre-anomalo` en una sola regla `^_*C_*$` no canónica (§3, §6.1); B3 la asociación se precalcula y se publica por `modelId`, la app no corre el motor en el cliente (§1, §4c, §9.7, §11, RF11). Siete cambios importantes: cuantización del elemento 7 de la tupla para que detecte empates genuinos (§6.3, AS10); P8 corregido a `listado ± k·tol` (§9.4); reglas de serialización de `listadoId` (NFC, números, campos ausentes, §5.1); `.gitattributes` con `git add --renormalize` en el mismo commit (§2.2, M1); runner del eval aclarado (`vitest run` / `vite-node`, §4c, M20); `labelers[x].exposicion` pasa a arreglo (§10.2); modelo saneado con token opaco en vez de `instanceKey` (§10.3). Más correcciones menores: candidatos vacíos en seguras, orden del top-3 por código, código duplicado fuera de `faltante`/`sin-confirmar`, y réplica a `Consultas y respuestas…` (§20). Cronograma de §2.3 confirmado como el vigente (decisión del equipo, 16/10); etiquetado confirmado en paralelo (decisión del equipo, 16/10).
+- **v3.1 (10/11/2026, enmiendas de T10, aprobadas por el equipo):** solo dos líneas, marcadas "v3.1"; el resto del documento no cambia. (1) §5.3: campo `passes: 1 | 2` en `AssociationRun` (T10-E2). Motivo: sin la pasada 2, `candidates: []` en una dudosa significa "no se rankeó" y no "no hay tipo que cumpla medidas"; el lector del run publicado no tenía cómo distinguirlo. `passes` no entra en el `engineRunId`: pasar a 2 exige subir `versions.engine`. (2) §5.4: razón `codigo-excluido` (T10-E4). Motivo: los códigos que el listado del PDF excluye por datos no tomables salían como `codigo-inexistente`, que es falso (el código está en el PDF) y contaba mal en las métricas por razón (§9.5).

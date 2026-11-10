@@ -70,3 +70,5 @@ next-env.d.ts
 *.p12
 # PDF del fixture sintético: se regeneran (docs/spec-fixture-sintetico.md §7), no se commitean
 /.fixtures-gen/
+# salidas locales del eval (docs/spec-t5-runner-eval.md §3)
+/eval/out/

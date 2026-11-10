@@ -1,6 +1,6 @@
 # Especificación — Adapter real de `Observation` y función de `listadoId`
 
-Versión: **v0.2 (7/11/2026), aprobada** por el equipo (Santiago y Lautaro, 7/11): E1 a E6 como se proponen, con las respuestas de §5.
+Versión: **v0.2.1 (10/11/2026)**; v0.2 **aprobada** por el equipo (Santiago y Lautaro, 7/11): E1 a E6 como se proponen, con las respuestas de §5. La v0.2.1 solo aclara (§7).
 Antecedentes: `docs/spec-motor-asociacion.md` v3 (§3, §4a, §5.1, §5.2, §9.7), `docs/plan-motor-asociacion.md` (T1 a T5), `docs/spec-esquema-pdf.md` §6 y RP9, `docs/spec-sesion-2b-listado-cruce.md` v0.4 (D1, D3, `Listing`), `docs/test-plan-esquema-pdf.md` (TP-40, TP-60, TP-61).
 **Es una enmienda, no un diseño nuevo:** el plan del motor ya especifica `listadoId` (T1) y el adapter (T3 y T4) con sus pruebas. Esta spec dice solo qué cambia por lo que dejó la sesión 2b y qué se recorta para la pre-entrega. Si choca con spec-motor v3, manda spec-motor salvo en lo que esta spec enmienda explícitamente (§2.1, §3.2).
 
@@ -22,7 +22,7 @@ Antecedentes: `docs/spec-motor-asociacion.md` v3 (§3, §4a, §5.1, §5.2, §9.7
 ## 1. Objetivo y alcance
 
 1. `listadoId`: una única función, en el motor, que sirva para el listado del mock y para el que sale del PDF (`ListedPiece`). Destraba **TP-61**.
-2. Adapter real: `observeDae(bytes) → Observation[]` (plan T3 y T4), que reemplaza a `tests/helpers/observations.ts` en TP-40 y TP-40b.
+2. Adapter real: `observeDae(bytes) → DaeObservation` (plan T3 y T4; `{ modelId, observations, lineObjects, referenceBoxMm }`, interfaz del plan T4, aclarado en spec T5, T5-E2), cuyas `observations: Observation[]` reemplazan a `tests/helpers/observations.ts` en TP-40 y TP-40b.
 
 **No es objetivo:** el motor (`associate.ts`, `evidence.ts`, vocabulario), el harness, la publicación ni el visor. Tampoco resolver PDF-2, el marco (consulta 53) ni el módulo (consultas 42 y 44).
 
@@ -145,9 +145,7 @@ Para la pasada 1 del motor alcanzan `modelId`, `instanceKey`, `rawName`, `sizeMm
 |---|---|
 | E1 a E5 | Aprobadas como se proponen |
 | E6 | Recorte del 20/11 aprobado (§4) |
-| Q4 | `modelId` = `sha256` de los bytes con `
-` → `
-` antes de hashear, más `.gitattributes` con `*.dae binary` en el mismo commit que `git add --renormalize .` |
+| Q4 | `modelId` = `sha256` de los bytes con `\r\n` → `\n` antes de hashear, más `.gitattributes` con `*.dae binary` en el mismo commit que `git add --renormalize .` |
 | Q1 a Q3, Q5 a Q7 | Los "por defecto" del plan (`docs/plan-motor-asociacion.md` §0) |
 
 ## 6. Trazabilidad
@@ -164,6 +162,5 @@ Para la pasada 1 del motor alcanzan `modelId`, `instanceKey`, `rawName`, `sizeMm
 ## 7. Historial
 
 - **v0.1 (7/11/2026):** borrador. Enmienda §5.1 (`ListadoRow`, `"sin-definir"`), guarda de publicación, normalizador único, reemplazo del helper y recorte para el 20/11.
-- **v0.2 (7/11/2026):** aprobada. E1 a E6 aprobadas (recorte del 20/11 incluido); Q4 con normalización `
-` → `
-` y `.gitattributes`; Q1 a Q3 y Q5 a Q7 por defecto del plan. Ajustes del equipo (7/11) al implementar: (1) TP-61 admite `createHash` solo en `src/pdf/ocr/gate.ts` (hashea bytes del PDF, no el listado; `pdfIdOf` no se mueve); (2) motivo nuevo `cantidad-no-positiva` (`quantity < 1`), `cantidad-no-entera` queda para no enteros; (3) se quita "`-0` se serializa como `0`": `-0` en una medida se rechaza como `medida-no-positiva`.
+- **v0.2 (7/11/2026):** aprobada. E1 a E6 aprobadas (recorte del 20/11 incluido); Q4 con normalización `\r\n` → `\n` y `.gitattributes`; Q1 a Q3 y Q5 a Q7 por defecto del plan. Ajustes del equipo (7/11) al implementar: (1) TP-61 admite `createHash` solo en `src/pdf/ocr/gate.ts` (hashea bytes del PDF, no el listado; `pdfIdOf` no se mueve); (2) motivo nuevo `cantidad-no-positiva` (`quantity < 1`), `cantidad-no-entera` queda para no enteros; (3) se quita "`-0` se serializa como `0`": `-0` en una medida se rechaza como `medida-no-positiva`.
+- **v0.2.1 (10/11/2026):** sin cambios de fondo. §1: `observeDae` devuelve `DaeObservation` (spec T5, T5-E2, aprobada el 10/11). §5 y §7: el `\r\n` de Q4 había quedado como saltos de línea reales; se escribe como texto.

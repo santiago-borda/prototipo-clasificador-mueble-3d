@@ -15,6 +15,7 @@
     "test": "vitest run",
     "fixture:sintetico": "vite-node -c vitest.config.ts scripts/fixture-sintetico.ts",
     "ocr:sintetico": "vite-node -c vitest.config.ts scripts/ocr-sintetico.ts",
+    "ocr:real": "vite-node -c vitest.config.ts scripts/ocr-real.ts",
     "eval": "vite-node --config vitest.config.ts eval/run.ts --"
   },
   "dependencies": {

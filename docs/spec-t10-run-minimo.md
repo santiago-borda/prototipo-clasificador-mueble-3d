@@ -1,6 +1,6 @@
 # Especificación — T10 mínimo: `AssociationRun` de la pasada 1
 
-Versión: **v0.1 (10/11/2026), borrador a aprobar** por el equipo. **No implementada.**
+Versión: **v0.2 (10/11/2026), aprobada** por el equipo (10/11: T10-E1 a T10-E6 y §3.1.4, todas sí). **Implementada** en la rama `motor-t10` (§8).
 Antecedentes: `docs/plan-motor-asociacion.md` T10 (M6, M7), `docs/spec-motor-asociacion.md` v3 §3, §5.1, §5.3, §5.4 y §6.2, `docs/spec-adapter-observation-listadoid.md` v0.2.1 §2.3 (E2) y §4 (recorte del 20/11, E6), `docs/spec-t8-pasada-1.md` v0.2 (T8 hecho, rama `motor-t8`; T8-E1, T8-E2 y T8-E5).
 **Es una enmienda, no un diseño nuevo:** se implementa T10 como está en el plan, salvo lo que dice §2. Si choca con el plan, manda el plan salvo en lo que esta spec enmienda explícitamente.
 
@@ -43,7 +43,7 @@ export function engineRunId(x: { modelId: string; listadoId: string; versions: A
 1. `listadoId(input.listado)`; si lanza, `buildRun` lanza el mismo error (T10-E3).
 2. `associatePass1(input)` (lanza `ModeloDistintoError` como en T8).
 3. `versions = { engine: ENGINE_VERSION, vocabulary: VOCABULARY_VERSION, frame: FRAME_VERSION }`.
-4. Un `frameVersion` de una observación distinto de `FRAME_VERSION` lanza (no se mezclan marcos). *A confirmar: hoy ninguna prueba lo exige.*
+4. Un `frameVersion` de una observación distinto de `FRAME_VERSION` lanza `MarcoDistintoError` (no se mezclan marcos; aprobado el 10/11, prueba N11).
 5. `engineRunId(...)` y el run, con las claves en este orden: `furnitureId`, `modelId`, `listadoId`, `engineRunId`, `versions`, `params`, `passes`, `results`, `typeSummary`, `inconsistencies`.
 
 ### 3.2 `engineRunId`
@@ -64,6 +64,7 @@ export function engineRunId(x: { modelId: string; listadoId: string; versions: A
 | N8 | `passes` | `1` |
 | N9 | primer fixture | el run tiene las cifras de K17 y es igual en dos corridas |
 | N10 | pureza | `associate.ts` sigue sin `node:crypto` ni `./hash` (M3); `run.ts` no lo importa ningún `"use client"` ni `src/pdf/` (H10) |
+| N11 (§3.1.4) | una observación con `frameVersion` distinto de `FRAME_VERSION` | `buildRun` lanza `MarcoDistintoError` |
 
 `fixture` de N1 y N2: segura, anómala, inexistente, cupo excedido, faltante y malla suelta (de `tests/helpers/engineFixtures.ts`). El empate del plan queda para T9.
 
@@ -83,18 +84,23 @@ export function engineRunId(x: { modelId: string; listadoId: string; versions: A
 
 T11 mínimo (casos reales, G2, `--publicar`, `passes` en el reporte) → T12 → T14 (spec-adapter §4).
 
-## 7. Decisiones a aprobar
+## 7. Decisiones (aprobadas por el equipo el 10/11: todas sí)
 
-| Id | Pregunta | Propuesta |
+| Id | Pregunta | Decisión |
 |---|---|---|
-| T10-E1 | ¿El run se arma en `src/engine/run.ts` y `associate.ts` sigue sin crypto? | Sí |
-| T10-E2 | ¿Se agrega `passes: 1 \| 2` al `AssociationRun` (enmienda a spec-motor §5.3), fuera del `engineRunId`? | Sí |
-| T10-E3 | ¿`buildRun` calcula `listadoId` antes y deja pasar `ListadoInvalidoError` con un código repetido? | Sí |
-| T10-E4 | ¿`excludedCodes` opcional en `AssociateInput` con la razón nueva `codigo-excluido` (enmienda a spec-motor §5.4)? | Sí |
-| T10-E5 | ¿`VOCABULARY_VERSION = "vocabulario/0"` mientras no haya vocabulario? | Sí |
-| T10-E6 | ¿Se mantiene la comparación con `<` y se prueba que las claves son ASCII? | Sí |
-| §3.1.4 | ¿Un `frameVersion` distinto de `FRAME_VERSION` lanza? | Sí |
+| T10-E1 | ¿El run se arma en `src/engine/run.ts` y `associate.ts` sigue sin crypto? | **Sí** |
+| T10-E2 | ¿Se agrega `passes: 1 \| 2` al `AssociationRun` (enmienda a spec-motor §5.3), fuera del `engineRunId`? | **Sí** |
+| T10-E3 | ¿`buildRun` calcula `listadoId` antes y deja pasar `ListadoInvalidoError` con un código repetido? | **Sí** |
+| T10-E4 | ¿`excludedCodes` opcional en `AssociateInput` con la razón nueva `codigo-excluido` (enmienda a spec-motor §5.4)? | **Sí** |
+| T10-E5 | ¿`VOCABULARY_VERSION = "vocabulario/0"` mientras no haya vocabulario? | **Sí** |
+| T10-E6 | ¿Se mantiene la comparación con `<` y se prueba que las claves son ASCII? | **Sí** |
+| §3.1.4 | ¿Un `frameVersion` distinto de `FRAME_VERSION` lanza? | **Sí** |
 
 ## 8. Historial
 
 - **v0.1 (10/11/2026):** borrador, escrito al cerrar T8. Sin implementar.
+- **v0.2 (10/11/2026):** aprobada por el equipo (T10-E1 a T10-E6 y §3.1.4, todas sí) e implementada en `motor-t10`: `src/engine/run.ts` (`buildRun`, `MarcoDistintoError`), `engineRunId` en `hash.ts`, `passes` y `codigo-excluido` en `types.ts` (spec-motor v3.1), `excludedCodes` en `associate.ts` (`CodigoExcluidoYListadoError`), `VOCABULARY_VERSION` en `versions.ts` (con la regla de `passes` para T9). Prueba nueva N11 para §3.1.4. Precisiones de la implementación:
+  - El error de T10-E4 se llama `CodigoExcluidoYListadoError` en `src/engine/associate.ts`, igual que el de `src/pdf/crossCheck.ts` (son dos clases distintas: el motor no importa `src/pdf/`). Quien importe las dos tiene que renombrar una.
+  - `excludedCodes` no entra en el `engineRunId` (§3.2 no lo nombra): dos runs con el mismo listado y distintos excluidos tendrían el mismo id. Hoy no se da (el listado y los excluidos salen del mismo PDF, y un listado con excluidos es `borrador` y no se publica), pero queda **a revisar** en T11.
+  - Orden de los pasos como en §3.1: con un listado que repite un código y una observación de otro marco, gana `ListadoInvalidoError`; con otro modelo y otro marco, gana `ModeloDistintoError`.
+  - `buildRun` copia `params` con las tres claves en orden fijo: un campo de más en el objeto de entrada no llega al run.

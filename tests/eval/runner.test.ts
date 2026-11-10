@@ -3,8 +3,9 @@
 // Entorno node a propósito: así R7 ve los globales que pone installDom() y no los del entorno jsdom de vitest.
 
 import { spawnSync } from "node:child_process";
-import { readFileSync, readdirSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
+import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { installDom } from "../../eval/dom";
@@ -52,11 +53,15 @@ describe("T5: runner del eval (M20)", () => {
   );
 
   it(
-    "R4: npm run eval imprime la versión de jsdom y sale con 0",
+    "R4 (T11-E9): npm run eval imprime la versión de jsdom y sale con 1 por G2 'falta esperados' (hasta T12)",
     () => {
-      const r = run("npm run eval");
-      expect(r.status).toBe(0);
+      // Carpeta del segundo fixture inexistente y salida en un directorio temporal: no toca Sabrina/ ni eval/out del repo.
+      const tmp = mkdtempSync(path.join(os.tmpdir(), "eval-r4-"));
+      const r = run(`npm run eval -- --sabrina-dir "${path.join(tmp, "no-existe")}" --out "${path.join(tmp, "out")}"`);
+      expect(r.status).toBe(1);
       expect(r.out).toContain("jsdom 24.1.3");
+      expect(r.out).toMatch(/falta esperados/);
+      expect(r.out).toMatch(/GATE PARCIAL/);
     },
     PROCESS_TIMEOUT_MS,
   );

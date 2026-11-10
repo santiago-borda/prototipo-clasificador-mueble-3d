@@ -43,7 +43,7 @@ describe("E7: G3 y G4 dentro del harness", () => {
 
   it("G3 falla si la segunda carga da otro run", async () => {
     const c = okCase("olmo");
-    const other = okCase("olmo", "borrador");
+    const other = { ...c, run: { ...c.run, passes: 2 as const } }; // otro run para el mismo caso
     let n = 0;
     const { io, opts, esperar } = setup([c]);
     esperar(c);

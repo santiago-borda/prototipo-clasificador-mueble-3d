@@ -30,7 +30,7 @@ describe("encabezado: el gate es PARCIAL", () => {
     const header = md.split("\n").slice(0, 8).join("\n");
     expect(header).toMatch(/GATE PARCIAL/);
     expect(header).toMatch(/solo G2, G3 y G4/);
-    expect(header).toMatch(/G1.*no ejecutado/s);
+    expect(header).toMatch(/G1[\s\S]*no ejecutado/);
     expect(header).toMatch(/G5/);
     expect(md).toMatch(/sintéticos: no ejecutados \(T13\)/i);
   });
@@ -108,6 +108,6 @@ describe("E13: privacidad del segundo fixture", () => {
     const local = path.join(tmp(), "Sabrina", "eval", "out");
     writeReport(reportOf([okCase("olmo"), { furnitureId: "sabrina", status: "no-ejecutado", motivo: "carpeta ausente" }]), out, local);
     expect(existsSync(local)).toBe(false);
-    expect(readFileSync(path.join(out, "reporte.md"), "utf8")).toMatch(/sabrina.*no ejecutado/is);
+    expect(readFileSync(path.join(out, "reporte.md"), "utf8")).toMatch(/sabrina[\s\S]*no ejecutado/i);
   });
 });

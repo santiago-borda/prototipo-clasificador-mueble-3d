@@ -315,6 +315,15 @@ interface PdfTextInput {
   readerVersion: string;
   pageWidths: readonly { page: number; width: number }[];  // ancho de cada página, en las mismas unidades (solo para la constante de canto)
   elements: readonly PdfTextElement[];  // de todas las páginas, en cualquier orden
+  /** Parámetros de agrupación (§8.2, "Granularidad con OCR"). Sin ellos rigen los valores de TextoPdf. */
+  layout?: PdfTextLayout;
+}
+
+/** Cómo agrupar elementos en segmentos y filas. Cada campo omitido toma el valor de TextoPdf. */
+interface PdfTextLayout {
+  joinGapRatio?: number;      // por defecto 1: hueco máximo (× alto del más bajo) para unir con espacio
+  glueGapRatio?: number;      // por defecto, sin unión sin espacio: hueco máximo para pegar un signo suelto
+  rowToleranceRatio?: number; // por defecto 0: tolerancia vertical del comienzo de fila (× alto de la letra)
 }
 
 function parseCutListText(input: PdfTextInput): PdfReading;  // pura; reader = "texto-pdf", hasTextLayer = true
@@ -322,6 +331,17 @@ function parseCutListText(input: PdfTextInput): PdfReading;  // pura; reader = "
 
 - **Unidades:** las que use la extracción, las mismas en todos los campos. El parser compara posiciones entre elementos; el único valor absoluto es la constante de canto, relativa al ancho de página.
 - **Granularidad:** acepta palabras sueltas o frases. Agrupa por renglón (cajas que se solapan verticalmente) y une los elementos contiguos de un renglón (separación ≤ alto del más bajo de los dos) en un segmento. Así también puede recibir las palabras de un OCR (§8.3, propuesta).
+- **Granularidad con OCR (10/11; valores PROVISORIOS).** Las palabras de un OCR traen tres diferencias respecto de una capa de texto, medidas el 10/11 sobre la respuesta de Cloud Vision a los PDF del fixture sintético (`docs/spec-fixture-sintetico.md` §12): (a) los signos llegan como palabras propias, casi pegadas a la anterior ("Cant" + ".", "~" + "0"); (b) el hueco entre dos palabras de un mismo texto llega a 1,2 × el alto de la caja (el título "<material> /" + "18 mm" se partía en dos segmentos y el resumen no se reconocía); (c) las cajas de un mismo renglón se desplazan hasta ±1 pt en vertical (máximo 2 pt), de modo que un valor puede quedar 1 pt por encima del borde superior de su letra y contarse como texto "antes de la primera fila". Para absorberlo, `PdfTextInput` admite `layout` (arriba) con tres parámetros opcionales:
+
+  | Parámetro | TextoPdf (por defecto) | OCR (**PROVISORIO**) | Qué hace |
+  |---|---|---|---|
+  | `joinGapRatio` | 1 | 1,5 | Dos elementos de un renglón se unen en un segmento, con un espacio, si el hueco es ≤ este valor × el alto del más bajo de los dos |
+  | `glueGapRatio` | sin definir (nunca) | 0,4 | Si el hueco (también negativo: cajas solapadas) es ≤ este valor × el alto del más bajo **y** al menos uno de los dos trozos no tiene letras ni dígitos (un signo suelto: ".", "~", "-"), se concatenan **sin** espacio. La condición del signo evita fusionar dos palabras reales |
+  | `rowToleranceRatio` | 0 | 0,3 | Una fila empieza este valor × el alto de la primera letra "No." de la página por encima del borde superior de su letra; el texto "antes de la primera fila" se mide con la misma tolerancia |
+
+- **Los tres valores son PROVISORIOS.** Se calibraron con la fuente de trazos del fixture sintético, donde el espacio entre palabras mide 0,6 del cuerpo, y **hay que revalidarlos con una página real** (P-04): en una fuente real el espacio suele ser más angosto (supuesto, sin medir), y por eso `glueGapRatio` exige además el signo suelto. Rango en que el fixture sintético se lee igual: `glueGapRatio` de 0,35 a 0,45 (con 0,2 el título del resumen no se lee, porque "Cant" + "." mide 0,25); `joinGapRatio` desde 1,25 (con 1,2 o menos no se lee el título); `rowToleranceRatio` desde 0,2 (con 0,1 la primera fila falla). El hueco mínimo entre celdas distintas del fixture es 1,07 × el alto (marcas de canto vecinas): con `joinGapRatio` 1,5 dos marcas vecinas pueden quedar en un solo segmento; `readMarks` lo trata como texto sin atribuir y deja `pending` en `edges`, sin adivinar.
+- Sin `layout`, `parseCutListText` lee exactamente igual que antes (los valores por defecto son los de TextoPdf). Solo `parseOcrWords` pasa los valores de OCR.
+- **Criterio de aceptación de la lectura por OCR (10/11):** ninguna lectura devuelve un campo mal leído en una fila que quede sin marcar. Toda fila de `OcrLlm` sale `dudosa` por `origen-ocr` (§7.3); además, cada fila con un campo distinto del esperado tiene que llevar otra razón (por ejemplo `campo-pendiente`). Un campo mal leído de `header.*` sin `pending` no se corrige en silencio: se informa (no hay reconciliación hasta la sesión 3, `docs/spec-extraccion-pdf.md` §5.1). Una hoja que no se pueda leer con certeza se rechaza (`hoja-incompleta`), como la página 3 del segundo documento sintético.
 - **Sin coordenadas fijas:** las columnas salen de los rótulos del encabezado de la tabla. **Medido en el segundo fixture (3/11): la página de continuación no repite el encabezado de la tabla**, y las columnas son las mismas en todas las páginas de una hoja: se usan las de la página anterior de la hoja. El encabezado ocupa tres renglones ("Ajustadas", "Finales", "Tiras de cantos" arriba; "No.", "Designación", "Cant." en el medio; L y A abajo). Las L y A de "Finales" son las más cercanas al centro de su rótulo.
 - **Columnas de la tabla:** "No." y "Cant." son angostas (centro a menos de un ancho de rótulo); lo que está entre las dos es la designación; "Finales" L y A se asignan al más cercano; "Ajustadas" se ignora.
 - **Filas:** una fila empieza en cada elemento de la columna "No." (medido: la letra va en el primer renglón de la fila) y llega hasta la siguiente; lo que caiga en esa franja le pertenece.
@@ -444,3 +464,4 @@ Transcripción en `tests/fixtures/pdf/olmo.json`. **No se corrigió ni el mock n
 - **3/11, implementación (sesión 1):** decisiones del equipo al arrancar: entrada del parser (§8.2, con `pageWidths`); `code`, `quantity`, `finalL` y `finalA` nullable, y razón `campo-pendiente` (§4, §7.3); excepciones de INV-0 (§4); INV-15 repartida entre validador y parser, y `hoja-incompleta` en `PdfReading` (§5, §8); alcance de las razones de tablero y documento (§5). Medición local de las marcas de canto en los trazados del segundo fixture (§8.2): corrige la regla pedida para el paso, de "por página" a "mínimo de la hoja con tope", porque la primera asigna mal 6 de 15 marcas en Cedro 2/2.
 - **5/11:** se aplica la §13 de `docs/spec-extraccion-pdf.md`: `PdfReading` suma `evidence` (ok, solo `OcrLlm`) y `lectura-fallida` (no ok, también en el catálogo de §7.3); §8.3, privacidad según la autorización del 3/11 (falta la captura escrita, P-04). Se anonimiza `docs/`: "primer fixture" y "segundo fixture" en la prosa; las rutas reales del repo (código en línea) no cambian.
 - **7/11:** nueva razón `canteado-sin-definir` en el catálogo cerrado (§7.3) y en el cruce (§7.2): con la columna de cantos ausente no se compara el canteado y se informa sin bajar el nivel. Decisión D5 de `docs/spec-sesion-2b-listado-cruce.md` v0.3. `src/pdf/reasons.ts` se actualiza en la sesión de implementación.
+- **10/11:** §8.2, "Granularidad con OCR": `PdfTextInput.layout` con tres parámetros (`joinGapRatio`, `glueGapRatio`, `rowToleranceRatio`), por defecto los de TextoPdf, y valores PROVISORIOS para OCR (1,5, 0,4 y 0,3) calibrados con las respuestas de Cloud Vision al fixture sintético; a revalidar con una página real (P-04). Motivo: el diagnóstico del 10/11 mostró que `parseText.ts` no leía la salida real de Vision (`estructura-no-reconocida` en los tres PDF sintéticos).

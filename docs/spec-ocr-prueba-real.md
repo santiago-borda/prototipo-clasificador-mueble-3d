@@ -162,7 +162,7 @@ El hash **no** se escribe acá. Solo se registra la decisión.
 
 | Fecha | Quién | Qué | Nota |
 |---|---|---|---|
-|  |  | Agrega a su lista local el sha256 del PDF autorizado de 5 páginas del segundo fixture | Completar a mano (fecha y quién) cuando lo haga, antes de la primera corrida. No escribir el hash |
+| 10/11/2026 | Santiago Borda | Agrega a su lista local el sha256 del PDF autorizado de 5 páginas del segundo fixture | Autorización de Casa Mueble informada por el equipo el 3/11/2026 y reconfirmada por Santiago el 10/11/2026; captura sin archivar (P-04). Hash guardado fuera del repositorio. |
 
 ## 13. Cambios a otros documentos (al aprobarse esta spec)
 

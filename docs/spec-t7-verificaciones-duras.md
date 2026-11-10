@@ -1,6 +1,6 @@
 # Especificación — T7 mínimo: verificaciones duras por par (`checkDims`)
 
-Versión: **v0.1 (10/11/2026), borrador a aprobar** por el equipo.
+Versión: **v0.2 (10/11/2026), aprobada** por el equipo (10/11): T7-E1 a T7-E5, todas sí. Implementada en la rama `motor-t7`.
 Antecedentes: `docs/plan-motor-asociacion.md` T7 (M16), `docs/spec-motor-asociacion.md` v3 §5.3, §5.4, §6.2 y §14 (RF3), `docs/spec-adapter-observation-listadoid.md` v0.2.1 §3.4 y §4 (recorte del 20/11, E6), `docs/spec-t5-runner-eval.md` v0.2 (T5 hecho, rama `motor-t5`).
 **Es una enmienda, no un diseño nuevo:** se implementa la parte dura de T7 como está en el plan, salvo lo que dice §2. Si choca con el plan, manda el plan salvo en lo que esta spec enmienda explícitamente.
 
@@ -80,9 +80,9 @@ Con `f(x) = x.toFixed(2)` y `t = f(p.toleranceMm)`:
 
 T8 (pasada 1: código, `checkDims`, cupo, piso `dudosa`, inconsistencias `faltante` y `sin-confirmar`) → T10 mínimo → T11 mínimo → T12 → T14 (spec-adapter §4).
 
-## 6. Decisiones a aprobar
+## 6. Decisiones (aprobadas por el equipo el 10/11)
 
-| Id | Pregunta | Propuesta |
+| Id | Pregunta | Decisión |
 |---|---|---|
 | T7-E1 | ¿T7 queda solo en `checkDims` y el run del 20/11 sale sin advertencias? | Sí |
 | T7-E2 | ¿Se agrega `measured` al resultado? | Sí |
@@ -90,6 +90,14 @@ T8 (pasada 1: código, `checkDims`, cupo, piso `dudosa`, inconsistencias `faltan
 | T7-E4 | ¿`detail` con el formato de §3.2? | Sí |
 | T7-E5 | ¿Prueba D8 con el listado del PDF del primer fixture? | Sí; si falla, se para |
 
-## 7. Historial
+## 7. Precisiones de la implementación (10/11)
+
+- D8 cuenta como "con código" las observaciones con nombre canónico **o anómalo** (`normalizeName`), así que el componente con `__` del primer fixture también se mide: 33 observaciones, todas `ok`. Las 6 mallas sin componente no entran.
+- D8b (segundo fixture) corrió en local con la carpeta presente: todas `ok`. Además de "ninguna falla", verifica que la cantidad medida sea la suma de `quantity` del listado (sin escribir la cifra).
+- D1 suma un caso que mira las dos evidencias del que no cumple (`espesor` cumple, `medidas` no); D6 suma un caso que no cumple; D7 suma "sin `rule`". No cambian el contrato.
+- El ordenamiento del listado usa `sort((a, b) => a - b)` sobre una copia; `obs.sizeMm` no se reordena (viene ascendente del marco v1).
+
+## 8. Historial
 
 - **v0.1 (10/11/2026):** borrador, escrito al cerrar T5.
+- **v0.2 (10/11/2026):** aprobada (T7-E1 a T7-E5, sí). Implementada: `src/engine/evidence.ts` (`checkDims`) y `tests/engine/evidence.test.ts` (D1 a D8, D8b); `evidence.ts` en M3. Precisiones en §7.

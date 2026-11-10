@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Escrito a mano para tests/model/daeIndex.test.ts (plan del motor, T3). Datos inventados.
+     Unidad pulgada, Y arriba. Un componente (_9999-01-M01-C04, 500 x 300 x 18 mm) con dos instancias, dentro
+     de un grupo con id; el nodo raíz no tiene id (se saltea en el instanceKey). -->
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">
+    <asset>
+        <unit meter="0.0254" name="inch" />
+        <up_axis>Y_UP</up_axis>
+    </asset>
+    <library_visual_scenes>
+        <visual_scene id="ID1">
+            <node name="SketchUp">
+                <node id="ID2" name="group_0">
+                    <matrix>1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+                    <node id="ID3" name="instance_0">
+                        <matrix>1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</matrix>
+                        <instance_node url="#ID10" />
+                    </node>
+                    <node id="ID4" name="instance_1">
+                        <matrix>1 0 0 0 0 1 0 0 0 0 1 1 0 0 0 1</matrix>
+                        <instance_node url="#ID10" />
+                    </node>
+                </node>
+            </node>
+        </visual_scene>
+    </library_visual_scenes>
+    <library_nodes>
+        <node id="ID10" name="_9999-01-M01-C04">
+            <instance_geometry url="#ID11">
+                <bind_material>
+                    <technique_common>
+                        <instance_material symbol="Material2" target="#ID12" />
+                    </technique_common>
+                </bind_material>
+            </instance_geometry>
+        </node>
+    </library_nodes>
+    <library_geometries>
+        <geometry id="ID11">
+            <mesh>
+                <source id="ID11-pos">
+                    <float_array id="ID11-pos-array" count="24">0 0 0 19.68504 0 0 19.68504 11.81102 0 0 11.81102 0 0 0 0.7086614 19.68504 0 0.7086614 19.68504 11.81102 0.7086614 0 11.81102 0.7086614</float_array>
+                    <technique_common>
+                        <accessor count="8" source="#ID11-pos-array" stride="3">
+                            <param name="X" type="float" />
+                            <param name="Y" type="float" />
+                            <param name="Z" type="float" />
+                        </accessor>
+                    </technique_common>
+                </source>
+                <vertices id="ID11-vtx">
+                    <input semantic="POSITION" source="#ID11-pos" />
+                </vertices>
+                <triangles count="12" material="Material2">
+                    <input offset="0" semantic="VERTEX" source="#ID11-vtx" />
+                    <p>0 2 1 0 3 2 4 5 6 4 6 7 0 1 5 0 5 4 3 7 6 3 6 2 0 4 7 0 7 3 1 2 6 1 6 5</p>
+                </triangles>
+            </mesh>
+        </geometry>
+    </library_geometries>
+    <library_materials>
+        <material id="ID12" name="Blanco">
+            <instance_effect url="#ID13" />
+        </material>
+    </library_materials>
+    <library_effects>
+        <effect id="ID13">
+            <profile_COMMON>
+                <technique sid="COMMON">
+                    <lambert>
+                        <diffuse>
+                            <color>1 1 1 1</color>
+                        </diffuse>
+                    </lambert>
+                </technique>
+            </profile_COMMON>
+        </effect>
+    </library_effects>
+    <scene>
+        <instance_visual_scene url="#ID1" />
+    </scene>
+</COLLADA>

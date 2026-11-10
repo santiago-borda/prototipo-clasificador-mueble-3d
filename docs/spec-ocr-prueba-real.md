@@ -4,7 +4,7 @@
 |---|---|
 | Proyecto | PFG-Muebles-3D (Casa Mueble) |
 | Módulo | B, apoyo de IA: extracción de datos del PDF (OCR). Prueba puntual, sin integrar |
-| Versión | 0.2 (**aprobada el 10/11** con los cambios de O-5 y la prueba OR-16; ver Historial) |
+| Versión | 0.3 (0.2 **aprobada el 10/11** con los cambios de O-5 y la prueba OR-16. La 0.3 aplica `docs/spec-revision-ocr-real.md` v0.2, aprobado por equipo y profesor, informado por Santiago el 10/11/2026; evidencia: a archivar: diagnóstico del rechazo D-a, registro de corridas, OR-17 y OR-18; ver Historial) |
 | Fecha | 10/11/2026 |
 | Autores | Santiago Borda, Lautaro Salina |
 | Depende de | `docs/spec-extraccion-pdf.md` v0.3.1 (§8, §8.1, §8.2, §9, §13), `docs/spec-fixture-sintetico.md` §6, §12, `docs/spec-esquema-pdf.md` §8.2 y `CLAUDE.md` |
@@ -18,9 +18,9 @@ Correr **una vez, a mano, por una persona con su propia clave**, el camino `PDF 
 
 **Fuera del alcance:**
 - Integrarlo a `src/`, a la app o a una ruta API. El cliente de red de Vision no se conecta a la app.
-- Cualquier otro PDF real, el LLM (Gemini), la reconciliación, la rasterización (P-12) y Tesseract.
+- Cualquier otro PDF real, el LLM (Gemini), la reconciliación, la rasterización (P-12) y Tesseract. La validación con un segundo PDF (Blanco 18 del segundo fixture) está propuesta en `docs/spec-ocr-prueba-real-enmienda-d.md` (**borrador, sin aprobar**): hasta que se apruebe, sigue fuera del alcance.
 - Dependencias nuevas (`@google-cloud/vision` ya está aprobada desde el 10/11).
-- Cambiar el parser, `OCR_LAYOUT` o la validación. Si la corrida muestra que hay que cambiarlos, es otra spec.
+- Cambiar el parser, `OCR_LAYOUT` o la validación. Si la corrida muestra que hay que cambiarlos, es otra spec. Después de la corrida 1 esa spec es `docs/spec-revision-ocr-real.md` (aprobada el 10/11): el parser cambia ahí, no acá.
 
 ## 2. Enmiendas aprobadas (10/11, por Santiago Borda en nombre del equipo)
 
@@ -64,7 +64,7 @@ Orden de los pasos. Cada rechazo ocurre **antes de cualquier llamada de red** y 
 | 5 | Si ya existe `.ocr-data/real/<id>.vision.json` y no se pasó `--reenviar`, **usa esa respuesta sin red** y salta al paso 8 | n/a |
 | 6 | Un único pedido `batchAnnotateFiles` con el PDF inline, `DOCUMENT_TEXT_DETECTION` y `pages: [1, 2, 3, 4, 5]` (explícitas) | `proveedor-error` (solo el código) |
 | 7 | Verifica el total de páginas (§6) antes de guardar o leer nada | `paginas-excedidas`, `paginas-no-confirmadas` |
-| 8 | Guarda la respuesta cruda, convierte con `visionToTextInput` y lee con `parseOcrWords` (§8) | `conversion-fallida` (motivo de la conversión) o lectura rechazada (es un resultado, no un error: sale con 0) |
+| 8 | Guarda la respuesta cruda, convierte con `visionToTextInput` y lee con `parseOcrWords` (§8) | `conversion-fallida` (motivo de la conversión) o lectura rechazada (es un resultado, no un error: sale con 0; imprime `regla` y `página`, §7) |
 | 9 | Si se pasó `--transcripcion`, compara (§9) | `transcripcion-invalida` |
 
 `<id>` es el hex del sha256 del PDF. El `pdfId` del documento es `sha256:<hex>`.
@@ -92,6 +92,8 @@ El script imprime **únicamente** las líneas de esta lista, armadas con texto f
 páginas leídas: <n>
 palabras: <n>
 lectura: leído | rechazado (<razón del catálogo>)
+regla: <id del catálogo de rechazos>     (solo si la lectura se rechazó)
+página: <n> | -                          (solo si la lectura se rechazó)
 filas: <n>
 pending: code=<n> name=<n> finalL=<n> finalA=<n> quantity=<n> cantos=<n> otros=<n>
 hoja-incompleta: sí | no
@@ -101,6 +103,10 @@ salidas: .ocr-data/real/
 ```
 
 - `lectura: rechazado (...)` imprime solo la razón del catálogo (`estructura-no-reconocida`, `hoja-incompleta`, etc.). `hoja-incompleta: sí` se muestra cuando la razón del rechazo es `hoja-incompleta`.
+- **Diagnóstico del rechazo (D-a, 10/11):**
+  - `regla` y `página` salen de `PdfReading.rule` y `PdfReading.page` (enmienda C2, spec-esquema §8): un id de un catálogo cerrado y un número, nunca texto del documento.
+  - `página: -` cuando `page` es `null`.
+  - El `detail` **sigue sin imprimirse**: algunos citan texto del documento (por ejemplo, el de `unidad-no-soportada`). Queda solo en `<id>.lectura.json`.
 - `filas` = piezas de todos los tableros; `0` si la lectura se rechazó.
 - `pending` clasifica cada `PendingField.path` por su último segmento (`code`, `name`, `finalL`, `finalA`, `quantity`); `cantos` agrupa cualquier ruta que contiene `.edges`; `otros` es el resto (encabezado, resumen, pie, diagrama). No se imprime ninguna ruta.
 - Un rechazo del script (§4, paso 1 a 7) imprime una sola línea: `rechazado: <código de motivo>`.
@@ -110,7 +116,7 @@ salidas: .ocr-data/real/
 | Archivo | Contenido |
 |---|---|
 | `<id>.vision.json` | Respuesta cruda de Vision (los lotes), sin el PDF |
-| `<id>.lectura.json` | El `PdfReading` de `parseOcrWords` completo (documento con sus `pending`, o razón y `detail`) |
+| `<id>.lectura.json` | El `PdfReading` de `parseOcrWords` completo (documento con sus `pending`, o razón, `detail`, `rule` y `page`) |
 | `<id>.comparacion.json` | Solo con `--transcripcion`: el detalle campo a campo (con valores) |
 
 - Contienen datos de Casa Mueble: no se commitean. `.ocr-data/` ya está en `.gitignore` (`/.ocr-data/`); se verifica con `git check-ignore -v` antes del primer commit.
@@ -155,6 +161,8 @@ Usan las respuestas de replay del fixture sintético (`tests/fixtures/pdf-sintet
 | OR-14 | Rutas de salida | Todas bajo `.ocr-data/real/`; ninguna deriva de la ruta del PDF |
 | OR-15 | `git ls-files "*.pdf"` vacío; `.ocr-data/` y `Sabrina/` ignorados (`git check-ignore`) | Se verifica en la sesión, no en `vitest` |
 | OR-16 | `compareReading` con distinta cantidad de filas o de tableros (también con el mismo total repartido distinto entre tableros), y de punta a punta | `comparacion-desalineada`, sin emparejar por posición; sale con 0; `comparacion.json` sin campos |
+| OR-17 | Lectura rechazada cuyo `detail` contiene texto del documento (por ejemplo `unidad-no-soportada`, que cita el segmento leído) | Consola: `regla:` y `página:` con valores del catálogo; el texto del `detail` no aparece (spec-revision-ocr-real CA-7) |
+| OR-18 | Cada sitio de rechazo del parser (hoy 21, `src/pdf/parseText.ts`) | Tiene un `rule` del catálogo cerrado; ningún id repetido entre sitios con distinto significado; `page` es un número cuando el rechazo es de una página |
 
 ## 12. Registro de la lista blanca (quién y cuándo)
 
@@ -163,6 +171,16 @@ El hash **no** se escribe acá. Solo se registra la decisión.
 | Fecha | Quién | Qué | Nota |
 |---|---|---|---|
 | 10/11/2026 | Santiago Borda | Agrega a su lista local el sha256 del PDF autorizado de 5 páginas del segundo fixture | Autorización de Casa Mueble informada por el equipo el 3/11/2026 y reconfirmada por Santiago el 10/11/2026; captura sin archivar (P-04). Hash guardado fuera del repositorio. |
+
+## 12b. Registro de corridas
+
+Sin hash ni contenido. "Camino" es PDF → Vision → `PdfTextInput`; "lectura" es `parseOcrWords`. **Una lectura rechazada no es una medición**: no hay filas, así que `distintos-sin-pending` no está definido, y un rechazo no equivale a `distintos-sin-pending = 0` (spec-revision-ocr-real §6.2).
+
+| # | Fecha | Quién | Camino | Lectura | Regla y página | Para qué cuenta |
+|---|---|---|---|---|---|---|
+| 1 | 10/11/2026 | a completar | Válido: 5 páginas, 1190 palabras, conversión sin error | Rechazada (`estructura-no-reconocida`) | Resumen sin unidad (`parseText.ts` l. 183; el id del catálogo se fija en la implementación), página 1 | Dato para P-02 (decisión del 10/11); **no** es medición de lectura. Diagnóstico y cambios: `docs/spec-revision-ocr-real.md` |
+
+- Releer la respuesta guardada con el parser nuevo (sin `--reenviar`, sin red) es una **corrida de desarrollo**: se registra acá con "Para qué cuenta: desarrollo" y no valida nada (spec-revision-ocr-real §7).
 
 ## 13. Cambios a otros documentos (al aprobarse esta spec)
 
@@ -182,7 +200,7 @@ npm run ocr:real -- "<ruta al PDF>" --transcripcion "Sabrina\ocr-real\transcripc
 
 Qué mirar en la consola:
 1. `páginas leídas: 5` (si dice `rechazado: paginas-...`, el PDF no es el esperado).
-2. `lectura: leído`. Si dice `rechazado (estructura-no-reconocida)` es el resultado esperable si los rótulos o la granularidad provisoria no encajan con la fuente real: es un dato, no un fallo del script.
+2. `lectura: leído`. Si dice `rechazado (estructura-no-reconocida)` es el resultado esperable si los rótulos o la granularidad provisoria no encajan con la fuente real: es un dato, no un fallo del script. Anotar `regla` y `página` en el registro de corridas (§12b). Una lectura rechazada no es una medición.
 3. `filas` contra la cantidad esperada, y `pending: ...` (qué tipo de campo queda sin leer).
 4. Con transcripción: **`distintos-sin-pending` debe ser 0**; es la métrica que importa. Si no es 0, hay un valor mal leído que llegó sin aviso.
 5. Detalle con valores, solo local: `.ocr-data/real/<id>.lectura.json` y `.comparacion.json`. No pegarlos en un chat.
@@ -203,3 +221,4 @@ Qué mirar en la consola:
 |---|---|---|
 | 0.1 | 10/11/2026 | Borrador: contrato del script, lista blanca local, páginas, salida de consola, salidas locales, pruebas y enmiendas A a C |
 | 0.2 | 10/11/2026 | Aprobada con O-1 a O-5. O-5 cambia: filas distintas → `comparacion-desalineada` sin emparejar por posición (§7, §9, OR-16). §13 aplicado en `CLAUDE.md` y `spec-extraccion-pdf.md`. Registro de §12 con quién y cuándo vacíos. Implementación en `scripts/ocr-real.ts` y `scripts/ocr-real/` |
+| 0.3 | 10/11/2026 | Aplica `docs/spec-revision-ocr-real.md` v0.2 (aprobado por equipo y profesor, informado por Santiago el 10/11/2026; evidencia: a archivar). Cambios: diagnóstico del rechazo D-a (§7: líneas `regla` y `página`; el `detail` sigue sin imprimirse); `lectura.json` con `rule` y `page` (§8); OR-17 y OR-18 (§11); registro de corridas con la corrida 1 (§12b: dato para P-02, no medición); §1 y §14. **Sin implementar.** La validación con un segundo PDF queda en `docs/spec-ocr-prueba-real-enmienda-d.md`, borrador sin aprobar |

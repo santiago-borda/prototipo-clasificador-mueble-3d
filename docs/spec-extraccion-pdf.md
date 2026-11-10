@@ -4,7 +4,7 @@
 |---|---|
 | Proyecto | PFG-Muebles-3D (Casa Mueble) |
 | Módulo | B, apoyo de IA: extracción de datos del PDF (OCR + LLM) |
-| Versión | 0.3.1 (v0.3 aprobada el 3/11; reemplaza a la 0.2). La 0.3.1 es una corrección de mantenimiento del 5/11: credenciales fuera del repo, rutas del esquema y bandera de procesamiento externo. No cambia el diseño aprobado |
+| Versión | 0.3.2 (v0.3 aprobada el 3/11; reemplaza a la 0.2). La 0.3.1 es una corrección de mantenimiento del 5/11: credenciales fuera del repo, rutas del esquema y bandera de procesamiento externo. La 0.3.2 (10/11) aplica las enmiendas C1 y C2 de `docs/spec-revision-ocr-real.md` (aprobado por equipo y profesor, informado por Santiago el 10/11/2026; evidencia: a archivar) |
 | Fecha | 03/11/2026 (ajustes del 05/11 en §8, §9, §12, §14 y P-02/P-15: credenciales y salidas del OCR). 05/11: prueba de humo de Cloud Vision, credenciales y conectividad OK en local; no valida calidad del OCR |
 | Autores | Santiago Borda, Lautaro Salina |
 | Estado | **Aprobada el 3/11** (por el equipo y el profesor). Siguen abiertos los puntos de §15 y la decisión de §5.3; el adaptador de OCR no se programa antes de resolver P-02 y P-12, **salvo el script manual `scripts/ocr-real.ts` con un único PDF real** (`docs/spec-ocr-prueba-real.md`, SPEC-B2, 10/11). P-02 está **parcial** (no resuelta): script listo, a correr por una persona con su clave; P-04 (captura escrita) sigue sin archivar |
@@ -20,6 +20,13 @@
 4. **Bandera `PROCESAMIENTO_EXTERNO=permitir`:** confirmada como el nombre vigente (el Estado del proyecto decía `PERMITIR_DATOS_REALES`, que queda en desuso).
 5. **Lista sintética (propuesta):** los PDF del fixture sintético, identificados por el sha256 de su manifiesto, no exigen lista blanca real (§8, ver `spec-fixture-sintetico.md` §6; pendiente de aprobación).
 6. **§13:** se agrega `hoja-incompleta` a las razones de lectura no ok y se transcribe el texto de §8.3 de la spec del esquema.
+
+### Cambios de la v0.3.2 (10/11)
+
+Origen: la primera corrida real de `ocr:real` (`docs/spec-revision-ocr-real.md`, aprobado por equipo y profesor, informado por Santiago el 10/11/2026; evidencia: a archivar).
+
+1. **C1, §5 paso 3:** las palabras del OCR ya no alimentan el parser "sin cambios". Alimentan **el mismo parser** que `TextoPdf`, con las reglas de spec-esquema §8.2 ("Datos que comparten renglón"). Sigue habiendo un solo parser para las dos fuentes.
+2. **C2, §13:** el `PdfReading` no ok suma `rule` (id de un catálogo cerrado) y `page` (número o `null`), sin texto del documento.
 
 ---
 
@@ -102,7 +109,7 @@ PDF ─► 1. Ingesta (sha256 = pdfId, caché)
 
 1. **Ingesta.** `pdfId = "sha256:" + hash`. El mismo PDF con la misma configuración (adaptadores, modelo, versión de prompt y de esquema) devuelve el resultado guardado: reenviar no genera duplicados. La caché y todo archivo intermedio van solo a `.ocr-data/` (§8.2).
 2. **Rasterizado.** Imagen por página, en una resolución fija y registrada en `readerVersion`. Herramienta a decidir (P-12).
-3. **OCR (3a).** El `OcrAdapter` devuelve palabras con página, x, y, ancho y alto (el mismo tipo que usa `TextoPdf`: `PdfTextElement`, más `pageWidths` en `PdfTextInput`, tal como quedó en la rama `pdf-esquema-sesion-1`). Eso alimenta `parseCutListText` sin cambios. El parser decide qué es fila, columna y marca; el OCR solo aporta palabras.
+3. **OCR (3a).** El `OcrAdapter` devuelve palabras con página, x, y, ancho y alto (el mismo tipo que usa `TextoPdf`: `PdfTextElement`, más `pageWidths` en `PdfTextInput`, tal como quedó en la rama `pdf-esquema-sesion-1`). Eso alimenta `parseCutListText`, **el mismo parser que `TextoPdf`** (enmienda C1, 10/11; antes decía "sin cambios"). Los datos que en un PDF real comparten renglón con otros (unidad, fecha, banda de título de la hoja, pie) se localizan con las reglas de spec-esquema §8.2, "Datos que comparten renglón", que valen igual para las dos fuentes. El parser decide qué es fila, columna y marca; el OCR solo aporta palabras.
 4. **LLM (3b).** Recibe el PDF o las imágenes y un esquema de respuesta equivalente a `CutListPdf`. Se le indica que **transcriba y no corrija**. La respuesta se valida con el mismo validador de INV-0; si falla, se reintenta una vez y después se toma la pasada como fallida (§7). Es transcripción, no decisión: **No-Wrapper LLM** (motor §1), el LLM no puntúa ni asocia.
 5. **Detector de marcas (3c).** Para cada celda de las subcolumnas 1 a 4 (coordenadas del parser) decide si hay un punto de color saturado en la imagen. Los umbrales se calibran con los PDF del segundo fixture (P-01).
 6. **Reconciliación (4).** Ver §5.1.
@@ -240,9 +247,11 @@ type PdfReading =
   | { ok: false;
       reason: "sin-capa-de-texto" | "estructura-no-reconocida" | "unidad-no-soportada"
             | "hoja-incompleta" | "lectura-fallida";
-      detail: string };
+      detail: string;
+      rule: PdfRejectRule;   // C2 (10/11): id del sitio de rechazo, catálogo cerrado (spec-esquema §8)
+      page: number | null }; // C2: página donde se rechazó; null si no es de una página
 ```
-   (verificar contra `src/pdf/types.ts`). `lectura-fallida` es razón de lectura, como `sin-capa-de-texto`, no de fila.
+   (verificar contra `src/pdf/types.ts`). `lectura-fallida` es razón de lectura, como `sin-capa-de-texto`, no de fila. **`rule` y `page` (enmienda C2, 10/11)** no llevan texto del documento: son lo único del rechazo que se puede mostrar por consola (SPEC-B2 §7). El `detail` sigue siendo solo para archivos locales. Pendiente de implementar en `src/pdf/types.ts`.
 3. §8.3: reemplazar el párrafo "Privacidad (PENDIENTE)" por el siguiente texto y borrar la línea "con el segundo fixture no se usa" (**aplicado el 5/11**):
    > **Privacidad.** Usarlo manda el PDF a un servicio externo. Casa Mueble autorizó el 3/11 (informado por el equipo; falta la captura escrita, P-04) el envío de los PDF de OpenCutList, incluidos los del segundo fixture, a Cloud Vision y Gemini, con la aclaración de que en la capa gratis de Gemini Google puede usar el contenido. Un adaptador de red solo corre con `PROCESAMIENTO_EXTERNO=permitir` y el sha256 del PDF en la lista blanca. Detalle, proveedores, reconciliación y evidencia: `docs/spec-extraccion-pdf.md`.
 4. Si se adopta la alternativa de §5.3, modificar §7.3 (hoy "siempre `dudosa`").

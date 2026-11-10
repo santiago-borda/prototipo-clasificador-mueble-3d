@@ -1,6 +1,6 @@
 # Especificación — Esquema de la salida del PDF de OpenCutList
 
-Estado: **en implementación** (28/10/2026; revisado el 3/11/2026 con los PDF del segundo fixture y la revisión página por página de los del primer fixture; ver §13). Sesión 1 hecha en `src/pdf/`: tipos, razones, validador y parser de elementos de texto. Falta lo de `docs/plan-sesion-2-pdf.md`.
+Estado: **en implementación** (28/10/2026; revisado el 3/11/2026 con los PDF del segundo fixture y la revisión página por página de los del primer fixture; el 10/11/2026, §8 y §8.2 revisados tras la primera corrida real con OCR; ver §13). Sesión 1 hecha en `src/pdf/`: tipos, razones, validador y parser de elementos de texto. Falta lo de `docs/plan-sesion-2-pdf.md`.
 Antecedentes: `docs/contexto-casa-mueble-pdf.md` (reunión del 20/10 y análisis del PDF de ejemplo del 23/10), `docs/spec-motor-asociacion.md` (contratos §5, normalización §6.1, canto §8), `docs/spec-importador-prueba.md` (validación pura con fila y columna).
 Plan de pruebas: `docs/test-plan-esquema-pdf.md`. Fixture de referencia: `tests/fixtures/pdf/olmo.json`.
 Como en la spec del motor, **este documento no cita códigos ni cifras del segundo fixture** (local): se lo nombra "segundo fixture". **Actualización 3/11:** Casa Mueble aprobó el uso de los archivos del segundo fixture sin restricciones de titularidad (informado por el equipo; falta la confirmación escrita) y el repo es público por acuerdo con Casa Mueble. Las observaciones nuevas del 3/11 nombran al segundo fixture; qué parte de sus archivos se commitea sigue siendo decisión del equipo (RP11).
@@ -274,12 +274,16 @@ type PdfReading =
   | { ok: false;
       reason: "sin-capa-de-texto" | "estructura-no-reconocida" | "unidad-no-soportada"
             | "hoja-incompleta" | "lectura-fallida";
-      detail: string };
+      detail: string;          // texto libre; puede citar texto del documento: solo para archivos locales
+      rule: PdfRejectRule;     // id del sitio de rechazo (catálogo cerrado); sin texto del documento
+      page: number | null };   // página donde se rechazó; null si el rechazo no es de una página
 ```
+
+- **`rule` y `page` (enmienda C2, 10/11, `docs/spec-revision-ocr-real.md` §6).** Cada sitio de rechazo del parser tiene un id propio y estable (`PdfRejectRule`, catálogo cerrado, uno por sitio, sin repetidos con distinto significado). Ejemplos de nombre: `resumen-sin-unidad`, `resumen-sin-titulo-o-tabla`, `hoja-sin-material`, `hoja-sin-encabezado-completo`, `hoja-sin-pie`. El catálogo exacto se fija en la implementación (prueba OR-18 de SPEC-B2). `rule` y `page` son lo único del rechazo que una consola puede mostrar. El `detail` no se imprime, porque algunos mensajes citan texto del documento.
 
 - `evidence` (aprobado por el equipo el 3/11): lecturas crudas de cada fuente por campo, con la misma clave que `PendingField.path`. Lo devuelve solo `OcrLlm` y no forma parte del `CutListPdf`: el validador no lo lee. Tipo `Evidence` / `FieldEvidence`: `docs/spec-extraccion-pdf.md` §4.
 - `lectura-fallida` (aprobado el 3/11): fallaron todas las pasadas de un adaptador (spec-extraccion §7); no se devuelve resultado parcial. Es una razón de **lectura**, como `sin-capa-de-texto`, no de fila.
-- Código: `PdfReading` y `PdfReadingFailure` en `src/pdf/types.ts`. Al 5/11 el tipo del código tiene `hoja-incompleta` pero todavía no `evidence` ni `lectura-fallida`; se agregan en la rama `pdf-fixture-sintetico`, junto con el catálogo de `src/pdf/reasons.ts`.
+- Código: `PdfReading` y `PdfReadingFailure` en `src/pdf/types.ts`. Al 5/11 el tipo del código tiene `hoja-incompleta` pero todavía no `evidence` ni `lectura-fallida`; se agregan en la rama `pdf-fixture-sintetico`, junto con el catálogo de `src/pdf/reasons.ts`. **Al 10/11, `rule` y `page` (C2) están aprobados y sin implementar.**
 
 ### 8.1 Contrato común
 
@@ -342,6 +346,33 @@ function parseCutListText(input: PdfTextInput): PdfReading;  // pura; reader = "
 - **Los tres valores son PROVISORIOS.** Se calibraron con la fuente de trazos del fixture sintético, donde el espacio entre palabras mide 0,6 del cuerpo, y **hay que revalidarlos con una página real** (P-04): en una fuente real el espacio suele ser más angosto (supuesto, sin medir), y por eso `glueGapRatio` exige además el signo suelto. Rango en que el fixture sintético se lee igual: `glueGapRatio` de 0,35 a 0,45 (con 0,2 el título del resumen no se lee, porque "Cant" + "." mide 0,25); `joinGapRatio` desde 1,25 (con 1,2 o menos no se lee el título); `rowToleranceRatio` desde 0,2 (con 0,1 la primera fila falla). El hueco mínimo entre celdas distintas del fixture es 1,07 × el alto (marcas de canto vecinas): con `joinGapRatio` 1,5 dos marcas vecinas pueden quedar en un solo segmento; `readMarks` lo trata como texto sin atribuir y deja `pending` en `edges`, sin adivinar.
 - Sin `layout`, `parseCutListText` lee exactamente igual que antes (los valores por defecto son los de TextoPdf). Solo `parseOcrWords` pasa los valores de OCR.
 - **Criterio de aceptación de la lectura por OCR (10/11):** ninguna lectura devuelve un campo mal leído en una fila que quede sin marcar. Toda fila de `OcrLlm` sale `dudosa` por `origen-ocr` (§7.3); además, cada fila con un campo distinto del esperado tiene que llevar otra razón (por ejemplo `campo-pendiente`). Un campo mal leído de `header.*` sin `pending` no se corrige en silencio: se informa (no hay reconciliación hasta la sesión 3, `docs/spec-extraccion-pdf.md` §5.1). Una hoja que no se pueda leer con certeza se rechaza (`hoja-incompleta`), como la página 3 del segundo documento sintético.
+
+**Datos que comparten renglón (10/11, aprobado; `docs/spec-revision-ocr-real.md`, aprobado por equipo y profesor, informado por Santiago el 10/11/2026; evidencia: a archivar).**
+
+- **Hecho medido, primera corrida real con OCR (segundo fixture, Cedro 18):**
+  - La unidad, la fecha y la hora van en un mismo renglón, separadas por `|`.
+  - La banda de título de la hoja va en un solo renglón: material, espesor, medida y tipo, separados por " - ", más `i / N`.
+  - El pie va en un solo renglón.
+  - En el PDF real, los huecos entre campos distintos (0,27 a 1,0 × alto) son menores que los huecos dentro de un mismo texto del fixture sintético (hasta 1,2). **Ningún `joinGapRatio` los separa.**
+- Por eso estos datos no se buscan como "segmento entero" sino como **patrón delimitado** (opción A). Las reglas valen igual para `TextoPdf` y para OCR. `OCR_LAYOUT` no cambia.
+
+| Id | Regla |
+|---|---|
+| R-1 | **Patrón delimitado.** Un dato se encuentra si una secuencia contigua de palabras del renglón cumple su patrón y tiene un límite a cada lado. Un límite es: el inicio o fin del renglón; un hueco mayor que `joinGapRatio`; o una palabra separadora (R-10). Una regla que se cumple sobre el segmento entero también se cumple acá (sin regresión) |
+| R-2 | **Zonas.** Unidad, fecha y título: solo en la página 1, en los renglones de arriba de la tabla del resumen. Medida, tipo y material de hoja: solo en el renglón que contiene `i / N`. Pie: solo en los renglones que empiezan con un rótulo de `FOOTER_LINE` o lo contienen. Fuera de su zona, un patrón no cuenta |
+| R-3 | **Unicidad.** Si un patrón se cumple más de una vez en su zona con valores distintos, el dato no se lee: `pending`, o rechazo si el campo no admite `pending`. Nunca se elige uno |
+| R-4 | **Unidad.** Una palabra (o grupo de palabras pegadas por `glueGapRatio`) que cumple `MILLIMETER` entera, en su zona. `OTHER_UNIT` se evalúa igual y primero (`unidad-no-soportada` se conserva) |
+| R-5 | **Fecha.** `dd/dd/dddd` más la hora con su "am"/"pm", delimitados. La unidad va después de la barra `\|` y **nunca** entra en la fecha. Si después de la hora sigue algo que no es límite, `generatedAt` va a `pending`. **Decisión de Santiago, 10/11/2026 (a informar al equipo):** `generatedAt` se compara ignorando espacios (el OCR separa la hora de "pm"); si fecha y hora no se pueden interpretar, queda `pending` |
+| R-6 | **Material de hoja.** Las palabras desde un límite hasta `<n> mm`, con `/`, o sin `/` según la variante /-b (abajo) |
+| R-7 | **Título del resumen.** El material es la secuencia entre el límite más cercano a la izquierda y el `/`. Si a la izquierda no hay un límite que la cierre, el valor solo se acepta si es **exactamente igual** al material de una fila de la tabla del resumen; si no, rechazo (`header.material` no admite `null`). **P-R4 cerrada (10/11, Santiago, mirando la página 1):** a la izquierda del `/` hay el título del documento ("Diagrama de corte"), la barra `\|` y el material; la barra es un separador (R-10), así que hay límite y el material es solo la palabra pegada al `/`. La igualdad con la tabla es el respaldo cuando no hay límite |
+| R-8 | **Medida y tipo de tablero.** `<n> mm x <n> mm` delimitado; `Tablero` más las palabras que siguen hasta un límite. Una medida sin límite a la izquierda no se lee (y la hoja se rechaza como hoy). Un número **no** se delimita solo: un número partido por el OCR daría un valor falso sin aviso |
+| R-9 | **Pie.** `<n> piezas` delimitado. `Longitud de cortes` y `Eficiencia`: lo que sigue al rótulo y al `:` opcional, hasta un límite; si no es un número, `pending` |
+| R-10 | **Separadores.** Cualquier palabra de un carácter sin letras ni dígitos que el patrón no consume. En el segundo fixture se verificaron " - " (banda de hoja) y `\|` (cabecera del resumen), pero el conjunto **no se restringe** a esos glifos (sería sobreajuste a un PDF). PROVISORIO, a calibrar |
+
+- **Variante /-b (material de hoja sin `/`).** El `/` entre material y espesor está en el PDF (verificado por el equipo), pero el OCR lo pierde. Sin `/`, `<material> <n> mm` se acepta **solo** si material y espesor son exactamente iguales a los de `header` (página 1); si no, `hoja-incompleta`. Con `/`, se lee como siempre.
+- **Condición de la aprobación: ninguna regla relaja `dudosa` ni `pending`.** Verificado regla por regla en `docs/spec-revision-ocr-real.md` §4.0. Toda fila de OCR sigue `dudosa` por `origen-ocr`; un dato sin límite o ambiguo va a `pending` o a rechazo. La única aceptación nueva con respaldo indirecto es /-b, y exige igualdad exacta con el resumen.
+- **Código partido con ícono (riesgo RL-1, sin verificar con OCR).** No cambia ninguna regla del código; se mide en la corrida de desarrollo (TP-107).
+- **ABIERTO P-R5:** en la página 4 del segundo fixture, el OCR devolvió una letra suelta entre el " - " y la medida del tablero (hipótesis del equipo: una etiqueta del diagrama). Con R-8, esa medida no se lee y la hoja se rechaza (rechazo seguro).
 - **Sin coordenadas fijas:** las columnas salen de los rótulos del encabezado de la tabla. **Medido en el segundo fixture (3/11): la página de continuación no repite el encabezado de la tabla**, y las columnas son las mismas en todas las páginas de una hoja: se usan las de la página anterior de la hoja. El encabezado ocupa tres renglones ("Ajustadas", "Finales", "Tiras de cantos" arriba; "No.", "Designación", "Cant." en el medio; L y A abajo). Las L y A de "Finales" son las más cercanas al centro de su rótulo.
 - **Columnas de la tabla:** "No." y "Cant." son angostas (centro a menos de un ancho de rótulo); lo que está entre las dos es la designación; "Finales" L y A se asignan al más cercano; "Ajustadas" se ignora.
 - **Filas:** una fila empieza en cada elemento de la columna "No." (medido: la letra va en el primer renglón de la fila) y llega hasta la siguiente; lo que caiga en esa franja le pertenece.
@@ -358,6 +389,14 @@ function parseCutListText(input: PdfTextInput): PdfReading;  // pura; reader = "
 - **Límite:** con la constante y una tabla que se aparte mucho de lo medido, una asignación errónea no se detecta acá; la detecta el cruce con el .dae cuando hay caras `Canto_*` (§7.2).
 
 **Textos esperados (supuesto, sin ningún PDF con texto para contrastar):** resumen, página 1: título "<material> / <espesor> mm", "Milimetro", fecha `dd/mm/aaaa h:mm`, título del recuadro con `.skp`, "Configuraciones" y "Estadísticas" con pares rótulo-valor, tabla "Tablero" ("Cant.", "Longitud", "Anchura", "Σ Areas", "Σ Partes"). Hoja: "i / N", "<material> / <espesor> mm", "<largo> mm x <ancho> mm", "Tablero estándar". Pie: "N piezas", "Longitud de cortes", "Eficiencia". Decimales con coma o con punto.
+
+**Disposición verificada (10/11, segundo fixture Cedro 18, mirando el PDF):**
+- **Cabecera del resumen:** la fecha y la hora con "pm" van pegadas, después una barra vertical `|` y después la unidad.
+- **Título del resumen:** "Diagrama de corte", una barra `|` y el material, un `/` y el espesor. El material es solo la palabra pegada al `/` (P-R4).
+- **Banda de título de cada hoja:** va en las páginas de hoja, también en las de continuación, en un renglón: "<material> / <espesor> mm - <largo> mm x <ancho> mm - Tablero estándar" y el contador "i / N".
+- **Pie:** solo en la última página de cada hoja.
+
+Los textos de arriba no cambian; lo que cambia es que comparten renglón (ver "Datos que comparten renglón").
 
 ### 8.3 `OcrLlm` (visión / LLM, solo análisis previo)
 
@@ -410,6 +449,8 @@ Datos que R4 necesita del esquema (todos ya están en §4):
 | Tablero | INV-8, INV-13 | TP-17, TP-18 |
 | Material | INV-10 | TP-36 |
 | Hoja multipágina (§2) | INV-15 | TP-80 a TP-87 |
+| Datos que comparten renglón (§8.2, 10/11) | R-1 a R-10, /-b | TP-95 a TP-107 |
+| Diagnóstico del rechazo (§8, C2) | `rule`, `page` | OR-17, OR-18 (SPEC-B2) |
 
 ## 11. Inconsistencias que esta spec deja a la vista (sin resolver)
 
@@ -465,3 +506,10 @@ Transcripción en `tests/fixtures/pdf/olmo.json`. **No se corrigió ni el mock n
 - **5/11:** se aplica la §13 de `docs/spec-extraccion-pdf.md`: `PdfReading` suma `evidence` (ok, solo `OcrLlm`) y `lectura-fallida` (no ok, también en el catálogo de §7.3); §8.3, privacidad según la autorización del 3/11 (falta la captura escrita, P-04). Se anonimiza `docs/`: "primer fixture" y "segundo fixture" en la prosa; las rutas reales del repo (código en línea) no cambian.
 - **7/11:** nueva razón `canteado-sin-definir` en el catálogo cerrado (§7.3) y en el cruce (§7.2): con la columna de cantos ausente no se compara el canteado y se informa sin bajar el nivel. Decisión D5 de `docs/spec-sesion-2b-listado-cruce.md` v0.3. `src/pdf/reasons.ts` se actualiza en la sesión de implementación.
 - **10/11:** §8.2, "Granularidad con OCR": `PdfTextInput.layout` con tres parámetros (`joinGapRatio`, `glueGapRatio`, `rowToleranceRatio`), por defecto los de TextoPdf, y valores PROVISORIOS para OCR (1,5, 0,4 y 0,3) calibrados con las respuestas de Cloud Vision al fixture sintético; a revalidar con una página real (P-04). Motivo: el diagnóstico del 10/11 mostró que `parseText.ts` no leía la salida real de Vision (`estructura-no-reconocida` en los tres PDF sintéticos).
+- **10/11 (revisión tras la primera corrida real):** se aplica `docs/spec-revision-ocr-real.md` v0.2, aprobado por equipo y profesor, informado por Santiago el 10/11/2026; evidencia: a archivar.
+  - §8: `PdfReading` no ok suma `rule` y `page` (C2).
+  - §8.2: "Datos que comparten renglón", con la opción A, las reglas R-1 a R-10 y la variante /-b.
+  - "Textos esperados": la disposición verificada en el PDF.
+  - P-R4 cerrada por Santiago el 10/11 (el material es solo la palabra pegada al `/`; R-7 coherente) y N-1 decidida (`generatedAt` se compara ignorando espacios); ambas a informar al equipo.
+  - Sigue abierta P-R5 (letra suelta en la banda de la página 4).
+  - Sin implementar: `src/` no cambió.

@@ -1,26 +1,23 @@
-# Borrador — Revisión de la lectura por OCR tras la primera corrida real
+# Revisión de la lectura por OCR tras la primera corrida real
 
 | Campo | Valor |
 |---|---|
-| Estado | **BORRADOR v0.1, sin aprobar** (10/11/2026). No cambia ningún documento vigente hasta su aprobación |
-| Revisa | `docs/spec-esquema-pdf.md` §8.2 ("Granularidad con OCR", "Textos esperados") y `docs/spec-ocr-prueba-real.md` (SPEC-B2) §7, §12 y §14 |
-| Toca además (ver §1) | `docs/spec-extraccion-pdf.md` v0.3.1 §5 (paso 3) y §13 (tipo `PdfReading`) |
+| Versión | 0.3 (0.2 **aprobada**; la 0.3 suma tres decisiones de Santiago del 10/11/2026: P-R4, N-1 y la recomendación sobre la enmienda D; ver Historial) |
+| Estado | **Aprobado** (v0.2) por equipo y profesor, informado por Santiago el 10/11/2026; evidencia: a archivar. Los cambios de la v0.3 son decisiones de Santiago del 10/11/2026, **a informar al equipo** |
+| Revisa | `docs/spec-esquema-pdf.md` §8 (tipo `PdfReading`) y §8.2 ("Granularidad con OCR", "Textos esperados"), `docs/spec-extraccion-pdf.md` §5 (paso 3) y §13, y `docs/spec-ocr-prueba-real.md` (SPEC-B2) §4, §7, §11 y §14 |
+| Aplicado en | `spec-esquema-pdf.md` (§8, §8.2, §13), `spec-extraccion-pdf.md` (v0.3.2), `spec-ocr-prueba-real.md` (v0.3) y `test-plan-esquema-pdf.md` (TP-95 a TP-107). **La validación con otro PDF (§7) no está aplicada**: su enmienda a SPEC-B2 es un borrador aparte, `docs/spec-ocr-prueba-real-enmienda-d.md`, sin aprobar |
 | Origen | Primera corrida de `npm run ocr:real` con un PDF real del segundo fixture (Cedro 18 mm, 5 páginas): `lectura: rechazado (estructura-no-reconocida)`. Diagnóstico local sobre la respuesta guardada, sin red |
-| Regla de datos | Este documento no contiene texto, códigos, medidas ni hashes del PDF real. Solo estructura: cantidad de palabras, clases de palabra (número, palabra, signo), rótulos que ya figuran en la spec y separaciones relativas al alto de la caja |
+| Regla de datos | Este documento no contiene texto, códigos, medidas ni hashes del PDF real. Solo estructura: cantidad de palabras, clases de palabra (número, palabra, signo), rótulos que ya figuran en la spec, signos separadores verificados por el equipo y separaciones relativas al alto de la caja |
 
 ---
 
-## 1. Contradicciones con specs aprobadas (aviso previo)
+## 1. Contradicciones con specs aprobadas
 
-Antes de proponer nada: tres puntos chocan con texto aprobado. Si el borrador se aprueba, cada uno necesita su enmienda explícita.
-
-| Id | Texto aprobado | Qué propone este borrador | Qué hay que enmendar |
+| Id | Texto aprobado | Qué cambia | Estado |
 |---|---|---|---|
-| C1 | `spec-extraccion-pdf.md` §5, paso 3: las palabras del OCR alimentan `parseCutListText` "**sin cambios**"; §1: el parser "se reutiliza" | Cambiar cómo el parser localiza unidad, medida del tablero, material, tipo de tablero y pie (§4) | §5 paso 3: "sin cambios" pasa a decir "con el mismo parser para `TextoPdf` y `OcrLlm`". Ya hay un antecedente: el 10/11 se agregó `layout` a `PdfTextInput` |
-| C2 | `spec-esquema-pdf.md` §8 y `spec-extraccion-pdf.md` §13: `PdfReading` no ok = `{ ok, reason, detail }` | Agregar un diagnóstico estructurado (`rule`, `page`) al rechazo (§6, opción D-a) | El tipo de los dos documentos |
-| C3 | SPEC-B2 §1: "un único PDF real"; "cualquier otro PDF real" queda fuera del alcance | Validación con un segundo PDF (§7) | Una enmienda D a SPEC-B2, o una spec aparte. **No** se propone ampliar el alcance en este borrador: solo se deja descrito el protocolo |
-
-No choca: SPEC-B2 §1 ya dice que cambiar el parser "es otra spec" (es esta) y §7 prohíbe imprimir el `detail`; la propuesta de §6 lo mantiene.
+| C1 | `spec-extraccion-pdf.md` §5, paso 3: las palabras del OCR alimentan `parseCutListText` "**sin cambios**"; §1: el parser "se reutiliza" | Cambia cómo el parser localiza unidad, fecha, medida del tablero, material, tipo de tablero y pie (§4). §5 paso 3 pasa a decir "con el mismo parser para `TextoPdf` y `OcrLlm`" | **Aprobada (10/11).** Aplicada en spec-extraccion v0.3.2 |
+| C2 | `spec-esquema-pdf.md` §8 y `spec-extraccion-pdf.md` §13: `PdfReading` no ok = `{ ok, reason, detail }` | Se agregan `rule` (id de un catálogo cerrado) y `page` (número o `null`), sin texto del documento (§6) | **Aprobada (10/11).** Aplicada en los dos documentos. `src/pdf/types.ts` no cambia hasta la implementación |
+| C3 | SPEC-B2 §1: "un único PDF real" | Validación con un segundo PDF (§7) | Protocolo **aprobado**. Su enmienda D a SPEC-B2 está en borrador (`docs/spec-ocr-prueba-real-enmienda-d.md`): **no aplicada** |
 
 ## 2. Hechos medidos (corrida 1, 10/11)
 
@@ -38,14 +35,14 @@ Están medidos sobre `.ocr-data/real/<id>.vision.json` con el parser de hoy y `O
 
 | Dato | Regla actual (`src/pdf/parseText.ts`) | Estructura observada | Resultado |
 |---|---|---|---|
-| Unidad | `MILLIMETER` sobre el **segmento entero** (l. 183) | La palabra llega sola y cumple la regla. Comparte renglón con fecha, hora y un marcador de dos letras, y la precede un signo de un carácter. Separaciones entre esas palabras: 0,09 a 0,64 | Se une en un segmento de 30 caracteres. **Primer rechazo** (`estructura-no-reconocida`) |
+| Unidad | `MILLIMETER` sobre el **segmento entero** (l. 183) | La palabra llega sola y cumple la regla. Comparte renglón con fecha, hora y "pm", precedida de la barra vertical `\|` (P-R3, P-R6). Separaciones entre esas palabras: 0,09 a 0,64 | Se une en un segmento de 30 caracteres. **Primer rechazo** (`estructura-no-reconocida`) |
 | Fecha | `DATE` = prefijo `^dd/dd/dddd\s+\d` | La misma unión | **Error latente sin aviso.** Si la unidad se leyera, `header.generatedAt` tomaría todo el segmento, unidad incluida. Es un valor mal leído sin `pending` |
-| Título del resumen | `MATERIAL` sobre el segmento | Cumple. Antes del material hay 5 palabras y signos pegados (separaciones 0,2 a 0,44); hacia la derecha hay un hueco de 12,9 | **Riesgo**: `header.material` puede capturar palabras de más. Eso no se puede saber sin mirar el PDF (P-R4) |
+| Título del resumen | `MATERIAL` sobre el segmento | Cumple. Antes del `/` hay 5 palabras pegadas (separaciones 0,2 a 0,44): el título del documento, la barra `\|` y el material (P-R4, §2.4); hacia la derecha hay un hueco de 12,9 | **Error latente sin aviso, confirmado por la estructura:** `MATERIAL` toma todo lo que va antes del `/`, así que `header.material` saldría con el título del documento y la barra pegados al material, sin `pending`. Por la lectura de la regla; no se ejecutó con la respuesta guardada |
 | Tabla del resumen | Rótulos `Cant.`, `Longitud`, `Anchura`, `Σ Areas`, `Σ Partes`; `Configuraciones`, `Estadísticas` | Se encuentran todos | OK |
-| Encabezado de hoja | `SHEET`, `MATERIAL`, `BOARD_SIZE` y `/^Tablero/` en segmentos separados | **Un solo renglón** en las 4 páginas: `<palabra> <n> mm <signo> <n> mm x <n> mm <signo> Tablero estándar`, después un hueco de unos 19 y `i / N`. Separaciones: palabra → número 1,2 a 1,4; dentro de cada campo 0,25 a 0,62; signo → número 2,2 a 2,4; signo → "Tablero" 0,8 a 1,0. **No llega ningún `/` suelto** en las páginas 2 a 5 | `SHEET` se encuentra. `MATERIAL` no (falta `/`). `BOARD_SIZE` y `Tablero` no: la medida queda pegada a "<signo> Tablero estándar" |
-| Página 4 | — | En el hueco signo → número (2,2 a 2,4 en las otras páginas) llega una **letra suelta**, con separaciones 1,37 y 0,50. Todo el renglón queda unido | Con cualquier regla, la medida de esa hoja queda sin límite claro (§4) |
+| Encabezado de hoja | `SHEET`, `MATERIAL`, `BOARD_SIZE` y `/^Tablero/` en segmentos separados | **Un solo renglón** en las 4 páginas: `<material> <n> mm - <n> mm x <n> mm - Tablero estándar`, después un hueco de unos 19 y `i / N`. Separaciones: material → número 1,2 a 1,4 (ahí está el `/` que el OCR perdió, §2.4); dentro de cada campo 0,25 a 0,62; `-` → número 2,2 a 2,4; `-` → "Tablero" 0,8 a 1,0 | `SHEET` se encuentra. `MATERIAL` no (falta `/`). `BOARD_SIZE` y `Tablero` no: la medida queda pegada a "- Tablero estándar" |
+| Página 4 | — | En el hueco `-` → número (2,2 a 2,4 en las otras páginas) llega una **letra suelta**, con separaciones 1,37 y 0,50. Todo el renglón queda unido | La medida de esa hoja queda sin límite claro (§4). Origen sin verificar (P-R5) |
 | Encabezado de tabla | `Finales`, `Ajustadas`, `No.`, `Cant.`, `Tiras de cantos`, `L`, `A` | Están en las páginas 2 y 4. En las 3 y 5 faltan, como ya decía §8.2 ("la continuación no repite el encabezado de la tabla") | OK |
-| Pie | `PIECE_COUNT` = `^\d+\s*piezas?$` sobre el segmento | Páginas 3 y 5 (solo en la última de cada hoja, como dice INV-15). **Un solo renglón**: `La fibra sigue la longitud <signo> <n> piezas`, un hueco de 12 a 14 y `Longitud de cortes : <dec> <letra> <signo> Eficiencia : <dec> %`. Separaciones internas de 0,0 a 0,73 | `PIECE_COUNT` no se encuentra (rechazo `hoja-incompleta`). `Longitud de cortes` y `Eficiencia` quedarían en `pending` (seguro) |
+| Pie | `PIECE_COUNT` = `^\d+\s*piezas?$` sobre el segmento | Páginas 3 y 5. **Un solo renglón**: `La fibra sigue la longitud <signo> <n> piezas`, un hueco de 12 a 14 y `Longitud de cortes : <dec> <letra> <signo> Eficiencia : <dec> %`. Separaciones internas de 0,0 a 0,73. El signo del pie **no se verificó** en el PDF | `PIECE_COUNT` no se encuentra (rechazo `hoja-incompleta`). `Longitud de cortes` y `Eficiencia` quedarían en `pending` (seguro) |
 
 Si solo se arreglara la unidad, el orden de rechazo previsible sería: `hoja-incompleta` en la p. 2 (material, l. 337), después `estructura-no-reconocida` (medida, l. 585) y después `hoja-incompleta` (pie, l. 398). **Supuesto**: no se ejecutó.
 
@@ -62,60 +59,55 @@ En el PDF real, los campos distintos están **más cerca** que las palabras de u
 
 ### 2.3 Correcciones al diagnóstico anterior (misma fecha)
 
-1. La separación de 1,37 de la p. 2 está entre el material y su espesor, **no** junto a la medida del tablero. La medida no se encuentra porque queda pegada a "<signo> Tablero estándar" (0,50 y 1,00).
-2. En el segmento de la unidad, lo que había reportado como "mm" es una palabra de dos letras (posiblemente el marcador horario), no "mm".
-3. Las páginas 3 y 5 tienen el mismo renglón de encabezado de hoja que las 2 y 4, con la misma estructura de palabras. **Verificado por el equipo en el PDF (10/11):** las cuatro páginas de hoja, incluidas las de continuación, traen la banda de título (material, espesor, medida, "Tablero estándar") y el contador `i / N`.
+1. La separación de 1,37 de la p. 2 está entre el material y su espesor, **no** junto a la medida del tablero. La medida no se encuentra porque queda pegada a "- Tablero estándar" (0,50 y 1,00).
+2. En el segmento de la unidad, lo que había reportado como "mm" es "pm", que es parte de la hora (P-R6).
+3. Las páginas 3 y 5 tienen el mismo renglón de encabezado de hoja que las 2 y 4. Lo verificó el equipo en el PDF (§2.4).
 
 ### 2.4 Verificación del equipo en el PDF (10/11, Santiago Borda)
 
 | Hecho | Consecuencia |
 |---|---|
 | 5 páginas: resumen y 2 tableros (páginas 2-3 y 4-5) | Coincide con spec-esquema §2 |
-| La banda de título y `i / N` están en las páginas 2 a 5, también en las de continuación | INV-15 (b) se mantiene tal cual. P-R1 cerrada |
-| El `/` entre material y espesor **es parte del título**; el contador tiene otro `/` | El OCR **perdió** ese `/` en las 4 páginas (llega un hueco de 1,2 a 1,4 en su lugar). No es otro formato: "Textos esperados" de §8.2 no cambia. P-R2 cerrada |
+| La banda de título (material, espesor, medida, "Tablero estándar") y `i / N` están en las páginas 2 a 5, también en las de continuación | INV-15 (b) se mantiene tal cual. P-R1 cerrada |
+| El `/` entre material y espesor **es parte del título**; el contador tiene otro `/` | El OCR **perdió** ese `/` en las 4 páginas (llega un hueco de 1,2 a 1,4 en su lugar). No es otro formato. P-R2 cerrada |
+| En la banda de título de las hojas, los campos se separan con " - " | P-R3 cerrada para la banda. El OCR devolvió `-` |
+| En la cabecera de la página 1, la fecha-hora y la unidad se separan con una barra vertical `\|` | P-R3 cerrada para la cabecera. El OCR devolvió un signo de un carácter |
+| "pm" es parte de la hora, pegada a la fecha; la unidad va aparte, después de la barra | P-R6 cerrada. `generatedAt` = fecha + hora con "pm"; nunca la unidad |
+| En la página 1, las cinco palabras a la izquierda del `/` son "Diagrama de corte", la barra `\|` y el material, que es **solo** la palabra pegada al `/`. "Diagrama de corte `\|`" es el título del documento y la barra es un separador (Santiago, 10/11) | P-R4 cerrada. La barra es un separador de R-10, así que **hay límite a la izquierda del material**: R-7 se aplica por su primera rama (§4). El título del documento no va a ningún campo del esquema |
 | El pie con la cantidad de piezas aparece solo en la última página de cada tablero (3 y 5) | Coincide con INV-15 y con lo observado |
 | El código viene partido en dos renglones y, en algunas filas, con un ícono en el medio | Coincide con spec-esquema §7.1 y H-02. **No está verificado cómo lo devuelve Vision** (la corrida no llegó a las filas): riesgo RL-1 (§4.3) |
 
 ## 3. Opciones para §8.2: cómo localizar datos que comparten renglón
 
-### Opción A — Patrones sobre la secuencia de palabras, con límites de campo
+**Decisión (10/11): opción A**, con la noción de "separador" de B como límite.
+
+### Opción A — Patrones sobre la secuencia de palabras, con límites de campo (elegida)
 
 El parser deja de exigir que el segmento entero cumpla la regla. Busca la regla como **secuencia contigua de palabras dentro del renglón**, siempre que esté **delimitada**. Un límite puede ser:
 - el inicio o el fin del renglón;
 - un hueco mayor que `joinGapRatio`;
 - una palabra **separadora**: un signo de un solo carácter, sin letras ni dígitos, que el patrón no consume.
 
-- **Ventajas:** no depende de umbrales nuevos y funciona igual con capa de texto y con OCR. Cada dato sale de su propio patrón con sus límites, así que un dato pegado a otro no lo contamina. Es determinista y explicable: se puede decir qué patrón y qué límites encontró.
+- **Ventajas:** no depende de umbrales nuevos y funciona igual con capa de texto y con OCR. Cada dato sale de su propio patrón con sus límites, así que un dato pegado a otro no lo contamina. Es determinista y explicable.
 - **Riesgos:**
   - Límite izquierdo del material: un nombre de varias palabras no tiene marca propia de inicio. Se mitiga con R-6 y R-7.
   - Un separador perdido o leído como letra deja el dato sin límite, como en la p. 4. El resultado es `pending` o rechazo, que es lo seguro, pero baja la tasa de lectura.
   - Un patrón como "<n> mm" aparece cientos de veces en la tabla y el diagrama. Se mitiga con R-2 (zonas).
-  - Hay que definir el conjunto de separadores (P-R3).
 
-### Opción B — Cortar segmentos en los separadores y mantener la regla de segmento entero
+### Opción B — Cortar segmentos en los separadores (descartada)
 
-Antes de evaluar las reglas, en los renglones de encabezado, resumen y pie se corta el segmento en cada signo separador. Las reglas actuales (`^…$`) siguen iguales.
+Antes de evaluar las reglas, se corta el segmento en cada signo separador y las reglas actuales (`^…$`) siguen iguales. Se descarta por tres motivos:
+- No resuelve la fecha sin cortar también por la unidad.
+- Los signos que son parte del dato (`/`, `-` del código, `~`, `.`) obligan a una lista de signos por zona.
+- Una lista de glifos observada en un solo PDF es el caso típico de sobreajuste.
 
-- **Ventajas:** es el cambio mínimo y las reglas quedan como están.
-- **Riesgos:**
-  - **No resuelve la unidad.** Entre la hora y la unidad hay un signo, pero entre el marcador horario y la fecha no. La fecha se arreglaría solo si se corta también por la unidad.
-  - Los signos que son parte del dato (`/` del título, `-` del código, `~` del canto, `.` de `Cant.`) obligan a una lista de signos permitidos por zona.
-  - Una lista de glifos observada en un solo PDF es el caso típico de sobreajuste.
+### Opción C — Umbral de unión que no dependa solo de la altura (descartada)
 
-### Opción C — Umbral de unión que no dependa solo de la altura
+Se descarta por §2.2: los huecos entre campos y dentro de campos se solapan, y cualquier valor saldría de este único PDF.
 
-Por ejemplo, un hueco relativo a la mediana de los huecos del renglón, o al ancho de un carácter estimado.
+## 4. Reglas aprobadas (opción A)
 
-- **Ventajas:** no toca las reglas de texto.
-- **Riesgos:** los datos de §2.2 la desaconsejan: los huecos entre campos y dentro de campos se solapan. Cualquier valor saldría de este único PDF (sobreajuste) y rompería el sintético o el real. Además agrega un valor que habría que calibrar sin datos suficientes.
-
-### Recomendación: A, tomando de B solo la noción de "separador" como límite
-
-Se recomienda A porque es la única de las tres que no depende de un número calibrado con un PDF. Lo que no delimita con certeza va a `pending` o a rechazo. No cambia ningún valor de `OCR_LAYOUT`. **La decisión queda abierta.**
-
-## 4. Reglas propuestas (si se elige A)
-
-Todas aplican a `TextoPdf` y a `OcrLlm` (un solo parser). Con la entrada sintética de hoy (TP-50, TS-04), el resultado tiene que ser igual byte a byte.
+Todas aplican a `TextoPdf` y a `OcrLlm` (un solo parser, C1). Con la entrada sintética de hoy (TP-50, TS-04), el resultado tiene que ser igual byte a byte.
 
 | Id | Regla |
 |---|---|
@@ -123,22 +115,46 @@ Todas aplican a `TextoPdf` y a `OcrLlm` (un solo parser). Con la entrada sintét
 | R-2 | **Zonas.** Unidad, fecha y título: solo en la página 1, en los renglones de arriba de la tabla del resumen. Medida, tipo y material de hoja: solo en el renglón que contiene `i / N`. Pie: solo en los renglones que empiezan con un rótulo de `FOOTER_LINE` o lo contienen. Fuera de su zona, un patrón no cuenta |
 | R-3 | **Unicidad.** Si un patrón se cumple más de una vez en su zona con valores distintos, el dato no se lee: va a `pending`, o es rechazo si el campo no admite `pending`. Nunca se elige uno |
 | R-4 | **Unidad.** Una palabra (o grupo de palabras pegadas por `glueGapRatio`) que cumple `MILLIMETER` entera, en su zona. `OTHER_UNIT` se evalúa igual y primero (`unidad-no-soportada` se conserva) |
-| R-5 | **Fecha.** `dd/dd/dddd` + hora, más como mucho un marcador horario si P-R6 lo confirma, delimitados. Si después de la hora sigue algo que no es límite, `generatedAt` va a `pending`. **Nunca incluye la unidad** |
-| R-6 | **Material de hoja.** Las palabras desde un límite hasta `<n> mm`, con o sin `/` según la variante elegida en §4.1 |
-| R-7 | **Título del resumen.** El material se toma de la secuencia entre el límite más cercano a la izquierda y el `/`. Si a la izquierda no hay un límite que lo cierre (como en la corrida 1), el valor solo se acepta si es **exactamente igual** al material de una fila de la tabla del resumen; si no, rechazo (`header.material` no admite `null`). Pendiente de P-R4 |
+| R-5 | **Fecha.** `dd/dd/dddd` más la hora con su "am"/"pm" (P-R6), delimitados. La unidad va después de la barra separadora y nunca entra en la fecha. Si después de la hora (y su "am"/"pm") sigue algo que no es límite, `generatedAt` va a `pending`. **N-1 (decisión de Santiago, 10/11):** `generatedAt` se compara **ignorando espacios**; si fecha y hora no se pueden interpretar con ese patrón, queda `pending` |
+| R-6 | **Material de hoja.** Las palabras desde un límite hasta `<n> mm`, con `/` o, sin `/`, según la variante /-b (§4.1) |
+| R-7 | **Título del resumen.** El material se toma de la secuencia entre el límite más cercano a la izquierda y el `/`. Si a la izquierda no hay un límite que lo cierre, el valor solo se acepta si es **exactamente igual** al material de una fila de la tabla del resumen; si no, rechazo (`header.material` no admite `null`). **P-R4 cerrada (10/11):** en el PDF del segundo fixture hay límite (la barra `\|`, R-10), así que se aplica la primera rama y el material es solo la palabra pegada al `/`; el título del documento queda fuera. La igualdad con la tabla es el respaldo para cuando no hay límite |
 | R-8 | **Medida y tipo de tablero.** `<n> mm x <n> mm` delimitado; `Tablero` más las palabras que siguen hasta un límite. Una medida sin límite a la izquierda (p. 4) no se lee y la regla de l. 585 sigue rechazando. **No** se acepta que un número "se delimita solo": un número partido por el OCR daría un valor falso sin aviso (TP-100) |
 | R-9 | **Pie.** `<n> piezas` delimitado (la fibra y el separador lo preceden). `Longitud de cortes` y `Eficiencia`: el valor es lo que sigue al rótulo y al `:` opcional, hasta un límite. Si no es un número, `pending` (como hoy) |
-| R-10 | **Separadores.** El conjunto es **PROVISORIO, a calibrar**: hoy, cualquier palabra de un carácter sin letras ni dígitos que el patrón no consume. Si P-R3 identifica los glifos, se puede restringir. No se agrega ningún número nuevo |
+| R-10 | **Separadores.** Cualquier palabra de un carácter sin letras ni dígitos que el patrón no consume. P-R3 verificó los separadores de este PDF (`-` en la banda de hoja, `\|` en la cabecera del resumen), pero el conjunto **no se restringe** a esos glifos: restringirlo con un solo PDF sería sobreajuste, y hacerlo exige una decisión nueva. Sigue PROVISORIO, a calibrar. No se agrega ningún número nuevo |
 
-### 4.1 Tolerancia a la pérdida del `/` en el material de hoja
+### 4.0 Condición de la aprobación: ninguna regla relaja `dudosa` ni `pending`
 
-| Variante | Regla | Riesgo |
+**Criterio.** Una regla relaja si hace al menos una de estas tres cosas:
+- **(a)** una fila pierde `dudosa`, `origen-ocr` u otra razón;
+- **(b)** un valor que la regla no puede establecer sin ambigüedad se escribe sin `pending`;
+- **(c)** un caso que hoy se rechaza se acepta con menos respaldo del que exige una lectura de `TextoPdf`.
+
+Verificación regla por regla:
+
+| Regla | (a) filas | (b) valores sin `pending` | (c) rechazos | Veredicto |
+|---|---|---|---|---|
+| R-1 | No toca filas | Solo escribe un valor si hay patrón **y** límite a los dos lados; si no, queda como hoy (`null` + `pending` o rechazo) | Acepta datos que hoy no encuentra, pero con el mismo patrón exacto de hoy; solo cambia dónde se busca | Cumple |
+| R-2 | No toca filas | Reduce dónde puede haber coincidencias (más estricta) | No acepta nada nuevo | Cumple |
+| R-3 | No toca filas | Ante dos valores, ninguno se escribe | Agrega rechazos, no los quita | Cumple |
+| R-4 | No toca filas | No aplica (`unit` es fijo `"mm"`) | Acepta la unidad solo si una palabra cumple `MILLIMETER` entera, y solo después de descartar otra unidad. Es el mismo respaldo que una capa de texto con la unidad aislada | Cumple |
+| R-5 | No toca filas | **Más estricta que hoy**: hoy `DATE` acepta el prefijo y arrastra la unidad sin aviso (§2.1); con R-5, lo que no se delimita va a `pending` | No acepta nada nuevo | Cumple |
+| R-6 | No toca filas (siguen `dudosa` por `origen-ocr`) | El material de hoja sin `/` solo se acepta si coincide exactamente con `header` | **Salvedad:** acepta sin `/` una banda que hoy da `hoja-incompleta`. El respaldo es la igualdad exacta con otro lugar del mismo documento. Excepción aprobada aparte (decisión 4, /-b). Si no hay igualdad, sigue `hoja-incompleta` | Cumple, con la salvedad aprobada |
+| R-7 | No toca filas | **Más estricta que hoy**: hoy `MATERIAL` acepta el segmento entero y captura palabras de más sin aviso (en el PDF del segundo fixture, el título del documento y la barra); con R-7, solo se toma lo que está entre el límite y el `/` y, sin límite izquierdo, solo se acepta la igualdad exacta con una fila de la tabla | Agrega rechazos | Cumple |
+| R-8 | No toca filas | Sin límite izquierdo, la medida no se lee; un número partido no se toma | No acepta nada sin límite | Cumple |
+| R-9 | No toca filas | Si no es número, `pending`. Un `pieceCount` mal leído lo sigue detectando INV-1 (`suma-tablero-no-coincide`) | Acepta el pie dentro de un renglón corrido, con el mismo patrón | Cumple |
+| R-10 | No toca filas | Un separador que corte mal un campo deja el patrón sin cumplir o sin igualdad (R-6, R-7), y eso da `pending` o rechazo | No acepta nada por sí sola | Cumple |
+
+Fuera de las reglas, sin cambio: toda fila de `OcrLlm` sale `dudosa` por `origen-ocr` (§7.3, RP8); INV-0 a INV-15 y el cruce con el .dae siguen iguales.
+
+### 4.1 Tolerancia a la pérdida del `/` en el material de hoja: variante /-b (aprobada)
+
+| Variante | Regla | Estado |
 |---|---|---|
-| /-a | Exige `/` (como hoy) | Con esta corrida, toda hoja da `hoja-incompleta` |
-| /-b (**recomendada**) | Sin `/`, `<material> <n> mm` se acepta **solo** si material y espesor son exactamente iguales a los de `header` (página 1). Distinto o ausente: `hoja-incompleta` | Depende de que el resumen se lea bien (R-7). Si el resumen falla, falla todo, que es lo seguro |
-| /-c | Sin `/`, se acepta siempre | Límite izquierdo incierto; un material mal leído entraría a INV-10 sin aviso. No se recomienda |
+| /-a | Exige `/` (como hoy) | Descartada: con esta corrida, toda hoja da `hoja-incompleta` |
+| /-b | Sin `/`, `<material> <n> mm` se acepta **solo** si material y espesor son exactamente iguales a los de `header` (página 1). Distinto o ausente: `hoja-incompleta` | **Aprobada (10/11)** |
+| /-c | Sin `/`, se acepta siempre | Descartada: límite izquierdo incierto |
 
-P-R2 está cerrada (§2.4): el `/` está en el PDF y el OCR lo pierde. /-b es una tolerancia a un **error de lectura**, no a otro formato. Por eso solo acepta el valor cuando lo respalda otra parte del mismo documento (el título del resumen), y nunca lo toma por sí solo. Que el OCR pierda el `/` en las 4 páginas de este PDF no quiere decir que lo pierda siempre: /-b tiene que seguir aceptando el título con `/` (TP-101).
+P-R2 está cerrada: el `/` está en el PDF y el OCR lo pierde. /-b es una tolerancia a un **error de lectura**, no a otro formato. Por eso solo acepta el valor cuando lo respalda el título del resumen, y nunca lo toma por sí solo. Que el OCR pierda el `/` en las 4 páginas de este PDF no quiere decir que lo pierda siempre: /-b tiene que seguir aceptando el título con `/` (TP-101).
 
 ### 4.2 Qué no cambia
 
@@ -158,8 +174,8 @@ El equipo verificó en el PDF que el código viene partido en dos renglones y, e
 | Los dos renglones se unen con el nombre o en otro orden | El código pierde una parte | `codigo-ausente` o `pending` (§8.2: si ninguna unión cumple, el código va a `pending`) | Sí |
 | Errores de carácter ya vistos en el sintético ("C" leída como "0" u "O") | Código con formato inválido | `formato-invalido`; **no se autocorrige** (H-02) | Sí |
 
-- **Propuesta:** no cambiar reglas del código en esta revisión. Agregar una prueba sintética (TP-107) y medir RL-1 en la corrida de desarrollo, contando las filas con `formato-invalido` o con el código en `pending`. Solo se cuentan, no se imprimen códigos.
-- Si la corrida muestra que el ícono llega como un carácter que forma un código válido, hace falta otra spec: este borrador no lo resuelve.
+- **Decisión:** no se cambian reglas del código en esta revisión. Se agrega una prueba sintética (TP-107) y RL-1 se mide en la corrida de desarrollo, contando las filas con `formato-invalido` o con el código en `pending`. Solo se cuentan, no se imprimen códigos.
+- Si la corrida muestra que el ícono llega como un carácter que forma un código válido, hace falta otra spec.
 
 ## 5. Criterios de aceptación y pruebas
 
@@ -177,20 +193,20 @@ El equipo verificó en el PDF que el código viene partido en dos renglones y, e
 
 ### 5.2 Pruebas nuevas
 
-Convención del repo: TP- para el plan del esquema (siguen a TP-94) y OR- para SPEC-B2 (siguen a OR-16).
+Convención del repo: TP- para el plan del esquema (siguen a TP-94) y OR- para SPEC-B2 (siguen a OR-16). Copiadas a `docs/test-plan-esquema-pdf.md` y a SPEC-B2 §11.
 
 | Id | Criterio | Caso (sintético) | Esperado |
 |---|---|---|---|
-| TP-95 | CA-1, CA-3; R-4, R-5 | Renglón del resumen: título, hueco grande, fecha, hora, marcador, signo, unidad; separaciones de 0,1 a 0,7 × alto | Unidad leída; `generatedAt` sin la unidad (o `pending`) |
+| TP-95 | CA-1, CA-3; R-4, R-5 | Renglón del resumen: título, hueco grande, fecha, hora, "pm", `\|`, unidad; separaciones de 0,1 a 0,7 × alto. Subcaso: hora y "pm" como dos palabras (N-1) | Unidad leída; `generatedAt` = fecha + hora con "pm", sin la unidad, **comparado ignorando espacios**; si no se interpreta, `pending` |
 | TP-96 | R-4 | Igual que TP-95, con otra unidad en lugar de milímetros | `unidad-no-soportada` |
-| TP-97 | R-4 | Sin unidad | `estructura-no-reconocida`; regla `resumen-sin-unidad` (§6) |
-| TP-98 | CA-3; R-6, R-8 | Encabezado de hoja en un renglón: `<material> <e> mm <signo> <L> mm x <A> mm <signo> Tablero estándar`, hueco, `i / N`, con las separaciones de §2.1 | Medida, tipo, material y espesor leídos (con /-b) |
-| TP-99 | CA-4; R-8 | TP-98 con el separador previo a la medida reemplazado por una letra suelta (caso p. 4) | Medida sin leer; rechazo en la primera página de la hoja; ningún valor de medida |
+| TP-97 | R-4 | Sin unidad | `estructura-no-reconocida`; regla del catálogo para "resumen sin unidad" (§6) |
+| TP-98 | CA-3; R-6, R-8 | Banda de hoja en un renglón: `<material> <e> mm - <L> mm x <A> mm - Tablero estándar`, hueco, `i / N`, con las separaciones de §2.1, con y sin `/` | Medida, tipo, material y espesor leídos (/-b) |
+| TP-99 | CA-4; R-8 | TP-98 con una letra suelta entre el `-` y la medida (caso p. 4) | Medida sin leer; rechazo en la primera página de la hoja; ningún valor de medida |
 | TP-100 | CA-4; R-8 | Número de la medida partido en dos palabras con separación de 0,5 | No se lee el número parcial; `pending` o rechazo |
 | TP-101 | R-6, §4.1 | Material de hoja sin `/`: igual al resumen; distinto; con `/` | Leído; `hoja-incompleta`; leído (sin regresión) |
 | TP-102 | CA-3; R-9 | Pie en un renglón: fibra + signo + `<n> piezas`, hueco, longitud de cortes + signo + eficiencia | `pieceCount` leído; longitud y eficiencia leídas o en `pending`; nunca otro valor |
 | TP-103 | CA-4; R-3 | Dos medidas distintas en el renglón de `i / N` | No se elige; rechazo |
-| TP-104 | CA-1; R-7 | Título con palabras pegadas a la izquierda: (a) el final coincide con una fila de la tabla; (b) no coincide | (a) material de la fila; (b) rechazo; nunca un material con palabras de más |
+| TP-104 | CA-1; R-7 | Título del resumen con un título ficticio de tres palabras a la izquierda del material (sin datos reales): (a) separado del material por `\|`; (b) sin separador y el final coincide con una fila de la tabla; (c) sin separador y no coincide | (a) solo el material, sin el título ni la barra; (b) material de la fila; (c) rechazo; nunca un material con palabras de más |
 | TP-105 | R-2 | `<n> mm x <n> mm` en una celda de la tabla o en el diagrama | No cuenta como medida del tablero |
 | TP-106 | CA-2 | TP-50, TS-04 y el replay sintético de Vision con el parser nuevo | Idénticos a hoy |
 | TP-107 | CA-1, CA-4; RL-1 (§4.3) | Código `9999-` en dos renglones de palabras de OCR, con una palabra suelta en el medio: (a) un signo; (b) una letra; (c) un dígito que deja el formato inválido | (a) código leído; (b) y (c) `formato-invalido` o `pending`; nunca otro código válido sin razón |
@@ -200,75 +216,88 @@ Convención del repo: TP- para el plan del esquema (siguen a TP-94) y OR- para S
 ### 5.3 Fixture con la geometría observada
 
 - Elementos armados **en memoria**, como las variantes V1 a V7 de spec-fixture-sintetico §8. Por ejemplo `tests/helpers/ocrRealLike.ts`, sin PDF nuevo.
-- Reproduce solo la **estructura** de §2.1: palabras sueltas, renglón corrido, separaciones en los rangos medidos, signos entre campos y la variante de la letra suelta.
+- Reproduce solo la **estructura** de §2.1: palabras sueltas, renglón corrido, separaciones en los rangos medidos, separadores (`-` en la banda de hoja, `|` en la cabecera del resumen, otro signo de un carácter en el pie) y la variante de la letra suelta.
 - Datos ficticios: código `9999-`, material inventado ("Gris Sintético"), medidas que no repiten ninguna real (la comprobación de TS-12 se extiende a este helper: TS-12b).
-- El glifo separador real no se conoce (P-R3): las pruebas usan `-` y otro signo de un carácter, sin copiar el del PDF.
 - Nada de `.ocr-data/` se copia a `tests/`. La respuesta real no se usa como replay en la suite (sigue vigente spec-fixture-sintetico D2).
 
 ## 6. SPEC-B2: diagnóstico del rechazo y valor de la corrida
 
-**`docs/spec-ocr-prueba-real.md` tiene cambios sin commitear: este borrador no lo edita.** Las enmiendas quedan acá, para aplicarlas cuando se aprueben.
+### 6.1 Qué imprime el script cuando el parser rechaza: D-a (decidida)
 
-### 6.1 Qué imprime el script cuando el parser rechaza
+**Decisión (10/11, Santiago Borda): D-a.**
 
-Hoy imprime `lectura: rechazado (<razón>)`. El `detail` no se puede imprimir: algunos citan texto del documento (l. 182 cita el segmento de la unidad; l. 369 cita números de hoja).
-
-| Opción | Cómo | Ventajas | Riesgos |
+| Opción | Cómo | Cuánto diagnóstico da | ¿Toca un contrato aprobado? |
 |---|---|---|---|
-| D-a (**recomendada**) | El rechazo lleva `rule` (id de un catálogo cerrado, uno por sitio de rechazo) y `page` (número o `null`). El script imprime `regla: <id>` y `página: <n>` | Estable, verificable (OR-18), sin texto del documento | Cambia el tipo `PdfReading` (C2) |
-| D-b | El script deduce la regla comparando el `detail` con una tabla de plantillas | No cambia el contrato | Frágil: cambiar un mensaje rompe el diagnóstico en silencio. El script tendría que leer el `detail`, que hoy no toca |
+| **D-a (elegida)** | El rechazo de `PdfReading` lleva `rule` (id de un catálogo cerrado, uno por sitio de rechazo) y `page` (número o `null`). El script imprime `regla: <id>` y `página: <n>` | Completo: los 21 sitios de rechazo tienen id propio (OR-18). Es estable ante cambios de redacción del `detail` | Sí: el tipo `PdfReading` de spec-esquema §8 y spec-extraccion §13. Es la enmienda C2, aprobada |
+| D-b (descartada) | El script deduce la regla comparando el `detail` con una tabla de plantillas | Parcial: un mensaje que no está en la tabla sale como "desconocida", y un cambio de texto rompe el diagnóstico sin aviso | No toca contratos, pero obliga al script a leer el `detail`, que hoy no toca |
 
-Plantilla propuesta para §7 de SPEC-B2, a agregar debajo de `lectura:` solo si hay rechazo:
+Plantilla aplicada en SPEC-B2 §7, debajo de `lectura:` solo si hay rechazo:
 
 ```
 regla: <id del catálogo>
 página: <n> | -
 ```
 
-Catálogo inicial: un id por sitio de `ReadFailure` (por ejemplo `resumen-sin-unidad`, `resumen-sin-titulo-o-tabla`, `hoja-sin-material`, `hoja-sin-encabezado-completo`, `hoja-sin-pie`). Se fija en la implementación, con OR-18.
+El catálogo (un id por sitio de `ReadFailure`) se fija en la implementación, con OR-18. Ejemplos de nombre: `resumen-sin-unidad`, `resumen-sin-titulo-o-tabla`, `hoja-sin-material`, `hoja-sin-encabezado-completo`, `hoja-sin-pie`.
 
-### 6.2 ¿Una corrida rechazada cuenta como resultado válido?
-
-Propuesta: **se separan dos resultados**.
+### 6.2 La corrida rechazada: dato para P-02, no medición (aprobado)
 
 | Resultado | Corrida 1 (10/11) | Para qué sirve |
 |---|---|---|
-| Camino PDF → Vision → `PdfTextInput` | Válido: 5 páginas, 1190 palabras, conversión sin error | Dato para P-02. Lo cierra el equipo (spec-extraccion §15) |
+| Camino PDF → Vision → `PdfTextInput` | Válido: 5 páginas, 1190 palabras, conversión sin error | **Cuenta como dato para P-02** (decisión del 10/11). Cerrar P-02 sigue siendo decisión del equipo (spec-extraccion §15) |
 | Lectura (`parseOcrWords`) | Rechazada: **no es una medición** | No hay filas, así que `distintos-sin-pending` no está definido. **Un rechazo no equivale a `distintos-sin-pending = 0`** |
 
-- SPEC-B2 §4 (paso 8) y §14 ya dicen que el rechazo "es un resultado, no un fallo del script": se mantiene.
-- Se propone agregar a SPEC-B2 un **registro de corridas** (como §12): fecha, quién, resultado del camino, resultado de la lectura, regla y página. Sin hash ni contenido.
+- SPEC-B2 §4 (paso 8) y §14 ya decían que el rechazo "es un resultado, no un fallo del script": se mantiene.
+- SPEC-B2 suma un **registro de corridas** (§12b): fecha, quién, resultado del camino, resultado de la lectura, regla y página. Sin hash ni contenido.
 - Volver a leer la respuesta guardada con el parser nuevo (sin `--reenviar`, sin red) es la **corrida de desarrollo**. No valida nada (§7).
 
-## 7. Riesgo de sobreajuste: validación con otro PDF
+## 7. Riesgo de sobreajuste: validación con otro PDF (protocolo aprobado; enmienda en borrador)
 
-El ajuste se basa en **un** PDF. Protocolo propuesto, sin ampliar el alcance de este borrador:
+El ajuste se basa en **un** PDF. Protocolo:
 
 1. **Desarrollo:** solo la respuesta guardada de Cedro 18 y los fixtures sintéticos. Las reglas de §4 salen de la estructura, no de valores medidos; si alguna necesita un número, va como PROVISORIO, a calibrar.
 2. **Congelar:** antes de mirar otro PDF, las reglas quedan en un commit, con su versión en `readerVersion` (por ejemplo, `vision-files-annotate/real` + versión del parser).
-3. **Validación 1, Blanco 18 del segundo fixture:** una corrida, sin cambiar nada después de verla. Necesita una enmienda D a SPEC-B2: reemplazar el hash de la lista blanca (sigue habiendo una sola entrada) y agregar ese PDF al alcance. La autorización de Casa Mueble ya lo cubre; P-04 sigue sin archivar. Aceptación: con transcripción, `distintos-sin-pending = 0`. Un rechazo con regla es un resultado aceptable pero quiere decir "no generaliza", no "pasa".
-4. **Si hay que cambiar reglas después de la validación 1,** esa corrida pasa a ser de desarrollo y la siguiente validación es el **primer fixture** (variante corta, otra cantidad de páginas, transcripción ya versionada en `tests/fixtures/pdf/olmo.json`). Necesita su propia enmienda.
-5. **Señales de sobreajuste, a revisar en la aprobación:** una regla que menciona un glifo visto una sola vez; un número ajustado a los huecos de §2; una regla que solo se cumple en la página 4.
+3. **Validación 1, Blanco 18 del segundo fixture:** una corrida, sin cambiar nada después de verla. Aceptación: con transcripción, `distintos-sin-pending = 0`. Un rechazo con regla es un resultado aceptable, pero quiere decir "no generaliza", no "pasa".
+4. **Si hay que cambiar reglas después de la validación 1,** esa corrida pasa a ser de desarrollo y la siguiente validación es el **primer fixture** (variante corta, transcripción ya versionada en `tests/fixtures/pdf/olmo.json`). Necesita su propia enmienda.
+5. **Señales de sobreajuste:** una regla que menciona un glifo visto una sola vez (por eso R-10 no se restringe); un número ajustado a los huecos de §2; una regla que solo se cumple en la página 4.
 
-## 8. Preguntas abiertas (las verifica el equipo en el PDF; no se suponen)
+La lista blanca admite un único hash: cada PDF exige cambiar el hash antes de correr. Detalle y condiciones en `docs/spec-ocr-prueba-real-enmienda-d.md` (**borrador, sin aprobar**).
 
-| Id | Pregunta | Por qué importa |
+## 8. Preguntas abiertas
+
+| Id | Pregunta | Estado |
 |---|---|---|
-| P-R1 | ¿Las páginas de continuación (3 y 5) repiten el título de material de la hoja? | **Cerrada (10/11): sí** (§2.4) |
-| P-R2 | En el encabezado de hoja, ¿hay un `/` entre el material y el espesor? | **Cerrada (10/11): sí, el OCR lo pierde** (§2.4, §4.1) |
-| P-R3 | ¿Qué signos separan los campos del encabezado de hoja, del renglón de fecha y unidad, y del pie? El OCR devolvió `-` en la hoja y otro signo de un carácter en el resumen y el pie (no se imprimió) | R-10 |
-| P-R4 | En el título del resumen, ¿las palabras a la izquierda de "<material> / <e> mm" son parte del título o es otro texto? | R-7; posible error latente en `header.material` |
-| P-R5 | En la página 4, ¿qué hay donde el OCR devolvió una letra suelta antes de la medida del tablero? | TP-99; saber si es un error del OCR o un carácter del PDF |
-| P-R6 | ¿El marcador de dos letras después de la hora (am/pm) es parte de la fecha? El ejemplo de §4 ("5:47pm") sugiere que sí | R-5 |
-| P-R7 | ¿Pasa lo mismo en el Blanco 18 y en el primer fixture? | Se responde recién en la validación (§7), no antes |
+| P-R1 | ¿Las páginas de continuación repiten el título de material de la hoja? | **Cerrada (10/11): sí** (§2.4) |
+| P-R2 | En la banda de hoja, ¿hay un `/` entre el material y el espesor? | **Cerrada (10/11): sí, el OCR lo pierde** (§2.4, §4.1) |
+| P-R3 | ¿Qué signos separan los campos? | **Cerrada (10/11)** para la banda de hoja (" - ") y la cabecera del resumen (`\|`). El signo del pie no se verificó (no bloquea: R-10 es genérica) |
+| P-R4 | En el renglón de arriba de la página 1, ¿qué son las 5 palabras pegadas a la izquierda de "<material> / <espesor> mm" y qué parte es el material? | **Cerrada (10/11, Santiago, mirando la página 1):** son "Diagrama de corte", la barra `\|` y el material. "Diagrama de corte `\|`" es el título del documento y la barra es un separador; el material es solo la palabra pegada al `/`. **R-7 sigue coherente sin cambiar su texto:** la barra es un separador (R-10), hay límite a la izquierda y se aplica la primera rama. Cambia solo cuál rama se usa en este PDF; la igualdad con la tabla queda como respaldo (ver §4, R-7) |
+| P-R5 | **ABIERTA, sin verificar.** En la página 4, ¿qué hay donde el OCR devolvió una letra suelta entre el " - " y la medida del tablero? **Hipótesis del equipo:** una etiqueta de una letra del diagrama de cortes que queda a la altura de la banda de título | No bloquea: R-8 la trata como "sin límite" (rechazo seguro, TP-99). Si se confirma, la letra cae en la zona de R-2 y habría que ver si la zona por renglón alcanza |
+| P-R6 | ¿"pm" es parte de la fecha? | **Cerrada (10/11): sí**, es parte de la hora, pegada a la fecha; la unidad va aparte, después de la barra |
+| P-R7 | ¿Pasa lo mismo en el Blanco 18 y en el primer fixture? | Se responde en la validación (§7) |
 
-## 9. Qué necesita aprobación
+**N-1 (decidida, 10/11/2026, por Santiago; a informar al equipo).** El OCR devuelve la hora y "pm" como dos palabras (separación 0,09). `glueGapRatio` solo pega signos, así que `generatedAt` queda "<fecha> <hora> pm", con un espacio, y los ejemplos de la spec lo escriben sin espacio ("5:47pm"). **Decisión: `generatedAt` se compara ignorando espacios; si fecha y hora no se pueden interpretar, queda `pending`.** SPEC-B2 §9 no compara `header`, así que no afecta la métrica de la prueba; vale para CA-1 y TP-95.
 
-1. Las enmiendas C1 (spec-extraccion §5 paso 3) y C2 (tipo `PdfReading`), o descartarlas, en cuyo caso cae la opción D-a.
-2. La opción para §8.2: A (recomendada), B o C.
-3. Si se elige A: las reglas R-1 a R-10, y la variante de §4.1 (/-b recomendada; P-R2 ya cerrada).
-4. Los criterios CA-1 a CA-7 y las pruebas TP-95 a TP-107 y OR-17 y OR-18. El fixture en memoria de §5.3 y TS-12b. Para RL-1 (§4.3): no cambiar reglas del código ahora, solo TP-107 y el conteo en la corrida de desarrollo.
-5. SPEC-B2: el diagnóstico D-a o D-b, la plantilla de consola y el registro de corridas (§6), para aplicar en `spec-ocr-prueba-real.md` **después** de que commitees tus cambios.
-6. Que la corrida 1 cuente como dato para P-02 y **no** como medición de lectura (§6.2).
-7. El protocolo de §7 y si se tramita la enmienda D a SPEC-B2 (Blanco 18) ahora o después de implementar.
-8. Las respuestas a P-R3 a P-R6 (P-R1 y P-R2 ya están cerradas), antes de fijar R-5, R-7 y R-10.
+## 9. Decisiones (10/11)
+
+| # | Punto | Decisión |
+|---|---|---|
+| 1 | C1 (spec-extraccion §5, paso 3) | Aprobada |
+| 2 | C2 (`rule` y `page` en `PdfReading`, sin texto del documento) | Aprobada |
+| 3 | §8.2 | Opción A; R-1 a R-10 aprobadas, con la condición de que ninguna relaje `dudosa` ni `pending` (verificada en §4.0) |
+| 4 | Variante del material sin `/` | /-b aprobada |
+| 5 | Corrida 1 | Dato para P-02, no medición de lectura |
+| 6 | Validación con otro PDF | Protocolo aprobado (§7). Enmienda D a SPEC-B2 redactada como borrador aparte; no aplicada |
+| 7 | Formato del diagnóstico | D-a (Santiago Borda, 10/11) |
+| 8 | P-R1, P-R2, P-R3, P-R6 | Cerradas con la verificación en el PDF (§2.4) |
+| 9 | P-R4 | **Cerrada (10/11, Santiago):** el material es solo la palabra pegada al `/`; "Diagrama de corte \|" es el título del documento. R-7 coherente (§4) |
+| 10 | N-1 | **Decidida (10/11, Santiago; a informar al equipo):** `generatedAt` se compara ignorando espacios; si no se interpreta, `pending` |
+| 11 | Enmienda D | **Santiago recomienda aceptar E-1 (`--paginas`) y E-2 (la compuerta va antes de la caché).** Sigue **sin aprobar**: `docs/spec-ocr-prueba-real-enmienda-d.md` |
+| 12 | P-R5 | **Abierta** (hipótesis: etiqueta del diagrama; no bloquea) |
+
+## Historial
+
+| Versión | Fecha | Cambio |
+|---|---|---|
+| 0.1 | 10/11/2026 | Borrador: hechos de la corrida 1, opciones A a C, reglas R-1 a R-10, criterios CA-1 a CA-7, pruebas TP-95 a TP-107, OR-17 y OR-18, diagnóstico D-a o D-b, protocolo de validación |
+| 0.2 | 10/11/2026 | **Aprobado por equipo y profesor, informado por Santiago el 10/11/2026; evidencia: a archivar.** Decisiones de §9. Se agrega §4.0 (verificación regla por regla de que ninguna relaja `dudosa` ni `pending`). Respuestas de P-R1, P-R2, P-R3 y P-R6; P-R4 y P-R5 abiertas; nota N-1. Aplicado en spec-esquema, spec-extraccion (v0.3.2), SPEC-B2 (v0.3) y el plan de pruebas. La enmienda D a SPEC-B2 (validación con Blanco 18) queda en borrador aparte |
+| 0.3 | 10/11/2026 | Decisiones de Santiago del 10/11/2026 (a informar al equipo; no son parte de la aprobación de la v0.2): **P-R4 cerrada** (el material es solo la palabra pegada al `/`; R-7 coherente, se aplica su primera rama; el error latente de `header.material` queda confirmado por la estructura); **N-1 decidida** (`generatedAt` se compara ignorando espacios, `pending` si no se interpreta); recomendación de aceptar E-1 y E-2 de la enmienda D, que sigue sin aprobar. TP-95 y TP-104 ajustadas. P-R5 sigue abierta |

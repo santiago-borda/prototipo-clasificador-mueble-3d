@@ -123,6 +123,26 @@ Por criterio, no por porcentaje de líneas:
 | TP-89 | Canto: constante | hoja sin ninguna fila con 2 marcas; distancia entre marcas mayor que el tope | usa 0,066 × ancho de página; subcolumnas correctas |
 | TP-90 | Canto: conservador | marca fuera de la banda; dos marcas en una subcolumna; sin ancho de página | `pending` en `edges`, fila `dudosa` por `campo-pendiente` |
 
+### Datos que comparten renglón (§8.2, 10/11)
+
+Aprobados con `docs/spec-revision-ocr-real.md` v0.2. **Sin implementar.** Los elementos se arman en memoria (por ejemplo, `tests/helpers/ocrRealLike.ts`) con la estructura medida en la primera corrida real: renglón corrido, separaciones relativas al alto, separadores `-` y `|`. Usan datos ficticios: código `9999-`, material inventado y medidas que no repiten ninguna real (TS-12b extiende TS-12 a ese helper).
+
+| Id | Caso | Entrada | Resultado esperado |
+|---|---|---|---|
+| TP-95 | Unidad y fecha en un renglón (R-4, R-5) | título, hueco grande, fecha, hora, "pm", `\|`, unidad; separaciones de 0,1 a 0,7 × alto | unidad leída; `generatedAt` = fecha + hora con "pm", sin la unidad, comparado ignorando espacios (N-1; hora y "pm" pueden llegar como dos palabras); si no se interpreta, `pending` |
+| TP-96 | Otra unidad (R-4) | TP-95 con otra unidad | `unidad-no-soportada` |
+| TP-97 | Sin unidad (R-4) | TP-95 sin la unidad | `estructura-no-reconocida`, con la `rule` de "resumen sin unidad" |
+| TP-98 | Banda de hoja en un renglón (R-6, R-8) | `<material> <e> mm - <L> mm x <A> mm - Tablero estándar`, hueco, `i / N`; con y sin `/` | medida, tipo, material y espesor leídos (/-b) |
+| TP-99 | Letra suelta antes de la medida (R-8) | TP-98 con una letra entre el `-` y la medida | medida sin leer; rechazo en la primera página de la hoja; ningún valor |
+| TP-100 | Número partido (R-8) | número de la medida en dos palabras, separación 0,5 | no se toma el número parcial; `pending` o rechazo |
+| TP-101 | Variante /-b (R-6) | material de hoja sin `/` igual al resumen; distinto; con `/` | leído; `hoja-incompleta`; leído |
+| TP-102 | Pie en un renglón (R-9) | fibra + signo + `<n> piezas`, hueco, longitud de cortes + signo + eficiencia | `pieceCount` leído; longitud y eficiencia leídas o en `pending`; nunca otro valor |
+| TP-103 | Unicidad (R-3) | dos medidas distintas en el renglón de `i / N` | no se elige; rechazo |
+| TP-104 | Título del resumen (R-7, P-R4 cerrada) | título ficticio de tres palabras a la izquierda del material: (a) separado por `\|`; (b) sin separador y el final coincide con una fila de la tabla; (c) sin separador y no coincide | (a) solo el material, sin el título ni la barra; (b) material de la fila; (c) rechazo |
+| TP-105 | Zonas (R-2) | `<n> mm x <n> mm` en la tabla o en el diagrama | no cuenta como medida del tablero |
+| TP-106 | Sin regresión | TP-50, TS-04 y el replay sintético de Vision | idénticos a antes del cambio |
+| TP-107 | Código partido con palabra suelta (RL-1) | código `9999-` en dos renglones con (a) un signo, (b) una letra, (c) un dígito que deja el formato inválido | (a) código leído; (b) y (c) `formato-invalido` o `pending`; nunca otro código válido sin razón |
+
 ### Filas con campos no leídos
 
 | Id | Caso | Entrada | Resultado esperado |

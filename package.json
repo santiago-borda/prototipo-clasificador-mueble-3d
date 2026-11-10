@@ -14,7 +14,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "fixture:sintetico": "vite-node -c vitest.config.ts scripts/fixture-sintetico.ts",
-    "ocr:sintetico": "vite-node -c vitest.config.ts scripts/ocr-sintetico.ts"
+    "ocr:sintetico": "vite-node -c vitest.config.ts scripts/ocr-sintetico.ts",
+    "eval": "vite-node --config vitest.config.ts eval/run.ts --"
   },
   "dependencies": {
     "@google-cloud/vision": "^6.2.0",

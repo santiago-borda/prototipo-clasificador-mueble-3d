@@ -51,6 +51,26 @@ const SUMMARY_AREA = new RegExp(String.raw`^${NUMBER}\s*(?:m²|m2)?$`);
 const SUMMARY_ANCHORS = ["Cant.", "Longitud", "Anchura", "Σ Areas", "Σ Partes"] as const;
 const OTHER_UNIT = /^(cent[ií]metros?|metros?|pulgadas?|pies?|inch(es)?|feet)$/i;
 const LETTER = /^[A-Z]{1,3}$/;
+/**
+ * R-13 a: las 11 mayúsculas cirílicas de glifo idéntico a una latina, cada una con su única gemela. Tabla cerrada: no hay
+ * distancia de edición ni heurística, y cualquier otro carácter no latino sigue sin ser ancla. Solo vale para la columna
+ * "No." (la letra de fila es una etiqueta local, no una clave; el código no se autocorrige, H-02) y no se extiende al
+ * diagrama (H-E). Los escapes evitan confundir cada par a simple vista.
+ */
+const LATIN_TWINS: Readonly<Record<string, string>> = {
+  "\u0410": "A",
+  "\u0412": "B",
+  "\u0415": "E",
+  "\u041A": "K",
+  "\u041C": "M",
+  "\u041D": "H",
+  "\u041E": "O",
+  "\u0420": "P",
+  "\u0421": "C",
+  "\u0422": "T",
+  "\u0425": "X",
+};
+const rowLetter = (text: string) => [...text].map((char) => LATIN_TWINS[char] ?? char).join("");
 const DIAGRAM_LETTER = /^[A-Z]$/;
 const EDGE_LABEL = new RegExp(String.raw`^Canto\s+(.+?)\s*(~\s*${NUMBER}\s*mm)\s*[x×]\s*(${NUMBER})\s*mm$`, "i");
 const PRIVATE_USE = /[-]/gu;
@@ -674,9 +694,22 @@ function readRows(page: SheetPage, table: TableLayout, isFirstPage: boolean, lay
   const bottom = Math.min(...page.lines.filter((line) => line.segments.some((s) => FOOTER_LINE.test(s.text))).map((line) => line.y0), Infinity);
   // Con el encabezado de la tabla en esta página, los datos empiezan debajo; si no, debajo del de la hoja.
   const top = page.table ? page.table.bottom : page.headerBottom;
-  const data = page.elements.filter((element) => centerY(element) > top && centerY(element) < bottom);
-  const isAnchor = (element: PdfTextElement) => LETTER.test(element.text) && Math.abs(centerX(element) - table.no.center) <= table.no.width;
-  const anchors = data.filter(isAnchor).sort((a, b) => a.y - b.y);
+  const body = page.elements.filter((element) => centerY(element) > top && centerY(element) < bottom);
+  // R-13 a: una palabra de la columna "No." es letra de fila si, con las gemelas cirílicas pasadas a latín, cumple LETTER.
+  const isAnchor = (element: PdfTextElement) => LETTER.test(rowLetter(element.text)) && Math.abs(centerX(element) - table.no.center) <= table.no.width;
+  const candidates = body.filter(isAnchor).sort((a, b) => a.y - b.y);
+  // R-13 b: dos anclas que se solapan en vertical al menos la mitad del alto de la más baja y tienen la MISMA letra
+  // (ya normalizada) son una sola fila; la segunda caja no es dato de ninguna celda. Con letras distintas no se funden
+  // (nunca se elige una) y la fila vacía queda con sus campos en pending.
+  const duplicates = new Set<PdfTextElement>();
+  const anchors: PdfTextElement[] = [];
+  for (const candidate of candidates) {
+    const last = anchors[anchors.length - 1];
+    const overlaps = last !== undefined && Math.min(last.y + last.height, candidate.y + candidate.height) - Math.max(last.y, candidate.y) >= Math.min(last.height, candidate.height) / 2;
+    if (last !== undefined && overlaps && rowLetter(last.text) === rowLetter(candidate.text)) duplicates.add(candidate);
+    else anchors.push(candidate);
+  }
+  const data = body.filter((element) => !duplicates.has(element));
 
   // Una fila empieza `tolerance` antes del borde superior de su letra: las cajas de un OCR se desplazan en vertical.
   const tolerance = (anchors[0]?.height ?? 0) * layout.rowToleranceRatio;
@@ -693,7 +726,7 @@ function readRows(page: SheetPage, table: TableLayout, isFirstPage: boolean, lay
   const edgeZoneStart = table.edgeLabelCenter === null ? Infinity : table.finalA + (table.finalA - table.finalL) / 2;
   return anchors.map((anchor, i) => {
     const end = (anchors[i + 1]?.y ?? Infinity) - tolerance;
-    const row: RawRow = { letter: anchor.text, designation: [], cant: [], finalL: [], finalA: [], edge: [] };
+    const row: RawRow = { letter: rowLetter(anchor.text), designation: [], cant: [], finalL: [], finalA: [], edge: [] };
     for (const element of data) {
       if (element === anchor || centerY(element) < anchor.y - tolerance || centerY(element) >= end) continue;
       const x = centerX(element);

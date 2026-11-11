@@ -216,9 +216,12 @@ const BEFORE: Record<string, string> = {
   "ideal-ocr-S2": "02c09492854ad8e30aa98859e40923751b8c80693a80bcd9cf74295817d0d35a",
   "ts04-S3": "fe4f2e06eba6ade6e307eefa4c19a24033fe5067bb38629581f9ab355c808a48",
   "ideal-ocr-S3": "43297597650fd68936a869743030ee5c89f1d533e70ad7a1af21800db405e791",
-  "replay-S1": "a73ff3b948ffe403310b094fd52ae85934412e9fdfca8ebf268e93811d91d4bf",
+  // Línea base nueva (O-R12-2, aprobada el 11/11/2026): el replay sintético S1 y S3 cambian por R-12, y solo ellos.
+  // S1: 3 códigos pasan de pending a leídos e iguales al esperado (31 → 28 pending), 2 piezas siguen en pending con otro
+  // texto crudo de código y cambia el nombre de 1 pieza. S3: 1 código (5 → 4 pending). Los otros 16 valores no se tocan.
+  "replay-S1": "ba7ee3c28c0a887626df4a0acbe542522a8bb58d6071c91e0cf341ca447e15d5",
   "replay-S2": "f486d7e8291995f7be8d7ed2abb422e600dead480687b344cb23285571190160",
-  "replay-S3": "9c1cfb209b5dcbb27e668db4829d7bbdda1b8e105d3452634be7bfefab6b8464",
+  "replay-S3": "34730ad7a1f1ebf720fb074aa2095b3c9cfdeeca120adedc6c0ee8f54b7c5971",
 };
 /** Un rechazo se compara sin `rule` ni `page`, que agrega C2: el resto (razón y detail) tiene que ser idéntico. */
 const sha = (reading: PdfReading) => {

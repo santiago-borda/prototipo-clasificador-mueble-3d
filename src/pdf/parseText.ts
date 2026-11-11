@@ -719,19 +719,38 @@ const cellText = (elements: readonly PdfTextElement[]) =>
         .map((e) => e.text)
         .join(" ");
 
-/** Une los renglones de la designación y descarta los íconos (§7.1). */
+/**
+ * Une los renglones de la designación y descarta los íconos (§7.1). R-12 a: la palabra `-` (U+002D) NO se descarta: es el
+ * guion del código y el OCR la entrega aparte (`M01 - C04`); ningún otro guion se convierte (H-02). R-12 b: si una palabra
+ * descartada (un signo, un braille en blanco, un carácter de uso privado) queda ENTRE dos palabras del mismo renglón del
+ * código, el código va a pending aunque la unión cumpla el formato; un ícono al final del renglón se descarta sin más.
+ */
 function readDesignation(elements: readonly PdfTextElement[], path: string, pending: PendingField[], layout: ResolvedLayout): { code: string | null; name: string } {
-  const clean = elements.flatMap((element) => {
+  const clean: PdfTextElement[] = [];
+  const dropped: PdfTextElement[] = [];
+  for (const element of elements) {
     const text = element.text.replace(PRIVATE_USE, "").trim();
-    return HAS_LETTER_OR_DIGIT.test(text) ? [{ ...element, text }] : [];
-  });
-  const rows = toLines(clean, layout).map((line) => line.segments.map((s) => s.text).join(" "));
+    if (HAS_LETTER_OR_DIGIT.test(text) || text === "-") clean.push({ ...element, text });
+    else dropped.push(element);
+  }
+  const lines = toLines(clean, layout);
+  const rows = lines.map((line) => line.segments.map((s) => s.text).join(" "));
+  // R-12 b: por renglón, si alguna palabra descartada cae (en x) entre dos palabras que se leen del mismo renglón.
+  const iconInside = lines.map((line) =>
+    dropped.some((icon) => {
+      const sameLine = Math.min(line.y1, icon.y + icon.height) - Math.max(line.y0, icon.y) >= Math.min(line.y1 - line.y0, icon.height) / 2;
+      const x = centerX(icon);
+      return sameLine && line.elements.some((e) => centerX(e) < x) && line.elements.some((e) => centerX(e) > x);
+    }),
+  );
 
   let code: string | null = null;
   let nameRows: string[] = rows;
   for (let k = 1; k <= rows.length && code === null; k += 1) {
     const joined = rows.slice(0, k).join("").replace(/\s+/g, "");
     if (looksLikeCode(joined)) {
+      // Con un ícono entre palabras del código no se acepta la unión: va a pending, como si ninguna cumpliera el formato.
+      if (iconInside.slice(0, k).some(Boolean)) break;
       code = joined;
       nameRows = rows.slice(k);
     }

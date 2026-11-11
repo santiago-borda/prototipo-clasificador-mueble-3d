@@ -291,7 +291,7 @@ Origen: la corrida 2 (`resumen-tabla-vacia`, §2.1b). Incorpora las decisiones d
 
 Un `pending` en una columna obligatoria dejaría el documento con un `count` o un `parts` inventado o faltante, y rompería INV-2 sin explicación; por eso rechazo.
 
-**Catálogo de reglas de rechazo (C2).** R-11 agrega dos ids: `resumen-celda-duplicada` y `resumen-fila-ambigua` (OR-18 pasaría de 27 a 29 sitios). `resumen-tabla-sin-valor` y `resumen-tabla-vacia` se mantienen.
+**Catálogo de reglas de rechazo (C2).** R-11 agrega dos ids: `resumen-celda-duplicada` y `resumen-fila-ambigua` (OR-18 pasaría de 27 a 29 sitios). `resumen-tabla-sin-valor` y `resumen-tabla-vacia` se mantienen. **Precisión de la implementación (11/11/2026, a confirmar por el equipo):** la spec no fija la `reason` de los ids nuevos; los dos de R-11 llevan `estructura-no-reconocida`, como los demás ids del Resumen.
 
 **Preguntas de R-11 (O-R11-1 a O-R11-4 aprobadas por Santiago el 10/11/2026, como se proponen abajo; aprobadas también por el equipo y el profesor, informado por Santiago el 11/11/2026):**
 - **O-R11-1.** Un rótulo desconocido (ni ancla ni `Σ Costos`): aprobado tratarlo como ignorado, que no asigna y no rechaza. Alternativa: rechazo. Con "ignorado" no hay asignación equivocada; el costo es no enterarse de una columna nueva.
@@ -363,7 +363,7 @@ Origen: P-R5, **cerrada** (Santiago, 10/11, mirando el PDF): entre el `-` que si
 | **c. Respaldo (el patrón de /-b)** | La medida se acepta **solo si es exactamente igual** a `lengthMm` y `widthMm` de la **única fila del Resumen con el mismo material y espesor** que la hoja, en el mismo orden (largo con `Longitud`, ancho con `Anchura`; sin reordenar, INV-7). Sin fila, con más de una, o con otra medida: rechazo `hoja-medida-sin-respaldo` |
 | **d. Lo demás** | Si el patrón de R-8 ya se cumple (hay un separador a la izquierda), R-14 no actúa y la medida **no** se compara con el Resumen: ese camino no cambia. R-3 (dos medidas distintas) sigue igual |
 
-**Catálogo de reglas de rechazo (C2).** R-14 agrega un id, `hoja-medida-sin-respaldo` (con los dos de R-11, OR-18 pasaría de 27 a 30 sitios). Es la contradicción C7.
+**Catálogo de reglas de rechazo (C2).** R-14 agrega un id, `hoja-medida-sin-respaldo` (con los dos de R-11, OR-18 pasa de 27 a 30 sitios: implementado). Es la contradicción C7. **Precisión de la implementación (11/11/2026, a confirmar por el equipo):** la spec no fija la `reason` de `hoja-medida-sin-respaldo`; lleva `estructura-no-reconocida`, como `hoja-sin-encabezado-completo` y `hoja-medida-ambigua` (las otras reglas de la medida del tablero). La rechazan todas las páginas con pictograma, no solo la primera de la hoja; con dos medidas distintas detrás de pictogramas distintos no se elige ninguna (rige el rechazo de R-8).
 
 **Ventajas y riesgos (opción elegida).** *Ventajas:* el mismo diseño que /-b, ya aprobado; la menor relajación de las opciones consideradas; no depende del glifo con que Vision lea el pictograma. *Riesgos:* depende de que el Resumen tenga una sola fila del material y se lea bien (R-11); si la medida real de una hoja difiere de la del Resumen (hojas de otra medida), rechazo: seguro, pero se pierde la hoja. Un pictograma leído como un **dígito** no se tolera: rechazo.
 

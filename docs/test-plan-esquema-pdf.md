@@ -125,7 +125,7 @@ Por criterio, no por porcentaje de líneas:
 
 ### Datos que comparten renglón (§8.2, 10/11)
 
-Aprobados con `docs/spec-revision-ocr-real.md` v0.2. **Sin implementar.** Los elementos se arman en memoria (por ejemplo, `tests/helpers/ocrRealLike.ts`) con la estructura medida en la primera corrida real: renglón corrido, separaciones relativas al alto, separadores `-` y `|`. Usan datos ficticios: código `9999-`, material inventado y medidas que no repiten ninguna real (TS-12b extiende TS-12 a ese helper).
+Aprobados con `docs/spec-revision-ocr-real.md` v0.2. **Implementados** (10/11, rama `ocr-revision-real`; TP-99 se actualizó el 11/11 con R-14). Los elementos se arman en memoria (por ejemplo, `tests/helpers/ocrRealLike.ts`) con la estructura medida en la primera corrida real: renglón corrido, separaciones relativas al alto, separadores `-` y `|`. Usan datos ficticios: código `9999-`, material inventado y medidas que no repiten ninguna real (TS-12b extiende TS-12 a ese helper).
 
 | Id | Caso | Entrada | Resultado esperado |
 |---|---|---|---|
@@ -143,7 +143,7 @@ Aprobados con `docs/spec-revision-ocr-real.md` v0.2. **Sin implementar.** Los el
 | TP-106 | Sin regresión | TP-50, TS-04 y el replay sintético de Vision | idénticos a antes del cambio |
 | TP-107 | Código partido con palabra suelta (RL-1) | código `9999-` en dos renglones con (a) un signo, (b) una letra, (c) un dígito que deja el formato inválido | (a) código leído; (b) y (c) `formato-invalido` o `pending`; nunca otro código válido sin razón |
 
-### Fila de la tabla del Resumen (R-11, §8.2) — **aprobada por Santiago el 10/11 y por el equipo y el profesor, informado por Santiago el 11/11/2026**
+### Fila de la tabla del Resumen (R-11, §8.2) — **aprobada por Santiago el 10/11 y por el equipo y el profesor, informado por Santiago el 11/11/2026; implementada** (`tests/pdf.ocrR11.test.ts`, con CA-8)
 
 Origen: `docs/spec-revision-ocr-real.md` §4.4 y §5.2 (v0.4, aprobada como v0.8). Se arman en memoria (`tests/helpers/ocrRealLike.ts`) con la geometría observada en la corrida 2: primer segmento de la fila con una cola `- <tipo>`, un rótulo más en el encabezado y una celda `-`. Datos ficticios (TS-12b).
 
@@ -161,7 +161,7 @@ Origen: `docs/spec-revision-ocr-real.md` §4.4 y §5.2 (v0.4, aprobada como v0.8
 
 TP-106 (sin regresión) tiene que seguir dando las mismas salidas con la fila del Resumen sin cola y sin columna extra.
 
-### Código partido y anclas de "No." (R-12, R-13, §8.2) — **aprobadas por Santiago el 10/11 y por el equipo y el profesor, informado por Santiago el 11/11/2026**
+### Código partido y anclas de "No." (R-12, R-13, §8.2) — **aprobadas por Santiago el 10/11 y por el equipo y el profesor, informado por Santiago el 11/11/2026; implementadas** (`tests/pdf.ocrR12.test.ts` con CA-9, `tests/pdf.ocrR13.test.ts`)
 
 Origen: `docs/spec-revision-ocr-real.md` §4.5, §4.6 y §5.2 (v0.5, aprobada como v0.8). Elementos en memoria con la geometría del lookahead (§2.5). Datos ficticios (TS-12b).
 
@@ -187,9 +187,9 @@ Origen: `docs/spec-revision-ocr-real.md` §4.5, §4.6 y §5.2 (v0.5, aprobada co
 | Replay sintético S1 | Sí (R-12) | 3 códigos pasan de `pending` a leídos e **iguales al esperado**; 2 piezas siguen en `pending` con otro texto crudo de código; cambia el nombre de 1 pieza; la lista `pending` se acorta y se corren sus índices |
 | Replay sintético S3 | Sí (R-12) | 1 código pasa de `pending` a leído e igual al esperado; 2 piezas siguen en `pending` con otro texto crudo; la lista `pending` se acorta |
 
-R-13 no cambia ninguna de esas entradas (el replay sintético no tiene letras cirílicas ni anclas superpuestas). **Ningún código sale válido y distinto del esperado.** Al implementar, `BEFORE` de TP-106 se reemplaza por los sha256 de las salidas nuevas **solo de S1 y S3**; los otros 12 valores no se tocan. El replay S2 (rechazo de la página 3) tampoco cambia.
+R-13 no cambia ninguna de esas entradas (el replay sintético no tiene letras cirílicas ni anclas superpuestas). **Ningún código sale válido y distinto del esperado.** `BEFORE` de TP-106 (`tests/pdf.ocrRealLike.test.ts`) se reemplazó el 11/11/2026, al implementar R-12, por los sha256 de las salidas nuevas **solo de S1 y S3** (los otros valores no se tocaron; el replay S2, rechazo de la página 3, tampoco cambia). Los sha256 fijados son: replay S1 `ba7ee3c28c0a887626df4a0acbe542522a8bb58d6071c91e0cf341ca447e15d5` y replay S3 `34730ad7a1f1ebf720fb074aa2095b3c9cfdeeca120adedc6c0ee8f54b7c5971`. Medido con la implementación: S1 recupera 3 códigos iguales al esperado (31 a 28 pending), 2 piezas siguen en pending con otro texto crudo de código y cambia el nombre de 1 pieza; S3 recupera 1 código (5 a 4 pending). `tests/pdf.ocrR12.test.ts` lo comprueba además de forma semántica (CA-9).
 
-### Pictograma antes de la medida de la banda (R-14, §8.2) — **opción C elegida por Santiago el 10/11 y aprobada por el equipo y el profesor, informado por Santiago el 11/11/2026**
+### Pictograma antes de la medida de la banda (R-14, §8.2) — **opción C elegida por Santiago el 10/11 y aprobada por el equipo y el profesor, informado por Santiago el 11/11/2026; implementada** (`tests/pdf.ocrR14.test.ts`, con CA-10)
 
 Origen: `docs/spec-revision-ocr-real.md` §4.7 y §5.2 (v0.7, aprobada como v0.8). Elementos en memoria con la geometría de la p. 4 (palabra suelta de un carácter, hueco 1,37 antes y 0,50 después). Datos ficticios (TS-12b). TP-99 se actualiza (tabla de arriba); TP-100 se mantiene.
 

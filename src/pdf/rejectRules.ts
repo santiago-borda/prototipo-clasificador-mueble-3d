@@ -26,6 +26,8 @@ export const PDF_REJECT_RULES = {
   "resumen-titulo-ambiguo": { reason: "estructura-no-reconocida", scope: "pagina" },
   "resumen-titulo-sin-limite": { reason: "estructura-no-reconocida", scope: "pagina" },
   "resumen-tabla-sin-valor": { reason: "estructura-no-reconocida", scope: "pagina" },
+  "resumen-celda-duplicada": { reason: "estructura-no-reconocida", scope: "pagina" },
+  "resumen-fila-ambigua": { reason: "estructura-no-reconocida", scope: "pagina" },
   "resumen-tabla-vacia": { reason: "estructura-no-reconocida", scope: "pagina" },
   // Hojas.
   "hoja-sin-contador": { reason: "hoja-incompleta", scope: "pagina" },

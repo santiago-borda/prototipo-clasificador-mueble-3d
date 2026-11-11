@@ -65,8 +65,12 @@ export interface OcrRealLikeOptions {
   /** Material y espesor de la banda (por defecto, los del documento). */
   bandMaterial?: string;
   bandThickness?: number;
-  /** Páginas con una letra suelta entre el " - " y la medida (caso p. 4, TP-99). */
+  /** Páginas con palabras sueltas entre el " - " y la medida (caso p. 4, R-14: el pictograma de la banda). */
   strayLetterPages?: readonly number[];
+  /** Las palabras sueltas de esas páginas (por defecto, una letra). Huecos: 1,37 antes de la primera y 0,5 entre las demás. */
+  strayWords?: readonly string[];
+  /** Medida de la banda en esas páginas, en lugar de la del tablero (TP-129, TP-133). */
+  bandSize?: { pages: readonly number[]; length: number; width: number };
   /** Páginas con el largo partido en dos palabras, separación 0,5 (TP-100). */
   splitLengthPages?: readonly number[];
   /** Páginas con una segunda medida distinta en el renglón de `i / N` (TP-103). */
@@ -108,18 +112,20 @@ function headerRow(doc: CutListPdf, o: OcrRealLikeOptions): PdfTextElement[] {
 function bandRow(board: CutListPdf["boards"][number], page: number, o: OcrRealLikeOptions): PdfTextElement[] {
   const material = (o.bandMaterial ?? board.material).split(" ");
   const thickness = String(o.bandThickness ?? board.thicknessMm);
-  const length = String(board.lengthMm);
+  const sized = o.bandSize && pages(o.bandSize.pages, page) ? o.bandSize : null;
+  const length = String(sized?.length ?? board.lengthMm);
+  const width = String(sized?.width ?? board.widthMm);
   const parts: Part[] = material.map((word, i): Part => [word, i === 0 ? 0 : 0.3]);
   if (o.bandSlash) parts.push(["/", 0.3], [thickness, 0.3]);
   else parts.push([thickness, 1.3]);
   parts.push(["mm", 0.3], ["-", 0.4]);
   if (!pages(o.noSizePages, page)) {
     const stray = pages(o.strayLetterPages, page);
-    if (stray) parts.push(["Q", 1.37]);
+    if (stray) (o.strayWords ?? ["Q"]).forEach((word, k) => parts.push([word, k === 0 ? 1.37 : 0.5]));
     const firstGap = stray ? 0.5 : 2.3;
     if (pages(o.splitLengthPages, page)) parts.push([length.slice(0, 2), firstGap], [length.slice(2), 0.5]);
     else parts.push([length, firstGap]);
-    parts.push(["mm", 0.3], ["x", 0.4], [String(board.widthMm), 0.4], ["mm", 0.3], ["-", 0.5]);
+    parts.push(["mm", 0.3], ["x", 0.4], [width, 0.4], ["mm", 0.3], ["-", 0.5]);
   }
   parts.push(["Tablero", 0.9], ["estándar", 0.3]);
   if (pages(o.extraSizePages, page)) parts.push(["-", 0.5], ["1999", 2.3], ["mm", 0.3], ["x", 0.4], ["1888", 0.4], ["mm", 0.3]);
@@ -175,5 +181,60 @@ export function ocrRealLike(options: OcrRealLikeOptions = {}, doc: CutListPdf = 
     const y = footerY.get(last);
     if (y !== undefined) added.push(...footerRow(board, last, y, options));
   }
+  return { ...input, elements: [...kept, ...added] };
+}
+
+// --- Tabla del Resumen con la geometría de la corrida 2 (R-11, TP-108 a TP-116) ---
+
+/** Una celda o un rótulo: su texto y el x de su centro. */
+export type TableCell = readonly [text: string, centerX: number];
+export interface SummaryTableSpec {
+  /** Rótulos del encabezado de la tabla (en una sola línea). */
+  headers: readonly TableCell[];
+  /** Filas: el primer segmento (palabras separadas 0,4 × alto) y las celdas. */
+  rows: readonly { first: string; cells: readonly TableCell[] }[];
+}
+
+/** Centros de las columnas (anchos de sobra: nada de lo que se arma acá se junta con su vecino por error). */
+export const SUMMARY_X = { tablero: 54, count: 250, length: 370, width: 490, area: 610, costs: 730, parts: 850 } as const;
+
+/** Encabezado y filas del Resumen del documento con las columnas conocidas; `tail` se pega al material. */
+export function defaultSummaryTable(doc: CutListPdf, options: { tail?: string; costs?: boolean } = {}): SummaryTableSpec {
+  const headers: TableCell[] = [
+    ["Tablero", SUMMARY_X.tablero],
+    ["Cant.", SUMMARY_X.count],
+    ["Longitud", SUMMARY_X.length],
+    ["Anchura", SUMMARY_X.width],
+    ["Σ Areas", SUMMARY_X.area],
+    ...(options.costs ? [["Σ Costos", SUMMARY_X.costs] as TableCell] : []),
+    ["Σ Partes", SUMMARY_X.parts],
+  ];
+  const rows = doc.summary.boards.map((row) => ({
+    first: `${row.material} / ${row.thicknessMm} mm${options.tail ? ` ${options.tail}` : ""}`,
+    cells: [
+      [String(row.count), SUMMARY_X.count],
+      [`${row.lengthMm} mm`, SUMMARY_X.length],
+      [`${row.widthMm} mm`, SUMMARY_X.width],
+      ...(row.areaM2 === null ? [] : [[`${decimal(row.areaM2)} m²`, SUMMARY_X.area] as TableCell]),
+      ...(options.costs ? [["-", SUMMARY_X.costs] as TableCell] : []),
+      [String(row.parts), SUMMARY_X.parts],
+    ] as TableCell[],
+  }));
+  return { headers, rows };
+}
+
+/** Reemplaza el encabezado de la tabla del Resumen y sus filas (página 1, de la línea de "Tablero" para abajo). */
+export function withSummaryTable(input: PdfTextInput, spec: SummaryTableSpec): PdfTextInput {
+  const anchor = input.elements.find((e) => e.page === 1 && e.text === "Tablero");
+  if (!anchor) throw new Error("la página 1 no tiene el encabezado de la tabla del Resumen");
+  const kept = input.elements.filter((e) => e.page !== 1 || e.y < anchor.y - 0.5);
+  const added: PdfTextElement[] = [];
+  const cell = (y: number, [text, center]: TableCell) => added.push(...wordsRow(1, y, center - (Math.max(text.length, 1) * CHAR_WIDTH) / 2, [[text, 0]]));
+  spec.headers.forEach((header) => cell(anchor.y, header));
+  spec.rows.forEach((row, k) => {
+    const y = anchor.y + 14 * (k + 1);
+    added.push(...wordsRow(1, y, 40, row.first.split(" ").map((word, i): Part => [word, i === 0 ? 0 : 0.4])));
+    row.cells.forEach((c) => cell(y, c));
+  });
   return { ...input, elements: [...kept, ...added] };
 }

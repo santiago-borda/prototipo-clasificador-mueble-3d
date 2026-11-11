@@ -43,6 +43,12 @@ const KIND = /^Tablero\b/;
 /** R-2: un renglón que contiene un rótulo del pie (además de los que tienen un segmento que empieza con `FOOTER_LINE`). */
 const FOOTER_LABEL = /(Longitud de cortes|Eficiencia|La fibra sigue)/i;
 const MILLIMETER = /^mil[ií]metros?$/i;
+/** R-11 d: formato de cada columna de la tabla del Resumen (entero; número con `mm` opcional; número con `m²` opcional). */
+const SUMMARY_INTEGER = /^\d+$/;
+const SUMMARY_LENGTH = new RegExp(String.raw`^${NUMBER}\s*(?:mm)?$`);
+const SUMMARY_AREA = new RegExp(String.raw`^${NUMBER}\s*(?:m²|m2)?$`);
+/** R-11 b: las únicas columnas de la tabla del Resumen que se leen. `Σ Costos` y cualquier otro rótulo se descartan. */
+const SUMMARY_ANCHORS = ["Cant.", "Longitud", "Anchura", "Σ Areas", "Σ Partes"] as const;
 const OTHER_UNIT = /^(cent[ií]metros?|metros?|pulgadas?|pies?|inch(es)?|feet)$/i;
 const LETTER = /^[A-Z]{1,3}$/;
 const DIAGRAM_LETTER = /^[A-Z]$/;
@@ -290,6 +296,51 @@ function titleMaterial(words: readonly Word[], start: number, material: string, 
   return endings.length === 1 ? endings[0] : null;
 }
 
+/**
+ * R-11 a: material de una fila de la tabla del Resumen, o null si la línea no es una fila (primera línea sin material).
+ * El primer segmento entero que cumple `<material> / <n> mm` se lee como siempre (sin regresión, R-1); si trae una cola
+ * (`- <tipo>`) se busca el patrón delimitado que empieza en la primera palabra. R-11 e: el patrón dos veces en el
+ * renglón, aunque sean iguales, es un rechazo (R-3): nunca se elige uno.
+ */
+function summaryRowMaterial(line: Line): MaterialValue | null {
+  const matches = delimited(line.words, ["/"], materialOf(MATERIAL));
+  const whole = materialOf(MATERIAL)(line.segments[0].text);
+  const first = whole ?? matches.find((match) => match.start === 0)?.value ?? null;
+  if (first === null) return null;
+  if (matches.length > 1) throw new ReadFailure("resumen-fila-ambigua", 1, "La fila de la tabla del resumen tiene el material más de una vez.");
+  return first;
+}
+
+/**
+ * R-11 b: celdas de la fila (los segmentos distintos del primero) por columna. Cada celda se compara con TODOS los
+ * rótulos del encabezado, por la distancia entre centros, y se asigna solo si el rótulo más cercano es una ancla
+ * conocida. `Σ Costos`, un rótulo desconocido y una celda equidistante de dos rótulos se descartan de forma explícita.
+ */
+function summaryCells(line: Line, header: Line): Map<string, Segment[]> {
+  const labels = header.segments.map((segment) => ({ text: segment.text, center: segmentCenter(segment) }));
+  const cells = new Map<string, Segment[]>();
+  for (const cell of line.segments.slice(1)) {
+    const center = segmentCenter(cell);
+    const distances = labels.map((label) => Math.abs(label.center - center));
+    const nearest = Math.min(...distances);
+    if (distances.filter((distance) => distance - nearest <= 1e-9).length !== 1) continue;
+    const label = labels[distances.indexOf(nearest)].text;
+    if (!(SUMMARY_ANCHORS as readonly string[]).includes(label)) continue;
+    cells.set(label, [...(cells.get(label) ?? []), cell]);
+  }
+  return cells;
+}
+
+type SummaryCell = { kind: "value"; value: number } | { kind: "missing" | "duplicate" | "invalid" };
+
+/** R-11 c y d: una sola celda por ancla y con el formato de su columna; si no, no se lee (nunca reemplaza a otra). */
+function readSummaryCell(cells: readonly Segment[], format: RegExp, parse: (text: string) => number): SummaryCell {
+  if (cells.length === 0) return { kind: "missing" };
+  if (cells.length > 1) return { kind: "duplicate" };
+  const text = cells[0].text.trim();
+  return format.test(text) ? { kind: "value", value: parse(text) } : { kind: "invalid" };
+}
+
 function readSummary(lines: readonly Line[], pending: PendingField[]): Pick<CutListPdf, "header" | "summary"> {
   const tableHeader = lines.find((line) => ["Cant.", "Longitud", "Anchura"].every((label) => line.segments.some((s) => s.text === label)));
   // R-2: unidad, fecha y título, solo en los renglones de arriba de la tabla (sin tabla, en toda la página; el
@@ -326,37 +377,38 @@ function readSummary(lines: readonly Line[], pending: PendingField[]): Pick<CutL
     }
   }
 
-  const column = (label: string) => tableHeader.segments.find((s) => s.text === label) ?? null;
-  const columns = ["Cant.", "Longitud", "Anchura", "Σ Areas", "Σ Partes"].flatMap((label) => {
-    const segment = column(label);
-    return segment ? [{ label, center: segmentCenter(segment) }] : [];
-  });
-
   const boards: SummaryBoardRow[] = [];
   for (const line of lines) {
     if (line.y0 <= tableHeader.y0) continue;
-    const material = MATERIAL.exec(line.segments[0].text);
-    if (!material) break;
-    const cells = new Map<string, string>();
-    for (const segment of line.segments.slice(1)) {
-      const nearest = columns.reduce((best, c) => (Math.abs(c.center - segmentCenter(segment)) < Math.abs(best.center - segmentCenter(segment)) ? c : best));
-      cells.set(nearest.label, segment.text);
-    }
-    const required = (label: string) => {
-      const value = readNumber(cells.get(label) ?? null);
-      if (value === null) throw new ReadFailure("resumen-tabla-sin-valor", 1, `Falta "${label}" en la tabla de tableros del resumen.`);
-      return value;
+    // R-11 a: el material de la fila es un patrón delimitado `<material> / <n> mm` que empieza en el renglón. Lo que sigue
+    // (`- <tipo>`) no entra y se descarta: `SummaryBoardRow` no tiene ese campo. Una fila sin material cierra la tabla (R-2).
+    const material = summaryRowMaterial(line);
+    if (material === null) break;
+    const cells = summaryCells(line, tableHeader);
+    const read = (label: (typeof SUMMARY_ANCHORS)[number], format: RegExp, parse: (text: string) => number) => readSummaryCell(cells.get(label) ?? [], format, parse);
+    const requiredValue = (label: (typeof SUMMARY_ANCHORS)[number], format: RegExp, parse: (text: string) => number): number => {
+      const cell = read(label, format, parse);
+      if (cell.kind === "duplicate") throw new ReadFailure("resumen-celda-duplicada", 1, `Hay más de una celda en "${label}" en la tabla de tableros del resumen.`);
+      if (cell.kind !== "value") throw new ReadFailure("resumen-tabla-sin-valor", 1, `Falta "${label}" en la tabla de tableros del resumen.`);
+      return cell.value;
     };
-    const areaM2 = readNumber(cells.get("Σ Areas") ?? null);
+    const asInteger = (text: string) => Number(text);
+    const asNumber = (text: string) => numberFrom(/^\d+(?:[.,]\d+)?/.exec(text)?.[0] ?? "");
+    const count = requiredValue("Cant.", SUMMARY_INTEGER, asInteger);
+    const lengthMm = requiredValue("Longitud", SUMMARY_LENGTH, asNumber);
+    const widthMm = requiredValue("Anchura", SUMMARY_LENGTH, asNumber);
+    // Σ Areas admite null: una celda ausente, doble o de otro formato queda en pending, nunca elegida.
+    const area = read("Σ Areas", SUMMARY_AREA, asNumber);
+    const areaM2 = area.kind === "value" ? area.value : null;
     if (areaM2 === null) pending.push({ path: `summary.boards[${boards.length}].areaM2`, reason: 'No se leyó "Σ Areas".' });
     boards.push({
-      material: material[1],
-      thicknessMm: numberFrom(material[2]),
-      count: required("Cant."),
-      lengthMm: required("Longitud"),
-      widthMm: required("Anchura"),
+      material: material.material,
+      thicknessMm: material.thicknessMm,
+      count,
+      lengthMm,
+      widthMm,
       areaM2,
-      parts: required("Σ Partes"),
+      parts: requiredValue("Σ Partes", SUMMARY_INTEGER, asInteger),
     });
   }
   if (boards.length === 0) throw new ReadFailure("resumen-tabla-vacia", 1, "La tabla de tableros del resumen está vacía.");

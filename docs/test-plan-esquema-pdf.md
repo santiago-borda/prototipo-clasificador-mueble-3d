@@ -1,6 +1,6 @@
 # Plan de pruebas — Esquema de la salida del PDF de OpenCutList
 
-Estado: **en implementación** (3/11/2026). Spec: `docs/spec-esquema-pdf.md` (las referencias INV-, RP- y § son de ahí).
+Estado: **en implementación** (3/11/2026). El 11/11/2026 el equipo y el profesor aprobaron, informado por Santiago el 11/11/2026, la actualización de TP-99, TP-108 a TP-133 y la línea base nueva de TP-106 (evidencia: respuestas al mensaje de aprobación, a archivar). Spec: `docs/spec-esquema-pdf.md` (las referencias INV-, RP- y § son de ahí).
 
 **Sesión 1:** todo salvo lo que necesita código de otra sesión, que queda como `it.todo` en `tests/pdf.todo.test.ts`: TP-11 y TP-40 a TP-46 (cruce con el .dae) y TP-60 (conversión de §6), **sesión 2b**; TP-61 (necesita la función de `listadoId` del motor; `src/engine/` no existe); TP-70 (casillas de R4, spec aparte); TP-23 (pendiente de PDF-2) y TP-55 (pendiente de la consulta 58). Alcance reducido: TP-52 se prueba con entrada vacía (la lectura de bytes es de la extracción); TP-50 compara sin `source`; TP-62 y TP-63 prueban el estado del listado (`bloqueado`, `borrador`, `publicable`), no la conversión; TP-10 y TP-20 a TP-22 prueban INV-7 y el mapeo a `EdgeId`, sin `PieceType`.
 
@@ -133,7 +133,7 @@ Aprobados con `docs/spec-revision-ocr-real.md` v0.2. **Sin implementar.** Los el
 | TP-96 | Otra unidad (R-4) | TP-95 con otra unidad | `unidad-no-soportada` |
 | TP-97 | Sin unidad (R-4) | TP-95 sin la unidad | `estructura-no-reconocida`, con la `rule` de "resumen sin unidad" |
 | TP-98 | Banda de hoja en un renglón (R-6, R-8) | `<material> <e> mm - <L> mm x <A> mm - Tablero estándar`, hueco, `i / N`; con y sin `/` | medida, tipo, material y espesor leídos (/-b) |
-| TP-99 | Letra suelta antes de la medida (R-8; *borrador R-14, 10/11: actualizada, propuesto, pendiente de aprobación del equipo y del profesor*) | TP-98 con una letra entre el `-` y la medida y la fila del Resumen de la misma medida | **medida leída**, igual a la del Resumen *(antes, aprobada en la v0.2: medida sin leer y rechazo en la primera página de la hoja; ese rechazo pasa a TP-129 y TP-130)* |
+| TP-99 | Letra suelta antes de la medida (R-8; *R-14: actualizada el 11/11/2026, aprobada por el equipo y el profesor, informado por Santiago el 11/11/2026*) | TP-98 con una letra entre el `-` y la medida y la fila del Resumen de la misma medida | **medida leída**, igual a la del Resumen *(antes, aprobada en la v0.2: medida sin leer y rechazo en la primera página de la hoja; ese rechazo pasa a TP-129 y TP-130)* |
 | TP-100 | Número partido (R-8) | número de la medida en dos palabras, separación 0,5 | no se toma el número parcial; `pending` o rechazo |
 | TP-101 | Variante /-b (R-6) | material de hoja sin `/` igual al resumen; distinto; con `/` | leído; `hoja-incompleta`; leído |
 | TP-102 | Pie en un renglón (R-9) | fibra + signo + `<n> piezas`, hueco, longitud de cortes + signo + eficiencia | `pieceCount` leído; longitud y eficiencia leídas o en `pending`; nunca otro valor |
@@ -143,9 +143,9 @@ Aprobados con `docs/spec-revision-ocr-real.md` v0.2. **Sin implementar.** Los el
 | TP-106 | Sin regresión | TP-50, TS-04 y el replay sintético de Vision | idénticos a antes del cambio |
 | TP-107 | Código partido con palabra suelta (RL-1) | código `9999-` en dos renglones con (a) un signo, (b) una letra, (c) un dígito que deja el formato inválido | (a) código leído; (b) y (c) `formato-invalido` o `pending`; nunca otro código válido sin razón |
 
-### Fila de la tabla del Resumen (R-11, §8.2) — **borrador, 10/11: R-11 aprobada por Santiago, pendiente de aprobación del equipo y del profesor; sin implementar**
+### Fila de la tabla del Resumen (R-11, §8.2) — **aprobada por Santiago el 10/11 y por el equipo y el profesor, informado por Santiago el 11/11/2026**
 
-Origen: `docs/spec-revision-ocr-real.md` §4.4 y §5.2 (v0.4, borrador). Se arman en memoria (`tests/helpers/ocrRealLike.ts`) con la geometría observada en la corrida 2: primer segmento de la fila con una cola `- <tipo>`, un rótulo más en el encabezado y una celda `-`. Datos ficticios (TS-12b).
+Origen: `docs/spec-revision-ocr-real.md` §4.4 y §5.2 (v0.4, aprobada como v0.8). Se arman en memoria (`tests/helpers/ocrRealLike.ts`) con la geometría observada en la corrida 2: primer segmento de la fila con una cola `- <tipo>`, un rótulo más en el encabezado y una celda `-`. Datos ficticios (TS-12b).
 
 | ID | Qué verifica | Entrada | Esperado |
 |---|---|---|---|
@@ -161,9 +161,9 @@ Origen: `docs/spec-revision-ocr-real.md` §4.4 y §5.2 (v0.4, borrador). Se arma
 
 TP-106 (sin regresión) tiene que seguir dando las mismas salidas con la fila del Resumen sin cola y sin columna extra.
 
-### Código partido y anclas de "No." (R-12, R-13, §8.2) — **borrador, 10/11: R-12 y R-13 aprobadas por Santiago, pendientes de aprobación del equipo y del profesor; sin implementar**
+### Código partido y anclas de "No." (R-12, R-13, §8.2) — **aprobadas por Santiago el 10/11 y por el equipo y el profesor, informado por Santiago el 11/11/2026**
 
-Origen: `docs/spec-revision-ocr-real.md` §4.5, §4.6 y §5.2 (v0.5, borrador). Elementos en memoria con la geometría del lookahead (§2.5). Datos ficticios (TS-12b).
+Origen: `docs/spec-revision-ocr-real.md` §4.5, §4.6 y §5.2 (v0.5, aprobada como v0.8). Elementos en memoria con la geometría del lookahead (§2.5). Datos ficticios (TS-12b).
 
 | ID | Qué verifica | Entrada | Esperado |
 |---|---|---|---|
@@ -179,7 +179,7 @@ Origen: `docs/spec-revision-ocr-real.md` §4.5, §4.6 y §5.2 (v0.5, borrador). 
 | TP-126 | Anclas superpuestas distintas (R-13 b) | cajas de 2 y 1 caracteres distintas | no se funden; fila vacía con `pending`, como hoy |
 | TP-127 | Paso de cantos sin piso (H-C) | dos marcas de una fila casi en la misma x, sin fusión | `pending` en `edges` (como TP-90) |
 
-**Línea base nueva de TP-106 (registrada el 10/11/2026; O-R12-2 aprobada por Santiago, pendiente del equipo y del profesor).** La línea base vigente son los sha256 de las salidas anteriores a la revisión (TP-50, TS-04 y el replay sintético). Con R-12 y R-13, medido con la sonda local sobre las 14 entradas con lectura ok:
+**Línea base nueva de TP-106 (registrada el 10/11/2026; O-R12-2 aprobada por Santiago el 10/11 y por el equipo y el profesor, informado por Santiago el 11/11/2026).** La línea base vigente son los sha256 de las salidas anteriores a la revisión (TP-50, TS-04 y el replay sintético). Con R-12 y R-13, medido con la sonda local sobre las 14 entradas con lectura ok:
 
 | Entrada | Cambia | Qué cambia |
 |---|---|---|
@@ -189,9 +189,9 @@ Origen: `docs/spec-revision-ocr-real.md` §4.5, §4.6 y §5.2 (v0.5, borrador). 
 
 R-13 no cambia ninguna de esas entradas (el replay sintético no tiene letras cirílicas ni anclas superpuestas). **Ningún código sale válido y distinto del esperado.** Al implementar, `BEFORE` de TP-106 se reemplaza por los sha256 de las salidas nuevas **solo de S1 y S3**; los otros 12 valores no se tocan. El replay S2 (rechazo de la página 3) tampoco cambia.
 
-### Pictograma antes de la medida de la banda (R-14, §8.2) — **borrador, 10/11: opción C elegida por Santiago, pendiente de aprobación del equipo y del profesor; sin implementar**
+### Pictograma antes de la medida de la banda (R-14, §8.2) — **opción C elegida por Santiago el 10/11 y aprobada por el equipo y el profesor, informado por Santiago el 11/11/2026**
 
-Origen: `docs/spec-revision-ocr-real.md` §4.7 y §5.2 (v0.7, borrador). Elementos en memoria con la geometría de la p. 4 (palabra suelta de un carácter, hueco 1,37 antes y 0,50 después). Datos ficticios (TS-12b). TP-99 se actualiza (tabla de arriba); TP-100 se mantiene.
+Origen: `docs/spec-revision-ocr-real.md` §4.7 y §5.2 (v0.7, aprobada como v0.8). Elementos en memoria con la geometría de la p. 4 (palabra suelta de un carácter, hueco 1,37 antes y 0,50 después). Datos ficticios (TS-12b). TP-99 se actualiza (tabla de arriba); TP-100 se mantiene.
 
 | ID | Qué verifica | Entrada | Esperado |
 |---|---|---|---|

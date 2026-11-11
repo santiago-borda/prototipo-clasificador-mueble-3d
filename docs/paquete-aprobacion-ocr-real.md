@@ -5,7 +5,7 @@
 | Para | El equipo y el profesor |
 | Pide | Aprobar (o rechazar) cada ítem de §3. Santiago Borda ya aprobó o eligió lo que se indica; falta el equipo y el profesor |
 | Fecha | 10/11/2026 |
-| Estado | **Borrador. Todo lo de §3 está "propuesto, pendiente de aprobación del equipo y del profesor".** Nada de esto está implementado |
+| Estado | **Aprobado el 11/11/2026** (ítems 1 a 14, incluida la enmienda D con E-1 y E-2), por el equipo y el profesor, informado por Santiago el 11/11/2026; evidencia: respuestas al mensaje de aprobación, a archivar. Implementación en la rama `ocr-revision-real` (ver `CLAUDE.md`) |
 | Regla de datos | No contiene texto, códigos, medidas ni hashes del PDF real. Solo estructura: conteos, clases de carácter y nombres de reglas |
 
 ## 1. De dónde viene
@@ -24,12 +24,12 @@ Cada ítem de §3 corresponde a uno de esos hallazgos. Ninguno es una medición 
 
 | Documento | Versión | Estado |
 |---|---|---|
-| `docs/spec-revision-ocr-real.md` | **0.7 borrador** (0.2 aprobada; 0.3 decisiones de Santiago a informar) | Define R-11 a R-14, C4 a C7, el lookahead y las pruebas TP-108 a TP-133 |
-| `docs/spec-esquema-pdf.md` | Sin número: aprobada el 3/11; §8 y §8.2 revisadas el 10/11 con la v0.2 de la revisión; **borrador del 10/11** con R-11 a R-14 en §8.2 | Modificada en borrador |
-| `docs/spec-extraccion-pdf.md` | **0.3.3 borrador** (0.3.2 aprobada el 10/11 con C1 y C2) | Modificada en borrador (§3 H-02, §5.1) |
-| `docs/spec-ocr-prueba-real.md` (SPEC-B2) | **0.3** (aprobada) | Sin cambios en esta ronda; la enmienda D (ítem 14) la modificaría |
-| `docs/spec-ocr-prueba-real-enmienda-d.md` | **0.1 borrador, sin aprobar** | Sin cambios en esta ronda |
-| `docs/test-plan-esquema-pdf.md` | Sin número: 3/11; TP-95 a TP-107 aprobados con la v0.2; **borrador del 10/11** con TP-99 actualizada y TP-108 a TP-133 | Modificado en borrador |
+| `docs/spec-revision-ocr-real.md` | **0.8 aprobada** (0.2 aprobada el 10/11; el resto, el 11/11) | Define R-11 a R-14, C4 a C7, el lookahead y las pruebas TP-108 a TP-133 |
+| `docs/spec-esquema-pdf.md` | Sin número: aprobada el 3/11; §8 y §8.2 revisadas el 10/11 con la v0.2 de la revisión; **aprobada el 11/11** con R-11 a R-14 en §8.2 y la aclaración de R-7 | Modificada, aprobada |
+| `docs/spec-extraccion-pdf.md` | **0.3.3 aprobada** (0.3.2 aprobada el 10/11 con C1 y C2) | Modificada, aprobada (§3 H-02, §5.1) |
+| `docs/spec-ocr-prueba-real.md` (SPEC-B2) | **0.4** (aprobada) | Modificada por la enmienda D (ítem 14), aprobada |
+| `docs/spec-ocr-prueba-real-enmienda-d.md` | **0.2 aprobada** | Aprobada con E-1 y E-2 |
+| `docs/test-plan-esquema-pdf.md` | Sin número: 3/11; TP-95 a TP-107 aprobados con la v0.2; **aprobado el 11/11** con TP-99 actualizada, TP-108 a TP-133 y la línea base nueva de TP-106 | Modificado, aprobado |
 
 ## 3. Lista de lo pendiente
 
@@ -146,3 +146,7 @@ Leyenda de la columna **Santiago**: "aprobó" o "eligió" = decisión suya del 1
 4. Aprobar o rechazar los ítems **11 a 13** (decisiones de Santiago).
 5. Aprobar o rechazar el ítem **14** (enmienda D) y, si se aprueba, E-1 y E-2.
 6. Si se aprueba, el orden de trabajo es: implementar R-11 a R-14 con sus pruebas, congelar y commitear las reglas, y recién después correr la validación del ítem 14.
+
+## 7. Aprobación (11/11/2026)
+
+El equipo y el profesor aprobaron los ítems 1 a 14, incluida la enmienda D con E-1 y E-2. Informado por Santiago el 11/11/2026; evidencia: respuestas al mensaje de aprobación, a archivar. Las specs de §2 pasaron a "Aprobado" con ese registro textual. La validación del ítem 14 (Blanco 18) la corre Santiago en su consola, después de congelar y commitear las reglas.

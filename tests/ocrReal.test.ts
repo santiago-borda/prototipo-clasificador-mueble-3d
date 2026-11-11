@@ -35,6 +35,8 @@ interface Harness {
 }
 
 const KEY = "ruta-a-la-clave";
+/** `--paginas` es obligatorio (enmienda D, E-1). Las respuestas del fixture sintético tienen 3 páginas. */
+const P3 = ["--paginas", "3"];
 
 function harness(options: { files?: VisionFileResponse[] | Error; env?: Record<string, string | undefined>; whitelistText?: string | null } = {}): Harness {
   const calls: VisionRequest[] = [];
@@ -108,21 +110,21 @@ describe("OR-01 lista blanca (§5)", () => {
 describe("OR-02 sin OCR_LISTA_BLANCA", () => {
   it("variable sin definir: lista-blanca-ausente y 0 llamadas", async () => {
     const h = harness({ env: { GOOGLE_APPLICATION_CREDENTIALS: KEY, PROCESAMIENTO_EXTERNO: "permitir" } });
-    const result = await run(h, [pdfFile()]);
+    const result = await run(h, [pdfFile(), ...P3]);
     expect(result.exitCode).not.toBe(0);
     expect(h.lines).toEqual(["rechazado: lista-blanca-ausente"]);
     expect(h.calls).toHaveLength(0);
   });
   it("archivo inexistente: lista-blanca-ausente", async () => {
     const h = harness({ whitelistText: null });
-    const result = await run(h, [pdfFile()]);
+    const result = await run(h, [pdfFile(), ...P3]);
     expect(result.exitCode).not.toBe(0);
     expect(h.lines).toEqual(["rechazado: lista-blanca-ausente"]);
     expect(h.calls).toHaveLength(0);
   });
   it("sin GOOGLE_APPLICATION_CREDENTIALS: sin-credenciales (paso 1, antes de la lista)", async () => {
     const h = harness({ env: { PROCESAMIENTO_EXTERNO: "permitir" } });
-    const result = await run(h, [pdfFile()]);
+    const result = await run(h, [pdfFile(), ...P3]);
     expect(result.exitCode).not.toBe(0);
     expect(h.lines).toEqual(["rechazado: sin-credenciales"]);
     expect(h.calls).toHaveLength(0);
@@ -134,7 +136,7 @@ describe("OR-02 sin OCR_LISTA_BLANCA", () => {
 describe("OR-03 compuerta", () => {
   it("hash fuera de la lista blanca", async () => {
     const h = harness({ whitelistText: `${"ab".repeat(32)}\n` });
-    const result = await run(h, [pdfFile()]);
+    const result = await run(h, [pdfFile(), ...P3]);
     expect(result.exitCode).not.toBe(0);
     expect(h.lines).toEqual(["rechazado: compuerta"]);
     expect(h.calls).toHaveLength(0);
@@ -143,7 +145,7 @@ describe("OR-03 compuerta", () => {
   it("sin PROCESAMIENTO_EXTERNO", async () => {
     const base = harness();
     const h = harness({ env: { ...base.io.env, PROCESAMIENTO_EXTERNO: undefined } });
-    const result = await run(h, [pdfFile()]);
+    const result = await run(h, [pdfFile(), ...P3]);
     expect(result.exitCode).not.toBe(0);
     expect(h.lines).toEqual(["rechazado: compuerta"]);
     expect(h.calls).toHaveLength(0);
@@ -151,7 +153,7 @@ describe("OR-03 compuerta", () => {
   it("con PERMITIR_DATOS_REALES definida (la compuerta lanza y no se envía nada)", async () => {
     const base = harness();
     const h = harness({ env: { ...base.io.env, PERMITIR_DATOS_REALES: "1" } });
-    const result = await run(h, [pdfFile()]);
+    const result = await run(h, [pdfFile(), ...P3]);
     expect(result.exitCode).not.toBe(0);
     expect(h.lines).toEqual(["rechazado: compuerta"]);
     expect(h.calls).toHaveLength(0);
@@ -161,7 +163,7 @@ describe("OR-03 compuerta", () => {
 describe("OR-04 PDF del fixture sintético", () => {
   it("la lista sintética va vacía: fuera de la lista blanca queda bloqueado (para eso está ocr:sintetico)", async () => {
     const h = harness({ whitelistText: `${HEX(S2.pdfId)}\n` });
-    const result = await run(h, [pdfFile(S1)]);
+    const result = await run(h, [pdfFile(S1), ...P3]);
     expect(result.exitCode).not.toBe(0);
     expect(h.lines).toEqual(["rechazado: compuerta"]);
     expect(h.calls).toHaveLength(0);
@@ -173,13 +175,13 @@ describe("OR-05 entrada", () => {
     const h = harness();
     const file = path.join(tmp, "x.pdf");
     writeFileSync(file, "no soy un pdf");
-    const result = await run(h, [file]);
+    const result = await run(h, [file, ...P3]);
     expect(result.exitCode).not.toBe(0);
     expect(h.lines).toEqual(["rechazado: entrada-invalida"]);
     expect(h.calls).toHaveLength(0);
   });
   it("dos rutas, ninguna ruta, ruta inexistente o bandera desconocida", async () => {
-    for (const argv of [[pdfFile(S1), pdfFile(S2)], [], [path.join(tmp, "no-existe.pdf")], [pdfFile(S1), "--otra"]]) {
+    for (const argv of [[pdfFile(S1), pdfFile(S2), ...P3], [...P3], [path.join(tmp, "no-existe.pdf"), ...P3], [pdfFile(S1), ...P3, "--otra"]]) {
       const h = harness();
       const result = await run(h, argv);
       expect(result.exitCode).not.toBe(0);
@@ -191,38 +193,89 @@ describe("OR-05 entrada", () => {
 
 // --- OR-06 y OR-07: el pedido y las páginas ---
 
-describe("OR-06 el pedido", () => {
-  it("un único batchAnnotateFiles con el PDF inline, DOCUMENT_TEXT_DETECTION y pages 1 a 5", async () => {
+describe("OR-06 el pedido (enmienda D: páginas 1 a n según --paginas)", () => {
+  it.each([
+    ["3", [1, 2, 3]],
+    ["5", [1, 2, 3, 4, 5]],
+    ["1", [1]],
+  ])("con --paginas %s: un único batchAnnotateFiles con el PDF inline, DOCUMENT_TEXT_DETECTION y pages %j", async (n, pages) => {
     const h = harness();
-    await run(h, [pdfFile()]);
+    await run(h, [pdfFile(), "--paginas", n]);
     expect(h.calls).toHaveLength(1);
     const { requests } = h.calls[0];
     expect(requests).toHaveLength(1);
-    expect(requests[0].pages).toEqual([1, 2, 3, 4, 5]);
+    expect(requests[0].pages).toEqual(pages);
     expect(requests[0].features).toEqual([{ type: "DOCUMENT_TEXT_DETECTION" }]);
     expect(requests[0].inputConfig.mimeType).toBe("application/pdf");
     expect(Array.from(requests[0].inputConfig.content)).toEqual(Array.from(S1.pdf));
   });
 });
 
-describe("OR-07 verificación de páginas (§6)", () => {
+describe("OR-07 verificación de páginas (§6, enmienda D: contra el n declarado)", () => {
   const page = (n: number) => ({ context: { pageNumber: n } });
-  const cases: [string, VisionFileResponse, string][] = [
-    ["totalPages = 6", { responses: [1, 2, 3, 4, 5].map(page), totalPages: 6 }, "paginas-excedidas"],
-    ["totalPages ausente", { responses: [1, 2, 3].map(page) }, "paginas-no-confirmadas"],
-    ["totalPages = 5.5", { responses: [1, 2, 3, 4, 5].map(page), totalPages: 5.5 }, "paginas-no-confirmadas"],
-    ["totalPages = 0", { responses: [], totalPages: 0 }, "paginas-no-confirmadas"],
-    ["menos respuestas que totalPages", { responses: [1, 2].map(page), totalPages: 3 }, "paginas-no-confirmadas"],
-    ["más respuestas que totalPages", { responses: [1, 2, 3, 4].map(page), totalPages: 3 }, "paginas-no-confirmadas"],
+  const cases: [string, string, VisionFileResponse, string][] = [
+    ["totalPages = 6", "5", { responses: [1, 2, 3, 4, 5].map(page), totalPages: 6 }, "paginas-excedidas"],
+    ["totalPages ausente", "3", { responses: [1, 2, 3].map(page) }, "paginas-no-confirmadas"],
+    ["totalPages = 5.5", "5", { responses: [1, 2, 3, 4, 5].map(page), totalPages: 5.5 }, "paginas-no-confirmadas"],
+    ["totalPages = 0", "5", { responses: [], totalPages: 0 }, "paginas-no-confirmadas"],
+    ["menos respuestas que totalPages", "3", { responses: [1, 2].map(page), totalPages: 3 }, "paginas-no-confirmadas"],
+    ["más respuestas que totalPages", "3", { responses: [1, 2, 3, 4].map(page), totalPages: 3 }, "paginas-no-confirmadas"],
+    ["OR-20: totalPages = 5 y --paginas 3", "3", { responses: [1, 2, 3, 4, 5].map(page), totalPages: 5 }, "paginas-no-confirmadas"],
+    ["totalPages = 3 y --paginas 5", "5", { responses: [1, 2, 3].map(page), totalPages: 3 }, "paginas-no-confirmadas"],
   ];
-  it.each(cases)("%s: se niega, no escribe ningún archivo y no lee nada", async (_name, file, reason) => {
+  it.each(cases)("%s (--paginas %s): se niega, no escribe ningún archivo y no lee nada", async (_name, n, file, reason) => {
     const h = harness({ files: [file] });
-    const result = await run(h, [pdfFile()]);
+    const result = await run(h, [pdfFile(), "--paginas", n]);
     expect(result.exitCode).not.toBe(0);
     expect(h.lines).toEqual([`rechazado: ${reason}`]);
     expect(h.writes).toEqual([]);
     expect(outFiles(h)).toEqual([]);
     expect(existsSync(h.outDir)).toBe(false);
+  });
+});
+
+describe("OR-19 --paginas (enmienda D, E-1): rechazo antes de la red", () => {
+  const cases: [string, string[], string][] = [
+    ["ausente", [], "entrada-invalida"],
+    ["sin valor", ["--paginas"], "entrada-invalida"],
+    ["0", ["--paginas", "0"], "entrada-invalida"],
+    ["negativo", ["--paginas", "-1"], "entrada-invalida"],
+    ["2.5", ["--paginas", "2.5"], "entrada-invalida"],
+    ["no numérico", ["--paginas", "tres"], "entrada-invalida"],
+    ["repetida", ["--paginas", "3", "--paginas", "3"], "entrada-invalida"],
+    ["con otra bandera como valor", ["--paginas", "--reenviar"], "entrada-invalida"],
+    ["6", ["--paginas", "6"], "paginas-excedidas"],
+    ["50", ["--paginas", "50"], "paginas-excedidas"],
+  ];
+  it.each(cases)("--paginas %s: rechazo antes de la red, 0 llamadas al cliente", async (_name, extra, reason) => {
+    const h = harness();
+    const result = await run(h, [pdfFile(), ...extra]);
+    expect(result.exitCode).not.toBe(0);
+    expect(h.lines).toEqual([`rechazado: ${reason}`]);
+    expect(h.calls).toHaveLength(0);
+    expect(h.writes).toEqual([]);
+  });
+});
+
+describe("OR-21 la compuerta va antes de la caché (E-2, enmienda D)", () => {
+  it("con el hash de otro PDF en la lista y la respuesta guardada del primero: compuerta; la caché no se lee", async () => {
+    const first = harness({ files: visionResponses(S1, [[1, 2, 3]], idealWords(S1)) });
+    await run(first, [pdfFile(), ...P3]);
+    const cached = path.join(first.outDir, `${HEX(S1.pdfId)}.vision.json`);
+    expect(existsSync(cached)).toBe(true);
+
+    // La lista habilita ahora otro PDF (un hash por vez, D-2); la respuesta del primero sigue en disco.
+    const second = harness({ files: new Error("no debía llamarse"), whitelistText: `${HEX(S2.pdfId)}\n` });
+    const touched: string[] = [];
+    const { readText, exists } = second.io;
+    second.io.readText = (file) => (touched.push(file), readText(file));
+    second.io.exists = (file) => (touched.push(file), exists(file));
+    const result = await runOcrReal([pdfFile(), ...P3], second.io, { outDir: first.outDir });
+    expect(result.exitCode).not.toBe(0);
+    expect(second.lines).toEqual(["rechazado: compuerta"]);
+    expect(second.calls).toHaveLength(0);
+    expect(touched.filter((file) => file.endsWith(".vision.json"))).toEqual([]);
+    expect(second.writes).toEqual([]);
   });
 });
 
@@ -246,7 +299,7 @@ describe("OR-08 salidas", () => {
     const h = harness({ files: visionResponses(S1, [[1, 2, 3]], idealWords(S1)) });
     const transcription = path.join(tmp, "transcripcion.json");
     writeFileSync(transcription, JSON.stringify({ ...EXPECTED_S1, source: { ...EXPECTED_S1.source, reader: "transcripcion-manual" } }));
-    const result = await run(h, [pdfFile(), "--transcripcion", transcription]);
+    const result = await run(h, [pdfFile(), ...P3, "--transcripcion", transcription]);
     expect(result.exitCode).toBe(0);
     const id = HEX(S1.pdfId);
     expect(outFiles(h)).toEqual([`${id}.comparacion.json`, `${id}.lectura.json`, `${id}.vision.json`]);
@@ -256,13 +309,13 @@ describe("OR-08 salidas", () => {
   });
   it("sin --transcripcion no escribe comparacion.json", async () => {
     const h = harness({ files: visionResponses(S1, [[1, 2, 3]], idealWords(S1)) });
-    await run(h, [pdfFile()]);
+    await run(h, [pdfFile(), ...P3]);
     const id = HEX(S1.pdfId);
     expect(outFiles(h)).toEqual([`${id}.lectura.json`, `${id}.vision.json`]);
   });
   it("vision.json no lleva el PDF; lectura.json es el PdfReading con reader ocr-llm", async () => {
     const h = harness({ files: visionResponses(S1, [[1, 2, 3]], idealWords(S1)) });
-    await run(h, [pdfFile()]);
+    await run(h, [pdfFile(), ...P3]);
     const id = HEX(S1.pdfId);
     const vision = readFileSync(path.join(h.outDir, `${id}.vision.json`), "utf8");
     expect(vision).not.toContain("%PDF-");
@@ -305,7 +358,7 @@ describe("OR-09 consola: solo conteos", () => {
     const h = harness({ files: visionResponses(S1, [[1, 2, 3]], idealWords(S1)) });
     const transcription = path.join(tmp, "transcripcion.json");
     writeFileSync(transcription, JSON.stringify(EXPECTED_S1));
-    await run(h, [pdfFile(), "--transcripcion", transcription]);
+    await run(h, [pdfFile(), ...P3, "--transcripcion", transcription]);
     expect(h.lines.length).toBeGreaterThanOrEqual(7);
     for (const line of h.lines) expect(TEMPLATES.some((t) => t.test(line))).toBe(true);
     for (const text of forbidden()) if (text !== "") expect(h.lines.join("\n")).not.toContain(text);
@@ -313,7 +366,7 @@ describe("OR-09 consola: solo conteos", () => {
   });
   it("lectura rechazada: solo la razón del catálogo, sin el detail", async () => {
     const h = harness({ files: emptyPages() });
-    const result = await run(h, [pdfFile()]);
+    const result = await run(h, [pdfFile(), ...P3]);
     expect(result.exitCode).toBe(0);
     for (const line of h.lines) expect(TEMPLATES.some((t) => t.test(line))).toBe(true);
     expect(h.lines).toContain("lectura: rechazado (sin-capa-de-texto)");
@@ -359,7 +412,7 @@ describe("OR-10 error del proveedor", () => {
   it("el mensaje (con texto del documento) no se imprime", async () => {
     const secret = "Lateral 9999-91-M01-C01 703 x 487";
     const h = harness({ files: new Error(`fallo al leer: ${secret}`) });
-    const result = await run(h, [pdfFile()]);
+    const result = await run(h, [pdfFile(), ...P3]);
     expect(result.exitCode).not.toBe(0);
     expect(h.lines).toEqual(["rechazado: proveedor-error"]);
     expect(h.writes).toEqual([]);
@@ -439,11 +492,11 @@ describe("OR-13 caché", () => {
   it("con la respuesta guardada y sin --reenviar no vuelve a enviar; el resultado es el mismo", async () => {
     const files = visionResponses(S1, [[1, 2, 3]], idealWords(S1));
     const first = harness({ files });
-    await run(first, [pdfFile()]);
+    await run(first, [pdfFile(), ...P3]);
     expect(first.calls).toHaveLength(1);
 
     const second = harness({ files: new Error("no debía llamarse") });
-    const result = await runOcrReal([pdfFile()], second.io, { outDir: first.outDir });
+    const result = await runOcrReal([pdfFile(), ...P3], second.io, { outDir: first.outDir });
     expect(result.exitCode).toBe(0);
     expect(second.calls).toHaveLength(0);
     expect(second.lines).toEqual(first.lines);
@@ -451,20 +504,20 @@ describe("OR-13 caché", () => {
   it("con --reenviar vuelve a enviar una vez", async () => {
     const files = visionResponses(S1, [[1, 2, 3]], idealWords(S1));
     const first = harness({ files });
-    await run(first, [pdfFile()]);
+    await run(first, [pdfFile(), ...P3]);
     const second = harness({ files });
-    await runOcrReal([pdfFile(), "--reenviar"], second.io, { outDir: first.outDir });
+    await runOcrReal([pdfFile(), ...P3, "--reenviar"], second.io, { outDir: first.outDir });
     expect(second.calls).toHaveLength(1);
   });
   it("la caché también pasa por la verificación de páginas", async () => {
     const first = harness({ files: visionResponses(S1, [[1, 2, 3]], idealWords(S1)) });
-    await run(first, [pdfFile()]);
+    await run(first, [pdfFile(), ...P3]);
     const cached = path.join(first.outDir, `${HEX(S1.pdfId)}.vision.json`);
     const doc = JSON.parse(readFileSync(cached, "utf8")) as { files: VisionFileResponse[] };
     doc.files[0].totalPages = 9;
     writeFileSync(cached, JSON.stringify(doc));
     const second = harness();
-    const result = await runOcrReal([pdfFile()], second.io, { outDir: first.outDir });
+    const result = await runOcrReal([pdfFile(), ...P3], second.io, { outDir: first.outDir });
     expect(result.exitCode).not.toBe(0);
     expect(second.lines).toEqual(["rechazado: paginas-excedidas"]);
     expect(second.calls).toHaveLength(0);
@@ -476,7 +529,7 @@ describe("OR-14 rutas de salida", () => {
     const h = harness({ files: visionResponses(S1, [[1, 2, 3]], idealWords(S1)) });
     const transcription = path.join(tmp, "transcripcion.json");
     writeFileSync(transcription, JSON.stringify(EXPECTED_S1));
-    await run(h, [pdfFile(S1, "carpeta con ../espacios y raros"), "--transcripcion", transcription]);
+    await run(h, [pdfFile(S1, "carpeta con ../espacios y raros"), ...P3, "--transcripcion", transcription]);
     expect(h.writes.length).toBe(3);
     for (const file of h.writes) {
       expect(path.dirname(file)).toBe(h.outDir);
@@ -519,7 +572,7 @@ describe("OR-16 comparacion-desalineada", () => {
     const transcription = path.join(tmp, "transcripcion.json");
     writeFileSync(transcription, JSON.stringify(short));
     const h = harness({ files: visionResponses(S1, [[1, 2, 3]], idealWords(S1)) });
-    const result = await run(h, [pdfFile(), "--transcripcion", transcription]);
+    const result = await run(h, [pdfFile(), ...P3, "--transcripcion", transcription]);
     expect(result.exitCode).toBe(0);
     expect(h.lines.find((line) => line.startsWith("comparación:"))).toMatch(/^comparación: comparacion-desalineada \(filas ocr=\d+, transcripción=\d+\)$/);
     const json = JSON.parse(readFileSync(path.join(h.outDir, `${HEX(S1.pdfId)}.comparacion.json`), "utf8")) as Record<string, unknown>;
@@ -530,7 +583,7 @@ describe("OR-16 comparacion-desalineada", () => {
     const bad = path.join(tmp, "mala.json");
     writeFileSync(bad, JSON.stringify({ hola: 1 }));
     const h = harness({ files: visionResponses(S1, [[1, 2, 3]], idealWords(S1)) });
-    const result = await run(h, [pdfFile(), "--transcripcion", bad]);
+    const result = await run(h, [pdfFile(), ...P3, "--transcripcion", bad]);
     expect(result.exitCode).not.toBe(0);
     expect(h.lines.at(-1)).toBe("rechazado: transcripcion-invalida");
   });
@@ -538,7 +591,7 @@ describe("OR-16 comparacion-desalineada", () => {
     const bad = path.join(tmp, "otra.json");
     writeFileSync(bad, JSON.stringify({ ...EXPECTED_S1, source: { ...EXPECTED_S1.source, reader: "ocr-llm" } }));
     const h = harness({ files: visionResponses(S1, [[1, 2, 3]], idealWords(S1)) });
-    const result = await run(h, [pdfFile(), "--transcripcion", bad]);
+    const result = await run(h, [pdfFile(), ...P3, "--transcripcion", bad]);
     expect(result.exitCode).not.toBe(0);
     expect(h.lines.at(-1)).toBe("rechazado: transcripcion-invalida");
   });
@@ -549,7 +602,7 @@ describe("sin red", () => {
   it("la lógica no hace ningún fetch", async () => {
     const counter = (globalThis as { __llamadasDeRed?: { calls: number } }).__llamadasDeRed;
     const before = counter?.calls ?? 0;
-    await run(harness(), [pdfFile()]);
+    await run(harness(), [pdfFile(), ...P3]);
     expect(counter?.calls ?? 0).toBe(before);
     expect(pdfIdOf(S1.pdf)).toBe(S1.pdfId);
   });

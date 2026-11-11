@@ -56,8 +56,8 @@ Toda fila sigue `dudosa` por `origen-ocr`. Esta validación no cambia ningún ni
 
 | Id | Caso | Esperado |
 |---|---|---|
-| OR-19 | `--paginas` ausente, 0, 6 o no entero | Rechazo antes de la red (`entrada-invalida` o `paginas-excedidas`); 0 llamadas al cliente. **Precisión de la implementación:** `entrada-invalida` para ausente, repetida, no entero o menor que 1; `paginas-excedidas` para mayor que 5 |
-| OR-20 | `--paginas 3` con respuesta simulada de 3 páginas; y con `totalPages` 5 | El pedido lleva `pages: [1, 2, 3]`; con 5, `paginas-no-confirmadas` y ningún archivo escrito. **Precisión:** un `totalPages` mayor que 5 sigue dando `paginas-excedidas` (SPEC-B2 §6 v0.3) aunque no coincida con n |
+| OR-19 | `--paginas` ausente, 0, 6 o no entero | Rechazo antes de la red (`entrada-invalida` o `paginas-excedidas`); 0 llamadas al cliente. **Precisión de redacción, sin cambio de criterio (informadas al equipo por Santiago el 11/11/2026):** `entrada-invalida` para ausente, repetida, no entero o menor que 1; `paginas-excedidas` para mayor que 5 |
+| OR-20 | `--paginas 3` con respuesta simulada de 3 páginas; y con `totalPages` 5 | El pedido lleva `pages: [1, 2, 3]`; con 5, `paginas-no-confirmadas` y ningún archivo escrito. **Precisión de redacción, sin cambio de criterio (informadas al equipo por Santiago el 11/11/2026):** un `totalPages` mayor que 5 sigue dando `paginas-excedidas` (SPEC-B2 §6 v0.3) aunque no coincida con n |
 | OR-21 | Lista blanca con el hash de otro PDF y respuesta guardada del primero | `compuerta`; la caché no se lee (documenta §2) |
 
 ## 7. Qué no cambia
@@ -85,4 +85,4 @@ Santiago recomienda **aceptar E-1 (`--paginas`, E-1a) y E-2 (la compuerta va ant
 |---|---|---|
 | 0.1 | 10/11/2026 | Borrador: segundo PDF (Blanco 18), reemplazo del hash único, registro, condiciones, aceptación, páginas (E-1) y orden compuerta-caché (E-2) |
 | 0.1 | 10/11/2026 | Se anota (§8) la recomendación de Santiago de aceptar E-1 y E-2. Sigue sin aprobar |
-| 0.2 | 11/11/2026 | **APROBADA**, aprobada por el equipo y el profesor, informado por Santiago el 11/11/2026; evidencia: respuestas al mensaje de aprobación, a archivar: D-1 a D-4, E-1 (E-1a, `--paginas <n>`), E-2 y OR-19 a OR-21. Dos precisiones de la implementación en §6 (códigos de rechazo de OR-19 y de OR-20). Aplicada en SPEC-B2 v0.4 |
+| 0.2 | 11/11/2026 | **APROBADA**, aprobada por el equipo y el profesor, informado por Santiago el 11/11/2026; evidencia: respuestas al mensaje de aprobación, a archivar: D-1 a D-4, E-1 (E-1a, `--paginas <n>`), E-2 y OR-19 a OR-21. Dos precisiones de redacción en §6 (códigos de rechazo de OR-19 y de OR-20), informadas al equipo por Santiago el 11/11/2026, sin cambio de criterio. Aplicada en SPEC-B2 v0.4 |

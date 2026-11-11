@@ -30,8 +30,10 @@ describe("OR-18 catálogo de reglas de rechazo", () => {
     }
   });
 
-  it("R-11 (aprobada el 11/11/2026): el catálogo suma resumen-celda-duplicada y resumen-fila-ambigua", () => {
-    for (const rule of ["resumen-celda-duplicada", "resumen-fila-ambigua"]) {
+  it("R-11 y R-14 (aprobadas el 11/11/2026): el catálogo tiene 30 sitios, con los tres ids nuevos", () => {
+    expect(SITES).toHaveLength(30);
+    expect(Object.keys(PDF_REJECT_RULES)).toHaveLength(30);
+    for (const rule of ["resumen-celda-duplicada", "resumen-fila-ambigua", "hoja-medida-sin-respaldo"]) {
       expect(Object.keys(PDF_REJECT_RULES), rule).toContain(rule);
       expect(SITES.map((site) => site.rule), rule).toContain(rule);
     }

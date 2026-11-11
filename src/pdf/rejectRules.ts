@@ -44,6 +44,8 @@ export const PDF_REJECT_RULES = {
   "hoja-diagrama-en-continuacion-con-tabla": { reason: "hoja-incompleta", scope: "pagina" },
   "hoja-sin-encabezado-completo": { reason: "estructura-no-reconocida", scope: "pagina" },
   "hoja-medida-ambigua": { reason: "estructura-no-reconocida", scope: "pagina" },
+  // R-14: la razón es la misma que la de las demás reglas de la medida del tablero (hoja-medida-ambigua, hoja-sin-encabezado-completo).
+  "hoja-medida-sin-respaldo": { reason: "estructura-no-reconocida", scope: "pagina" },
   "hoja-tipo-ambiguo": { reason: "estructura-no-reconocida", scope: "pagina" },
 } as const satisfies Record<string, RuleInfo>;
 

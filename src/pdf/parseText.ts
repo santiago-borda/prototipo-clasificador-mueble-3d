@@ -549,7 +549,40 @@ function readSheetMaterial(band: readonly Word[], page: number, header: Material
   throw new ReadFailure("hoja-sin-material", page, `La página ${page} no repite el material y el espesor de la hoja.`);
 }
 
-function readSheetPage(page: number, elements: PdfTextElement[], layout: ResolvedLayout, header: MaterialValue): SheetPage {
+const readBoardSize = (text: string) => {
+  const match = BOARD_SIZE.exec(text);
+  return match ? { lengthMm: numberFrom(match[1]), widthMm: numberFrom(match[2]) } : null;
+};
+
+/**
+ * R-14 (opción C de P-R5): entre el `-` que sigue al espesor y la medida de la banda hay un pictograma que el OCR a veces
+ * devuelve como una letra suelta, y R-8 no lee una medida sin límite a la izquierda. Se ignora UNA palabra de un solo
+ * carácter que no es dígito ni separador, justo después de un separador y antes del primer número de la medida; con dos
+ * palabras, con un dígito o sin separador no hay tolerancia (rige R-8). La medida se acepta SOLO si es exactamente igual,
+ * en el mismo orden, a la de la única fila del Resumen con el mismo material y espesor que la hoja (el patrón de /-b);
+ * si no, rechazo `hoja-medida-sin-respaldo`. Solo actúa cuando R-8 no leyó ninguna medida.
+ */
+function readPictogramSize(band: readonly Word[], sheet: MaterialValue, rows: readonly SummaryBoardRow[], page: number): { lengthMm: number; widthMm: number } | null {
+  const found: { lengthMm: number; widthMm: number }[] = [];
+  for (let i = 1; i < band.length - 1; i += 1) {
+    const word = band[i];
+    const isPictogram = [...word.text].length === 1 && /\p{L}/u.test(word.text) && !/\p{N}/u.test(word.text);
+    if (!isPictogram || !separatorBefore(band, i)) continue;
+    const rest = band.filter((_, k) => k !== i);
+    found.push(...delimited(rest, ["×"], readBoardSize).filter((match) => match.start === i).map((match) => match.value));
+  }
+  // Dos medidas distintas detrás de pictogramas distintos no se eligen: sin medida, rige el rechazo de R-8 (R-3).
+  const sizes = distinct(found);
+  if (sizes.length !== 1) return null;
+  const backing = rows.filter((row) => row.material === sheet.material && row.thicknessMm === sheet.thicknessMm);
+  const [size] = sizes;
+  if (backing.length !== 1 || backing[0].lengthMm !== size.lengthMm || backing[0].widthMm !== size.widthMm) {
+    throw new ReadFailure("hoja-medida-sin-respaldo", page, `La medida de la banda de la página ${page} no coincide con la única fila del resumen de su material y espesor.`);
+  }
+  return size;
+}
+
+function readSheetPage(page: number, elements: PdfTextElement[], layout: ResolvedLayout, header: MaterialValue, summaryRows: readonly SummaryBoardRow[]): SheetPage {
   const lines = toLines(elements, layout);
   const sheet = findSegment(lines, (text) => SHEET.test(text));
   const sheetMatch = sheet && SHEET.exec(sheet.segment.text);
@@ -558,12 +591,9 @@ function readSheetPage(page: number, elements: PdfTextElement[], layout: Resolve
   const band = sheet.line.words;
   const material = readSheetMaterial(band, page, header);
   // R-8: la medida y el tipo, delimitados. Una medida sin límite a la izquierda no se lee.
-  const sizes = distinct(
-    delimited(band, ["×"], (text) => {
-      const match = BOARD_SIZE.exec(text);
-      return match ? { lengthMm: numberFrom(match[1]), widthMm: numberFrom(match[2]) } : null;
-    }).map((match) => match.value),
-  );
+  const sizes = distinct(delimited(band, ["×"], readBoardSize).map((match) => match.value));
+  // R-14: sin ninguna medida leída por R-8, una palabra suelta (el pictograma) se ignora si el Resumen respalda la medida.
+  const size = sizes.length === 0 ? readPictogramSize(band, material, summaryRows, page) : sizes.length === 1 ? sizes[0] : null;
   const kinds = distinct(delimited(band, [], (text) => (KIND.test(text) ? text : null)).map((match) => match.value));
   return {
     page,
@@ -573,7 +603,7 @@ function readSheetPage(page: number, elements: PdfTextElement[], layout: Resolve
     total: Number(sheetMatch[2]),
     material: material.material,
     thicknessMm: material.thicknessMm,
-    size: sizes.length === 1 ? sizes[0] : null,
+    size,
     kind: kinds.length === 1 ? kinds[0] : null,
     sizeAmbiguous: sizes.length > 1,
     kindAmbiguous: kinds.length > 1,
@@ -955,7 +985,7 @@ function readDocument(input: PdfTextInput): CutListPdf {
   const pages = [...byPage.keys()]
     .filter((page) => page !== 1)
     .sort(order)
-    .map((page) => readSheetPage(page, byPage.get(page) ?? [], layout, header));
+    .map((page) => readSheetPage(page, byPage.get(page) ?? [], layout, header, summary.boards));
   if (pages.length === 0) throw new ReadFailure("documento-sin-hojas", null, "El PDF no tiene hojas de tablero.");
   const sheets = groupSheets(pages);
 

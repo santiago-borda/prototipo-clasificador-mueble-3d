@@ -122,11 +122,17 @@ describe("TP-98 banda de hoja en un renglón (R-6, R-8)", () => {
   });
 });
 
-describe("TP-99 a TP-101, TP-103 (R-8, R-6, R-3): sin límite o ambiguo → rechazo, nunca un valor", () => {
-  it("TP-99 letra suelta entre el '-' y la medida en la p. 4: rechazo en la primera página de esa hoja", () => {
-    expect(rejection(read({ strayLetterPages: [4] }))).toEqual({ reason: "estructura-no-reconocida", rule: "hoja-sin-encabezado-completo", page: 4 });
+describe("TP-99 a TP-101, TP-103 (R-8, R-6, R-3, R-14): sin límite o ambiguo → rechazo, nunca un valor", () => {
+  // TP-99 actualizada (R-14, opción C de P-R5, aprobada el 11/11/2026): antes esperaba rechazo. Los rechazos pasan a
+  // TP-129 y TP-130 (tests/pdf.ocrR14.test.ts).
+  it("TP-99 letra suelta entre el '-' y la medida en la p. 4, con la medida igual a la del Resumen: la medida se lee y la letra no está en ningún campo", () => {
+    const document = ok(read({ strayLetterPages: [4] }));
+    expect(document.boards.map((b) => [b.lengthMm, b.widthMm])).toEqual(EXPECTED.boards.map((b) => [b.lengthMm, b.widthMm]));
+    expect(document.boards.map((b) => b.kind)).toEqual(EXPECTED.boards.map((b) => b.kind));
+    expect(JSON.stringify(document.boards)).not.toContain('"Q"');
+    expect(unmarked(document)).toEqual([]);
   });
-  it("TP-99 en una página de continuación la medida no se usa: se lee", () => {
+  it("TP-99 en una página de continuación se lee igual", () => {
     const document = ok(read({ strayLetterPages: [5] }));
     expect(document.boards[1].lengthMm).toBe(EXPECTED.boards[1].lengthMm);
   });

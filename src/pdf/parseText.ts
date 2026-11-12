@@ -319,15 +319,26 @@ function titleMaterial(words: readonly Word[], start: number, material: string, 
 /**
  * R-11 a: material de una fila de la tabla del Resumen, o null si la línea no es una fila (primera línea sin material).
  * El primer segmento entero que cumple `<material> / <n> mm` se lee como siempre (sin regresión, R-1); si trae una cola
- * (`- <tipo>`) se busca el patrón delimitado que empieza en la primera palabra. R-11 e: el patrón dos veces en el
- * renglón, aunque sean iguales, es un rechazo (R-3): nunca se elige uno.
+ * (`- <tipo>`) se busca el patrón delimitado que empieza en la primera palabra. R-15 a: sin `/`, `<material> <n> mm`
+ * desde la primera palabra se acepta solo si es exactamente igual a `reference` (el título leído con `/` y con `|` a la
+ * izquierda, R-15 c); sin referencia, R-15 no actúa. R-11 e y R-15 d: el material dos veces en el renglón, con o sin
+ * `/`, aunque sean iguales, es un rechazo (R-3): nunca se elige uno.
  */
-function summaryRowMaterial(line: Line): MaterialValue | null {
+function summaryRowMaterial(line: Line, reference: MaterialValue | null): MaterialValue | null {
   const matches = delimited(line.words, ["/"], materialOf(MATERIAL));
   const whole = materialOf(MATERIAL)(line.segments[0].text);
-  const first = whole ?? matches.find((match) => match.start === 0)?.value ?? null;
+  const withSlash = whole ?? matches.find((match) => match.start === 0)?.value ?? null;
+  // R-15 a: sin `/`, `<material> <n> mm` desde la primera palabra (primer segmento), solo si es exactamente igual al
+  // título leído con `/` y con `|` a la izquierda (`reference`, R-15 c). Sin referencia, R-15 no actúa.
+  const plain = delimited(line.words, [], materialOf(MATERIAL_WITHOUT_SLASH));
+  const same = (value: MaterialValue, other: MaterialValue) => value.material === other.material && value.thicknessMm === other.thicknessMm;
+  const withoutSlash = withSlash === null && reference !== null && plain.some((match) => match.start === 0 && same(match.value, reference)) ? reference : null;
+  const first = withSlash ?? withoutSlash;
   if (first === null) return null;
-  if (matches.length > 1) throw new ReadFailure("resumen-fila-ambigua", 1, "La fila de la tabla del resumen tiene el material más de una vez.");
+  // R-11 e y R-15 d: el material dos veces en el renglón, con o sin `/`, aunque sean iguales, es un rechazo (R-3).
+  const appearances = [first, ...matches.map((match) => match.value)];
+  const repeated = matches.length + plain.filter((match) => appearances.some((value) => same(match.value, value))).length;
+  if (repeated > 1) throw new ReadFailure("resumen-fila-ambigua", 1, "La fila de la tabla del resumen tiene el material más de una vez.");
   return first;
 }
 
@@ -373,9 +384,17 @@ function readSummary(lines: readonly Line[], pending: PendingField[]): Pick<CutL
   if (inZone(zone, [], (text) => (MILLIMETER.test(text) ? text : null)).length === 0) throw new ReadFailure("resumen-sin-unidad", 1, "El resumen no dice la unidad.");
 
   const titles = inZone(zone, ["/"], materialOf(MATERIAL));
-  if (titles.length === 0 || !tableHeader) {
-    throw new ReadFailure("resumen-sin-titulo-o-tabla", 1, "El resumen no tiene el título del material o la tabla de tableros.");
-  }
+  // R-15 g: sin ningún título con `/`, los candidatos sin `/` que empiezan justo después de un `|` (mismo segmento).
+  // Solo se aceptan más abajo si son exactamente iguales a una fila leída con `/`.
+  const afterBar = (line: Line, start: number) => separatorBefore(line.words, start) && line.words[start - 1].text === "|";
+  const plainTitles =
+    titles.length > 0 ? [] : distinct(inZone(zone, [], materialOf(MATERIAL_WITHOUT_SLASH)).flatMap((match) => (afterBar(match.line, match.start) ? [match.value] : [])));
+  const noTitle = () => new ReadFailure("resumen-sin-titulo-o-tabla", 1, "El resumen no tiene el título del material o la tabla de tableros.");
+  if ((titles.length === 0 && plainTitles.length === 0) || !tableHeader) throw noTitle();
+  // R-15 c: la referencia de la fila sin `/` es el título leído con `/` y con `|` justo a la izquierda (R-7, rama 1),
+  // si hay uno solo distinto. Un título sin `/` nunca es referencia (no hay respaldo circular).
+  const barTitles = distinct(titles.flatMap((title) => (afterBar(title.line, title.start) ? [title.value] : [])));
+  const rowReference = barTitles.length === 1 ? barTitles[0] : null;
 
   const statistic = (label: string, path: string): number | null => {
     const value = readNumber(labeledValue(lines, label));
@@ -402,7 +421,7 @@ function readSummary(lines: readonly Line[], pending: PendingField[]): Pick<CutL
     if (line.y0 <= tableHeader.y0) continue;
     // R-11 a: el material de la fila es un patrón delimitado `<material> / <n> mm` que empieza en el renglón. Lo que sigue
     // (`- <tipo>`) no entra y se descarta: `SummaryBoardRow` no tiene ese campo. Una fila sin material cierra la tabla (R-2).
-    const material = summaryRowMaterial(line);
+    const material = summaryRowMaterial(line, rowReference);
     if (material === null) break;
     const cells = summaryCells(line, tableHeader);
     const read = (label: (typeof SUMMARY_ANCHORS)[number], format: RegExp, parse: (text: string) => number) => readSummaryCell(cells.get(label) ?? [], format, parse);
@@ -431,6 +450,12 @@ function readSummary(lines: readonly Line[], pending: PendingField[]): Pick<CutL
       parts: requiredValue("Σ Partes", SUMMARY_INTEGER, asInteger),
     });
   }
+  // R-15 g: con el título sin `/`, ninguna fila sin `/` se lee (no hay referencia), así que una tabla vacía deja al
+  // título sin respaldo: rige el rechazo del título. El candidato tiene que ser igual a una fila (con `/`).
+  // Dos candidatos distintos no se eligen: llegan al rechazo `resumen-titulo-ambiguo` de abajo (R-3), salvo que alguno
+  // no tenga respaldo, que es el rechazo del título.
+  const backed = (candidate: MaterialValue) => boards.some((row) => row.material === candidate.material && row.thicknessMm === candidate.thicknessMm);
+  if (titles.length === 0 && !plainTitles.every(backed)) throw noTitle();
   if (boards.length === 0) throw new ReadFailure("resumen-tabla-vacia", 1, "La tabla de tableros del resumen está vacía.");
 
   const rowMaterials = new Set(boards.map((row) => row.material));
@@ -442,7 +467,8 @@ function readSummary(lines: readonly Line[], pending: PendingField[]): Pick<CutL
     throw new ReadFailure("resumen-titulo-sin-limite", 1, "El material del título no tiene un separador a la izquierda y no coincide con ninguna fila de la tabla.");
   }
   // R-3: dos títulos distintos no se resuelven eligiendo uno; header.material no admite null.
-  const [title, ...others] = distinct(resolved.flatMap((value) => (value === null ? [] : [value])));
+  // Sin título con `/`, el título es el candidato de R-15 g ya respaldado por una fila.
+  const [title, ...others] = titles.length > 0 ? distinct(resolved.flatMap((value) => (value === null ? [] : [value]))) : plainTitles;
   if (others.length > 0) throw new ReadFailure("resumen-titulo-ambiguo", 1, "El resumen tiene más de un título de material distinto.");
 
   // R-5: fecha y hora delimitadas; ausente, no delimitada o con dos valores distintos queda en pending.

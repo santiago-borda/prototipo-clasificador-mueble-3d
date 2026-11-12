@@ -60,6 +60,10 @@ export interface OcrRealLikeOptions {
   titleSeparator?: boolean;
   /** Material del título del resumen (por defecto, el del documento). */
   titleMaterial?: string;
+  /** Espesor del título del resumen (por defecto, el del documento). */
+  titleThickness?: number;
+  /** `/` entre material y espesor en el título del resumen (por defecto, sí; R-15 g). */
+  titleSlash?: boolean;
   /** `/` entre material y espesor en la banda de hoja (el OCR real lo pierde). */
   bandSlash?: boolean;
   /** Material y espesor de la banda (por defecto, los del documento). */
@@ -90,15 +94,15 @@ function headerRow(doc: CutListPdf, o: OcrRealLikeOptions): PdfTextElement[] {
   const [date, time] = doc.header.generatedAt.split(" ");
   const hour = time.replace(/[ap]m$/i, "");
   const meridiem = time.slice(hour.length);
-  const material = (o.titleMaterial ?? doc.header.material).split(" ");
+  const material = (o.titleMaterial ?? doc.header.material).split(" ").filter((word) => word !== "");
   const parts: Part[] = [
     ["Hoja", 0],
     ["de", 0.3],
     ["prueba", 0.25],
     ...((o.titleSeparator ?? true) ? [["|", 0.2] as const] : []),
     ...material.map((word, i): Part => [word, i === 0 ? 0.44 : 0.3]),
-    ["/", 0.3],
-    [String(doc.header.thicknessMm), 0.3],
+    ...((o.titleSlash ?? true) ? [["/", 0.3] as const] : []),
+    [String(o.titleThickness ?? doc.header.thicknessMm), 0.3],
     ["mm", 0.25],
     [date, 12.9],
     ...(o.time === "pegadas" ? [[time, 0.4] as const] : [[hour, 0.4] as const, [meridiem, 0.09] as const]),

@@ -202,6 +202,26 @@ Origen: `docs/spec-revision-ocr-real.md` §4.7 y §5.2 (v0.7, aprobada como v0.8
 | TP-132 | Sin fila única del Resumen (R-14 c) | TP-128 con (a) dos filas del mismo material y espesor; (b) ninguna | rechazo `hoja-medida-sin-respaldo` |
 | TP-133 | R-14 no actúa si R-8 ya lee (R-14 d) | (a) sin palabra suelta y con una medida distinta de la del Resumen; (b) un signo en lugar de la letra | se lee como hoy, sin comparar con el Resumen |
 
+### Material sin `/` en el Resumen (R-15, §8.2) — **R-15 aprobada por Santiago el 11/11 y por el equipo y el profesor, informado por Santiago el 12/11/2026; sin implementar**
+
+Origen: `docs/spec-revision-ocr-real.md` v0.9 §2.6, §4.8 y §5.2, y el anexo `docs/anexo-aprobacion-r15.md`. Elementos en memoria (`tests/helpers/ocrRealLike.ts`, `withSummaryTable` con la primera celda de la fila escrita a mano), con datos ficticios (TS-12b: material "Gris Sintético", sin ningún dato real).
+
+| ID | Qué verifica | Entrada | Esperado |
+|---|---|---|---|
+| TP-134 | Fila sin `/`, material de dos palabras (R-15 a) | `<material de dos palabras> <e> mm - <tipo de dos palabras>` en un segmento, igual al título; cinco celdas | fila leída; material y espesor iguales al título, sin la cola; celdas iguales a las de TP-108; sin `pending` nuevo |
+| TP-135 | Material de una palabra (R-15 a) | TP-134 con un material de una palabra y sin cola | fila leída |
+| TP-136 | Sin regresión (CA-2) | fila con `/` (TP-108) y TP-106 | mismas salidas |
+| TP-137 | Material distinto (R-15 a, e) | TP-134 con (a) otra palabra, (b) una palabra de menos, (c) una palabra de más delante | la línea no es fila; si es la primera, `resumen-tabla-vacia`; ningún valor |
+| TP-138 | Espesor distinto (R-15 a, e) | TP-134 con otro espesor | `resumen-tabla-vacia` |
+| TP-139 | Título sin `/` (R-15 g, c; O-R15-1) | (a) con `\|` a la izquierda e igual al material y al espesor de la fila **con** `/`; (b) otro material; (c) otro espesor; (d) sin `\|` y sin `/`; (e) título y fila sin `/`; (f) con `\|` y solo el espesor | (a) leído: `header.material` y espesor iguales a los de la fila; sin `pending` nuevo; toda fila `dudosa`; (b) a (f) `resumen-sin-titulo-o-tabla` |
+| TP-140 | Sin referencia no circular (R-15 c, R-7) | título sin separador (rama 2 de R-7) y fila sin `/` igual a ese material | `resumen-tabla-vacia`; nunca un material sin respaldo |
+| TP-141 | Material dos veces (R-15 d, R-3) | (a) una con `/` y una sin; (b) dos sin `/`, iguales | `resumen-fila-ambigua` en los dos |
+| TP-142 | Igualdad exacta (R-15 a) | material igual al del título pero después de otra palabra del segmento, o partido por un separador | no es fila: rechazo vigente |
+| TP-143 | Banda (R-15 b) | sin `/` igual al título; sin `/` distinta; con `/` y otro material (TP-101) | leído; `hoja-incompleta`; leído |
+| TP-144 | Combinación del Blanco (R-15 a, b) | Resumen sin `/` y bandas con `/` (hoja de dos páginas) | leído; título, fila y hoja con el mismo material y espesor; toda fila `dudosa` |
+| TP-145 | Combinación del Cedro (R-15 a, b) | Resumen con `/` y bandas sin `/` | leído (sin cambio) |
+| TP-146 | Título sin `/` y bandas (R-15 g, b) | título sin `/` aceptado (TP-139 a) y bandas con `/` y sin `/` | bandas leídas (/-b contra el título resuelto); documento leído; toda fila `dudosa` |
+
 ### Filas con campos no leídos
 
 | Id | Caso | Entrada | Resultado esperado |

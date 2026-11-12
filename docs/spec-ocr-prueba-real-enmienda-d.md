@@ -30,6 +30,7 @@
 2. **Transcripción hecha antes de la corrida:** el `CutListPdf` manual del Blanco 18 vive en `Sabrina/ocr-real/` (local, ignorado) y se termina **antes** de ver la salida del OCR, para no transcribir lo que leyó la máquina.
 3. **Una sola corrida, sin ajustes posteriores:** si la corrida muestra un problema, no se cambia ninguna regla para que "pase". El hallazgo va a una revisión nueva, esta corrida pasa a contar como desarrollo y la validación siguiente es el primer fixture (otra enmienda).
 4. **Sin `--reenviar`:** una sola salida del PDF a Vision por validación.
+5. **Consecuencia de R-15 (decisión de Santiago, 11/11/2026; aprobada por el equipo y el profesor, informado por Santiago el 12/11/2026):** la corrida de validación con el Blanco 18 (11/11/2026) encontró un problema (la fila del Resumen sin `/`, `docs/spec-revision-ocr-real.md` §2.6) y R-15 cambia reglas. Por la condición 3, **esa corrida pasa a contar como de desarrollo** y no como validación 1; la validación siguiente es el primer fixture (otra enmienda: `docs/spec-ocr-prueba-real-enmienda-e.md`, aprobada). El Blanco 18 ya visto no vuelve a servir como validación.
 
 ## 4. Aceptación
 
@@ -86,3 +87,4 @@ Santiago recomienda **aceptar E-1 (`--paginas`, E-1a) y E-2 (la compuerta va ant
 | 0.1 | 10/11/2026 | Borrador: segundo PDF (Blanco 18), reemplazo del hash único, registro, condiciones, aceptación, páginas (E-1) y orden compuerta-caché (E-2) |
 | 0.1 | 10/11/2026 | Se anota (§8) la recomendación de Santiago de aceptar E-1 y E-2. Sigue sin aprobar |
 | 0.2 | 11/11/2026 | **APROBADA**, aprobada por el equipo y el profesor, informado por Santiago el 11/11/2026; evidencia: respuestas al mensaje de aprobación, a archivar: D-1 a D-4, E-1 (E-1a, `--paginas <n>`), E-2 y OR-19 a OR-21. Dos precisiones de redacción en §6 (códigos de rechazo de OR-19 y de OR-20), informadas al equipo por Santiago el 11/11/2026, sin cambio de criterio. Aplicada en SPEC-B2 v0.4 |
+| 0.2 (nota) | 11/11/2026 | Se registra la consecuencia de R-15 en §3 (punto 5): la corrida del Blanco 18 cuenta como de desarrollo. Aprobada el 12/11/2026 por el equipo y el profesor, informado por Santiago el 12/11/2026 |

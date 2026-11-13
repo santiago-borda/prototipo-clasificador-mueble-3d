@@ -1,6 +1,13 @@
-// npm run ocr:real -- <ruta al PDF> [--transcripcion <ruta al JSON>] [--reenviar]
-// SPEC-B2 (docs/spec-ocr-prueba-real.md): prueba MANUAL, con UN único PDF real, a correr por una persona con su propia
-// clave. NUNCA en CI ni desde la app. Punto de entrada delgado: la lógica y sus pruebas están en scripts/ocr-real/.
+// npm run ocr:real -- <ruta al PDF> --paginas <n> [--transcripcion <ruta al JSON>] [--reenviar]
+// SPEC-B2 v0.4 (docs/spec-ocr-prueba-real.md): prueba MANUAL, con UN PDF real por corrida, a correr por una persona con su
+// propia clave. NUNCA en CI ni desde la app. Punto de entrada delgado: la lógica y sus pruebas están en scripts/ocr-real/.
+//
+// --paginas <n> es OBLIGATORIO (enmienda D, E-1): cuántas páginas tiene el PDF (1 a 5; Cedro 18: 5, Blanco 18: 3). Vision
+// lo confirma después con totalPages y el pedido lleva pages [1..n].
+//
+// UN hash por vez (D-2): para correr otro PDF, reemplazá a mano el hash de OCR_LISTA_BLANCA y registralo (SPEC-B2 §12).
+// La compuerta va ANTES que la caché (E-2): con el hash de otro PDF en la lista no se relee la respuesta guardada. Para
+// releer la caché del Cedro 18 hay que RESTITUIR su hash en la lista.
 //
 // Reglas (CLAUDE.md, "Extracción OCR / Cloud Vision"):
 // - GOOGLE_APPLICATION_CREDENTIALS (ruta a la clave, fuera del repo): este script no la lee; la toma el cliente.

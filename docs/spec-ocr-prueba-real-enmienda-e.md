@@ -3,6 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Estado | **APROBADA v0.2**, aprobada por el equipo y el profesor, informado por Santiago el 12/11/2026; evidencia: respuestas al mensaje de aprobación, a archivar. Santiago Borda eligió el criterio **C**, confirmó **3 páginas** y aprobó la autorización (12/11/2026). **Condición previa a correr (E-4): Santiago confirma que la transcripción de `olmo.json` es manual.** Aplicada en SPEC-B2 v0.5 |
+| Versión | **v0.3** (13/11/2026): se agrega el apartado §9, "Cambio a E-4", aprobado por el equipo y el profesor el 13/11/2026; registro en SPEC-B2 §12. El texto aprobado en v0.2 (§1 a §8) no cambia; la fila de estado de arriba es la de v0.2 |
 | Enmienda a | `docs/spec-ocr-prueba-real.md` (SPEC-B2) v0.4, con la enmienda D v0.2: §1, §2, §5, §12, §12b y §14 |
 | Origen | Protocolo de `docs/spec-revision-ocr-real.md` §7, punto 4: tras cambiar reglas después de la validación 1, la corrida del Blanco 18 pasa a ser de desarrollo (decisión de Santiago, 11/11/2026; pendiente del equipo y del profesor) y la validación siguiente es el primer fixture |
 | Regla de datos | Ni este documento ni ningún archivo versionado escriben el hash, el texto, los códigos ni las medidas de los PDF reales. Solo nombres de reglas, conteos y descripciones. El nombre del PDF figura porque lo da el fixture versionado `tests/fixtures/pdf/olmo.json` |
@@ -75,6 +76,14 @@ No se propone ningún número nuevo.
 2. El criterio **C** con `comparacion-desalineada` como "no concluyente" (§5) y la lista de hallazgos (§6).
 3. Cuándo se corre: después de implementar y congelar R-15 (§4, condición 1).
 
+## 9. Cambio a E-4 (aprobado el 13/11/2026)
+**Versión 0.3, 13/11/2026. Aprobado por el equipo y el profesor el 13/11/2026** (según informa Santiago; evidencia a archivar). El registro está en SPEC-B2 §12. No modifica §1 a §8: se agrega sobre ellos.
+
+1. **Qué se informó.** Según informa Santiago Borda, la transcripción versionada `tests/fixtures/pdf/olmo.json` **no es una transcripción manual**: la generó una sesión de Claude leyendo imágenes de los PDF. La condición de E-4 ("Santiago confirma que la transcripción de `olmo.json` es manual") por lo tanto **no se cumple** con ese archivo.
+2. **Qué pasa a ser la verdad de la validación.** La referencia contra la que se compara la lectura del PDF pasa a ser la **transcripción manual local** hecha por Santiago, sin asistencia de IA, mirando el PDF. Vive fuera de lo versionado (`transcripciones-locales/`, excluida de git) y no se copia al repo. `olmo.json` deja de ser la referencia para esta validación.
+3. **Etiquetas del fixture.** Las etiquetas `transcripcion-manual` del fixture versionado (el `reader` de sus documentos y el `_nota`) **no se corrigen ahora**: se corrigen en un **cambio aparte, después de la corrida**. Hasta entonces esas etiquetas son inexactas y no deben leerse como evidencia de origen manual.
+4. **Qué no cambia.** El criterio C, la lista de hallazgos, las páginas, el hash fuera del repo y las salidas solo en `.ocr-data/real/` (§§3 a 7) siguen como están. Ningún archivo versionado escribe el hash, el texto, los códigos ni las medidas del PDF.
+
 ## Historial
 
 | Versión | Fecha | Cambio |
@@ -82,3 +91,4 @@ No se propone ningún número nuevo.
 | 0.1 | 11/11/2026 | Borrador: PDF del primer fixture (primero de `olmo.json`), reemplazo del hash, páginas (a definir), tres opciones de criterio sin elegir, hallazgos y condiciones |
 | 0.2 | 12/11/2026 | Decisiones de Santiago: criterio **C** (A y B descartadas), `comparacion-desalineada` = "no concluyente", **3 páginas** confirmadas, autorización aprobada. Condición de E-4: la transcripción tiene que ser manual; se registra qué dice el repo y qué no. propuesto, pendiente de aprobación del equipo y del profesor |
 | 0.2 (aprobación) | 12/11/2026 | **APROBADA** por el equipo y el profesor, informado por Santiago el 12/11/2026 (evidencia: respuestas al mensaje de aprobación, a archivar): E-1 a E-4, criterio C con `comparacion-desalineada` "no concluyente" y la lista de hallazgos. Queda la condición de origen manual de la transcripción. Aplicada en SPEC-B2 v0.5 |
+| 0.3 | 13/11/2026 | **APROBADO** por el equipo y el profesor el 13/11/2026 (según informa Santiago; evidencia a archivar); registro en SPEC-B2 §12. Se agrega §9, "Cambio a E-4": `olmo.json` no es transcripción manual (según informa Santiago, la generó una sesión de Claude leyendo imágenes de los PDF); la verdad de la validación pasa a ser la transcripción manual local de Santiago; las etiquetas `transcripcion-manual` del fixture se corrigen en un cambio aparte, después de la corrida. §1 a §8 sin cambios |

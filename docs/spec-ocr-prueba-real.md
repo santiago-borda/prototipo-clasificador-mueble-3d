@@ -180,11 +180,12 @@ Usan las respuestas de replay del fixture sintético (`tests/fixtures/pdf-sintet
 
 El hash **no** se escribe acá. Solo se registra la decisión. **Cada reemplazo de hash (D-2, D-3) se registra con fecha, quién, qué PDF se habilita por descripción (por ejemplo "Blanco 18 del segundo fixture") y cuál se quita.** Para releer la caché del Cedro 18 hay que restituir su hash (E-2) y registrarlo.
 
-**Enmienda E, v0.3 (13/11/2026): registro.** Se registra acá, sin hash: (a) la aprobación del cambio a E-4 (equipo y profesor, 13/11/2026, informado por Santiago; evidencia a archivar): `olmo.json` no es transcripción manual y la verdad de la validación es la transcripción manual local de Santiago; (b) el reemplazo de hash para este PDF cuando ocurra, con fecha, quién, el PDF por descripción ("1 Optimizacion Blanco Nature, primer fixture") y cuál se quita. **A completar por la persona que lo haga: este documento no registra ningún reemplazo todavía.**
+**Enmienda E, v0.3 (13/11/2026): registro.** Se registra acá, sin hash: (a) la aprobación del cambio a E-4 (equipo y profesor, 13/11/2026, informado por Santiago; evidencia a archivar): `olmo.json` no es transcripción manual y la verdad de la validación es la transcripción manual local de Santiago; (b) el reemplazo de hash para este PDF cuando ocurra, con fecha, quién, el PDF por descripción ("1 Optimizacion Blanco Nature, primer fixture") y cuál se quita. **El reemplazo para este PDF ya figura en la tabla de arriba (13/11/2026).**
 
 | Fecha | Quién | Qué | Nota |
 |---|---|---|---|
 | 10/11/2026 | Santiago Borda | Agrega a su lista local el sha256 del PDF autorizado de 5 páginas del segundo fixture | Autorización de Casa Mueble informada por el equipo el 3/11/2026 y reconfirmada por Santiago el 10/11/2026; captura sin archivar (P-04). Hash guardado fuera del repositorio. |
+| 13/11/2026 | Santiago Borda | Reemplazo de la lista blanca local (enmienda E, E-2). Entrada nueva: PDF "1 Optimizacion Blanco Nature" (Olmo, primer fixture). Entrada quitada: PDF "Blanco 18 nature" del segundo fixture. La lista queda con una sola entrada | No se registra el hash. Registro según informa Santiago; evidencia a archivar. |
 
 ## 12b. Registro de corridas
 

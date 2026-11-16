@@ -162,6 +162,92 @@ describe("C11: API del spike con el store en memoria", () => {
   });
 });
 
+describe("C11b: cabeceras de los archivos servidos (Content-Type fijo por nombre permitido, nosniff, CSP)", () => {
+  const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  /** El Blob guarda un Content-Type cualquiera (acá, text/html): no se usa. */
+  async function registered() {
+    const { api, store } = setup();
+    const files = { "listado.csv": CSV, "modelo.dae": DAE, "diagrama-blanco-18.svg": SVG, "texturas/blanco.png": PNG, "texturas/gaudi.JPG": PNG };
+    for (const [rel, body] of Object.entries(files)) await store.put(protoPath(ID, rel), body, "text/html");
+    await api.register(req("POST", registerBody()));
+    return api;
+  }
+
+  it.each([
+    ["diagrama-blanco-18.svg", "image/svg+xml"],
+    ["modelo.dae", "model/vnd.collada+xml"],
+    ["listado.csv", "text/csv; charset=utf-8"],
+    ["texturas/blanco.png", "image/png"],
+    ["texturas/gaudi.JPG", "image/jpeg"],
+  ])("%s → %s, nosniff y CSP default-src 'none'; sandbox", async (rel, type) => {
+    const res = await (await registered()).file(ID, rel);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe(type);
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(res.headers.get("content-security-policy")).toBe("default-src 'none'; sandbox");
+  });
+
+  it("SVG con <script> (sintético): se sirve como image/svg+xml con la CSP que impide ejecutarlo", async () => {
+    const { api, store } = setup();
+    const evil = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
+    await upload(store, ID, { "listado.csv": CSV, "modelo.dae": DAE, "diagrama-blanco-18.svg": evil });
+    await api.register(req("POST", registerBody()));
+    const res = await api.file(ID, "diagrama-blanco-18.svg");
+    expect([res.headers.get("content-type"), res.headers.get("content-security-policy"), res.headers.get("x-content-type-options")]).toEqual([
+      "image/svg+xml",
+      "default-src 'none'; sandbox",
+      "nosniff",
+    ]);
+  });
+});
+
+describe("C11c: el sha256 del informe no queda desactualizado", () => {
+  it("el token se rechaza (409 ya-registrada) para una carga con informe y evento en-revision", async () => {
+    const { api, store } = setup();
+    await upload(store);
+    expect(await api.authorizeUpload(`proto-csv/${ID}/texturas/nueva.png`)).toMatchObject({ allowOverwrite: false });
+    await api.register(req("POST", registerBody()));
+    expect((await (await api.read(ID)).json()).estado).toBe("en-revision");
+    await expect(api.authorizeUpload(`proto-csv/${ID}/texturas/nueva.png`)).rejects.toMatchObject({ status: 409, code: "ya-registrada" });
+    await expect(api.authorizeUpload(`proto-csv/${ID}/listado.csv`)).rejects.toMatchObject({ status: 409, code: "ya-registrada" });
+  });
+
+  it("token pedido antes del registro y subido después: el archivo nuevo no está en el informe y no se sirve", async () => {
+    const { api, store } = setup();
+    await upload(store);
+    await api.register(req("POST", registerBody()));
+    await store.put(protoPath(ID, "texturas/tarde.png"), new Uint8Array([1, 2, 3]), "image/png");
+    expect((await api.file(ID, "texturas/tarde.png")).status).toBe(404);
+  });
+
+  it("un archivo con bytes distintos de los registrados (store alterado, sintético) da 409 y no se sirve", async () => {
+    const memory = createMemoryStore();
+    let tamper = false;
+    const store: ImportStore = {
+      ...memory,
+      get: async (k) => {
+        const file = await memory.get(k);
+        return tamper && file && k.endsWith("modelo.dae") ? { body: new Uint8Array([...file.body, 0x20]) } : file;
+      },
+    };
+    const { api } = setup(store);
+    await upload(memory);
+    await api.register(req("POST", registerBody()));
+    tamper = true;
+    expect(await (await api.file(ID, "modelo.dae")).json()).toMatchObject({ code: "archivo-alterado" });
+  });
+});
+
+describe("C11d: cargas incompletas", () => {
+  it("una carga subida y sin registrar aparece en la lista (registrada: false) y se puede borrar", async () => {
+    const { api, store } = setup();
+    await upload(store, ID, { "listado.csv": CSV });
+    expect(await (await api.list(req("GET"))).json()).toEqual({ cargas: [{ id: ID, registrada: false, estado: null, fecha: null }], tope: MAX_CARGAS });
+    expect(await (await api.remove(req("DELETE"), ID)).json()).toEqual({ id: ID, borrados: 1 });
+    expect(await (await api.list(req("GET"))).json()).toEqual({ cargas: [], tope: MAX_CARGAS });
+  });
+});
+
 describe("C13: todo queda bajo proto-csv/ (P3)", () => {
   it.each([
     ["importaciones/0123456789abcdef/modelo.dae"],

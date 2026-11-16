@@ -80,15 +80,28 @@ function parseCruce(value: unknown): CruceCliente {
   return value as unknown as CruceCliente;
 }
 
-const CONTENT_TYPES: Record<string, string> = {
-  csv: "text/csv; charset=utf-8",
-  dae: "model/vnd.collada+xml",
-  svg: "image/svg+xml",
-  json: "application/json",
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-};
+/**
+ * Content-Type fijo por tipo de archivo permitido (el que valida `parseProtoKey`), nunca el que guardó el Blob.
+ * Las texturas se distinguen por la extensión ya validada (.png / .jpg / .jpeg).
+ */
+function contentTypeOf(rel: string, kind: "csv" | "dae" | "textura" | "svg"): string {
+  switch (kind) {
+    case "csv":
+      return "text/csv; charset=utf-8";
+    case "dae":
+      return "model/vnd.collada+xml";
+    case "svg":
+      return "image/svg+xml";
+    case "textura":
+      return /\.png$/i.test(rel) ? "image/png" : "image/jpeg";
+  }
+}
+
+/** Cabeceras de todo archivo servido: sin sniffing y sin ejecutar nada (un SVG con <script> no corre). */
+export const FILE_SECURITY_HEADERS = {
+  "x-content-type-options": "nosniff",
+  "content-security-policy": "default-src 'none'; sandbox",
+} as const;
 
 export function createProtoApi({ store: rawStore, uploadKey, now = () => new Date(), log = (m) => console.error(m) }: ProtoApiConfig) {
   const store = rawStore ? scopedStore(rawStore) : undefined;
@@ -167,6 +180,11 @@ export function createProtoApi({ store: rawStore, uploadKey, now = () => new Dat
       const s = need();
       const { id, upload } = parseProtoKey(pathname);
       if (!upload) throw new HttpError(400, "Ese archivo lo escribe el servidor, no se sube.", "path");
+      // Registrada = tiene informe.json (y su evento en-revision): no se suben más archivos, así el sha256 del informe
+      // no queda desactualizado. `allowOverwrite: false` además impide pisar un archivo que ya existe.
+      if (await s.get(protoPath(id, "informe.json"))) {
+        throw new HttpError(409, "Esa carga ya está registrada: no se le pueden subir más archivos. Empezá una carga nueva.", "ya-registrada");
+      }
       const ids = await existingIds(s);
       if (!ids.includes(id) && ids.length >= MAX_CARGAS) {
         throw new HttpError(409, `Se llegó al máximo de ${MAX_CARGAS} cargas de prueba. Borrá alguna para subir otra.`, "limite");
@@ -298,18 +316,25 @@ export function createProtoApi({ store: rawStore, uploadKey, now = () => new Dat
         return Response.json({ informe, eventos, estado: eventos.at(-1)?.estado ?? "en-revision" });
       }),
 
-    /** Archivo de una carga registrada (el Blob es privado: se transmite desde acá). */
+    /**
+     * Archivo de una carga registrada (el Blob es privado: se transmite desde acá). Solo los que lista el informe y
+     * con el mismo sha256: un archivo agregado o cambiado después del registro no se sirve.
+     */
     file: (id: string, rel: string) =>
       run(async () => {
         const s = need();
-        await informeOf(s, id);
+        const informe = await informeOf(s, id);
         const key = protoPath(id, rel);
-        if (parseProtoKey(key).upload === null) throw new HttpError(404, "No existe ese archivo.", "no-existe");
+        const { upload } = parseProtoKey(key);
+        const listed = informe.archivos.find((a) => a.path === rel);
+        if (upload === null || !listed) throw new HttpError(404, "No existe ese archivo.", "no-existe");
         const file = await s.get(key);
         if (!file) throw new HttpError(404, "No existe ese archivo.", "no-existe");
-        const ext = rel.split(".").pop()?.toLowerCase() ?? "";
+        if (`sha256:${sha256(file.body)}` !== listed.sha256) {
+          throw new HttpError(409, "El archivo no coincide con el registrado (sha256 distinto): no se sirve.", "archivo-alterado");
+        }
         return new Response(file.body as unknown as BodyInit, {
-          headers: { "content-type": CONTENT_TYPES[ext] ?? "application/octet-stream", "cache-control": "private, max-age=3600", "x-content-type-options": "nosniff" },
+          headers: { "content-type": contentTypeOf(rel, upload), "cache-control": "private, max-age=3600", ...FILE_SECURITY_HEADERS },
         });
       }),
 

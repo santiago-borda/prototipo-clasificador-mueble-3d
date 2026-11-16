@@ -159,3 +159,26 @@ export function reviewListing(listing: CsvListing, dae: DaeObservation, toleranc
     cross,
   };
 }
+
+/** Resumen del cruce que el navegador manda al registrar (el servidor no lee el .dae más allá del modelId). */
+export interface CruceCliente {
+  canApprove: boolean;
+  dudosas: number;
+  orphanInstances: number;
+  looseMeshes: number;
+  unkeyedRows: number;
+  modelHasEdgeFaces: boolean;
+  types: { code: string; level: "segura" | "dudosa"; reasons: TypeReason[]; edgeCheck: string }[];
+}
+
+export function summarizeReview(review: Review): CruceCliente {
+  return {
+    canApprove: review.canApprove,
+    dudosas: review.dudosas,
+    orphanInstances: review.orphanInstances.length,
+    looseMeshes: review.looseMeshes,
+    unkeyedRows: review.unkeyedRows,
+    modelHasEdgeFaces: review.modelHasEdgeFaces,
+    types: review.types.map(({ code, level, reasons, edgeCheck }) => ({ code, level, reasons, edgeCheck })),
+  };
+}

@@ -21,6 +21,15 @@ export interface TypeReason {
   reason: string;
 }
 
+export interface ReviewedInstance {
+  instanceKey: string;
+  level: Level;
+  /** Caja de la instancia en el marco, ascendente (mm), para comparar con el CSV. */
+  sizeMm: [number, number, number];
+  /** Largos de las caras `Canto_*`, o "no-disponible". */
+  edgeRunsMm: number[] | "no-disponible";
+}
+
 export interface TypeReview {
   code: string;
   level: "segura" | "dudosa";
@@ -28,8 +37,8 @@ export interface TypeReview {
   reasons: TypeReason[];
   /** La pieza del listado; null si el código quedó en `excluded`. */
   piece: CsvPiece | null;
-  /** Instancias del .dae con ese código (por nombre), en orden de instanceKey. */
-  instances: { instanceKey: string; level: Level }[];
+  /** Instancias del .dae con ese código (por nombre), en orden de instanceKey, con lo medido en el .dae. */
+  instances: ReviewedInstance[];
   edgeCheck: EdgeCheck | "excluido";
 }
 
@@ -90,11 +99,22 @@ export function reviewListing(listing: CsvListing, dae: DaeObservation, toleranc
   const modelHasEdgeFaces = observations.some((o) => o.edgeRunsMm !== "no-disponible");
   const known = new Set([...listing.pieces.map((p) => p.code), ...excludedCodes]);
 
+  const obsByKey = new Map(observations.map((o) => [o.instanceKey, o]));
   const instancesOf = (code: string) =>
     pass1.results
       .filter((r) => codeOf.get(r.instanceKey) === code)
-      .map((r) => ({ instanceKey: r.instanceKey, level: r.level, reasons: r.reasons }))
+      .map((r) => {
+        const o = obsByKey.get(r.instanceKey);
+        return {
+          instanceKey: r.instanceKey,
+          level: r.level,
+          reasons: r.reasons,
+          sizeMm: (o ? [...o.sizeMm] : [0, 0, 0]) as [number, number, number],
+          edgeRunsMm: o ? (o.edgeRunsMm === "no-disponible" ? ("no-disponible" as const) : [...o.edgeRunsMm]) : ("no-disponible" as const),
+        };
+      })
       .sort((a, b) => binary(a.instanceKey, b.instanceKey));
+  const strip = (i: ReturnType<typeof instancesOf>[number]): ReviewedInstance => ({ instanceKey: i.instanceKey, level: i.level, sizeMm: i.sizeMm, edgeRunsMm: i.edgeRunsMm });
 
   const types: TypeReview[] = [];
   for (const piece of [...listing.pieces].sort((a, b) => binary(a.code, b.code))) {
@@ -116,7 +136,7 @@ export function reviewListing(listing: CsvListing, dae: DaeObservation, toleranc
       level: reasons.length === 0 ? "segura" : "dudosa",
       reasons,
       piece,
-      instances: instances.map(({ instanceKey, level }) => ({ instanceKey, level })),
+      instances: instances.map(strip),
       edgeCheck,
     });
   }
@@ -126,7 +146,7 @@ export function reviewListing(listing: CsvListing, dae: DaeObservation, toleranc
       level: "dudosa",
       reasons: e.reasons.map((reason) => ({ source: "csv" as const, reason })),
       piece: null,
-      instances: instancesOf(e.code).map(({ instanceKey, level }) => ({ instanceKey, level })),
+      instances: instancesOf(e.code).map(strip),
       edgeCheck: "excluido",
     });
   }
@@ -181,4 +201,18 @@ export function summarizeReview(review: Review): CruceCliente {
     modelHasEdgeFaces: review.modelHasEdgeFaces,
     types: review.types.map(({ code, level, reasons, edgeCheck }) => ({ code, level, reasons, edgeCheck })),
   };
+}
+
+/**
+ * Por qué no se puede aprobar, en texto para la pantalla (§4.2). Vacío = se puede. Con dudosas, huérfanas o filas sin
+ * código, la revisión solo puede rechazar: resolverlas queda fuera del spike.
+ */
+export function approveBlockers(review: Pick<Review, "dudosas" | "orphanInstances" | "unkeyedRows">, listingStatus: "publicable" | "borrador"): string[] {
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  const out: string[] = [];
+  if (review.dudosas > 0) out.push(`${plural(review.dudosas, "pieza dudosa", "piezas dudosas")}.`);
+  if (review.orphanInstances.length > 0) out.push(`${plural(review.orphanInstances.length, "instancia del .dae sin fila en el CSV", "instancias del .dae sin fila en el CSV")}.`);
+  if (review.unkeyedRows > 0) out.push(`${plural(review.unkeyedRows, "fila del CSV sin código", "filas del CSV sin código")}.`);
+  if (listingStatus !== "publicable" && out.length === 0) out.push("El listado del CSV quedó como borrador.");
+  return out;
 }

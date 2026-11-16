@@ -72,3 +72,6 @@ next-env.d.ts
 /.fixtures-gen/
 # salidas locales del eval (docs/spec-t5-runner-eval.md §3)
 /eval/out/
+
+# Fixture del gabinete (CSV de OpenCutList): el PDF impreso queda local; ningún .pdf se versiona (TP-72).
+/tests/fixtures/csv-ocl/**/*.pdf

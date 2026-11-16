@@ -15,6 +15,7 @@ import { useUploadKey } from "@/proto-csv/keyStore";
 import { approveBlockers, type TypeReview } from "@/proto-csv/review";
 import { ESTADO_TEXT, SOURCE_TEXT, formatFecha, reasonText } from "@/proto-csv/texts";
 import { KeyField } from "./KeyField";
+import { PlacaView } from "./PlacaView";
 
 const ReviewViewer = dynamic(() => import("./ReviewViewer"), { ssr: false, loading: () => <div className="h-80 rounded-lg bg-slate-100" /> });
 
@@ -162,6 +163,7 @@ export function CsvReviewScreen({ id }: { id: string }) {
   const blockers = [...approveBlockers(review, parse.listing.status), ...(carga.mismatch ? [carga.mismatch] : [])];
   const type = review.types.find((t) => t.code === selected) ?? null;
   const rejected = eventos.find((e) => e.estado === "rechazado");
+  const svgFile = informe.archivos.find((a) => a.path.startsWith("diagrama-") && a.path.endsWith(".svg"));
 
   async function change(to: "aprobado" | "rechazado") {
     setBusy(true);
@@ -243,6 +245,13 @@ export function CsvReviewScreen({ id }: { id: string }) {
             <ReviewViewer url={`/api/proto-csv/${id}/archivo/modelo.dae`} selected={selected} dudosas={dudosas} />
             <p className="mt-1 text-xs text-slate-500">Verde: pieza elegida · ámbar: dudosas · gris: el resto. Arrastrá para girar.</p>
           </div>
+
+          {svgFile && informe.svgMaterial && (
+            <section className="mt-6">
+              <h2 className="text-base font-semibold text-slate-900">Placa (diagrama de corte, opcional)</h2>
+              <PlacaView id={id} svgPath={svgFile.path} material={informe.svgMaterial} pieces={parse.listing.pieces} />
+            </section>
+          )}
         </div>
 
         <aside className="rounded-lg border border-slate-200 p-4">{type ? <PieceDetail type={type} /> : <p className="text-sm text-slate-500">Elegí una pieza.</p>}</aside>

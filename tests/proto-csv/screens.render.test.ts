@@ -30,6 +30,7 @@ const { CsvBackoffice } = await import("@/components/proto-csv/CsvBackoffice");
 const DIR = path.resolve(__dirname, "..", "fixtures", "csv-ocl", "gabinete");
 const CSV = readFileSync(path.join(DIR, "gabinete-prueba-canto.csv"), "utf8");
 const CSV_DUDOSA = CSV.replace(/^(A;0001-01-M01-C04;)1;/m, "$12;"); // sintético: C04 × 2
+const SVG = new Uint8Array(readFileSync(path.join(DIR, "diagrama-blanco18.svg")));
 const DAE = new Uint8Array(readFileSync(path.join(DIR, "gabinete-prueba-opencutlist.dae")));
 const KEY = "clave";
 const store = createMemoryStore();
@@ -41,10 +42,11 @@ const post = (url: string, body: unknown) => new Request(`http://localhost${url}
 async function seed(id: string, csv: string, steps: { estado: string; motivo?: string }[]) {
   await store.put(protoPath(id, "listado.csv"), new TextEncoder().encode(csv), "text/csv");
   await store.put(protoPath(id, "modelo.dae"), DAE, "model/vnd.collada+xml");
+  await store.put(protoPath(id, "diagrama-blanco-18.svg"), SVG, "image/svg+xml");
   const parsed = parseOclCsv(csv);
   if (!parsed.ok) throw new Error(parsed.message);
   const cruce = summarizeReview(reviewListing(parsed.listing, observeDae(DAE), 2));
-  expect((await api.register(post("/api/proto-csv", { id, modelId: modelId(DAE), cruce }))).status).toBe(201);
+  expect((await api.register(post("/api/proto-csv", { id, modelId: modelId(DAE), cruce, svgMaterial: "Blanco 18" }))).status).toBe(201);
   for (const step of steps) expect((await api.changeState(post("", step), id)).status).toBe(200);
 }
 
@@ -138,6 +140,17 @@ describe("Pantallas del spike (React DOM + API en memoria)", () => {
     expect(text()).toContain("CSV contra .dae");
     expect(text()).toContain("Esquema de canteado");
     expect(container.querySelector('svg[role="img"]')?.getAttribute("aria-label")).toMatch(/Esquema de la pieza/);
+    // Placa: dibujada desde los datos (no el SVG crudo), con los cortes rotulados como lectura no confirmada.
+    await vi.waitFor(() => expect(text()).toContain("4 piezas · 10 líneas de corte"), { timeout: 15000 });
+    expect(text()).toContain("Líneas de corte: lectura geométrica, no confirmada con Casa Mueble. No es un orden de corte.");
+    expect(text()).toMatch(/nivel 1 \(3\).*nivel 2 \(4\).*nivel 3 \(3\)/);
+    expect(text()).not.toMatch(/orden de corte: |paso \d|1º corte/i);
+    const placa = container.querySelector('svg[aria-label^="Placa de Blanco 18"]');
+    expect(placa?.querySelectorAll("rect").length).toBe(1 + 4); // placa + 4 piezas
+    expect(placa?.querySelectorAll("line").length).toBe(10);
+    expect(container.querySelector('[id^="OCL_"]')).toBeNull(); // nada del SVG crudo en la página
+    expect(container.innerHTML).not.toContain("serif:id");
+    expect(text()).not.toContain("El SVG no coincide con el CSV");
     expect(button("Aprobar")?.disabled).toBe(false);
     await act(async () => button("Aprobar")?.click());
     await vi.waitFor(() => expect(text()).toContain("Ir a publicar (simulado)"), { timeout: 15000 });

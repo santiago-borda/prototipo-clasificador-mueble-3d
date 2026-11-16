@@ -18,7 +18,7 @@ Modelo de prueba armado por el equipo en SketchUp para validar la exportación d
 | `gabinete-prueba-opencutlist.dae` | Modelo 3D exportado de SketchUp (COLLADA). El canto se llama `Canto_Blanco`, como en los modelos reales. |
 | `diagrama-blanco18.svg` | Diagrama de corte del material `Blanco 18`, con los cortes visibles (grupo `OCL_CUT`). |
 | `diagrama-canto.svg` | Diagrama de la tira de canto (SVG). Opcional; no aporta datos que no estén en el CSV. |
-| `diagrama-corte-blanco18.pdf` | Diagrama de corte impreso con "Microsoft: Print To PDF" (sin capa de texto). Solo para comparar. |
+| `diagrama-corte-blanco18.pdf` | Diagrama de corte impreso con "Microsoft: Print To PDF" (sin capa de texto). Solo para comparar. **No se versiona**: queda solo en el disco del autor, ignorado por `.gitignore` (`/tests/fixtures/csv-ocl/**/*.pdf`), porque ningún `.pdf` entra al repo (TP-72). La prueba C16 no lo exige. |
 
 ## Opciones de exportación
 

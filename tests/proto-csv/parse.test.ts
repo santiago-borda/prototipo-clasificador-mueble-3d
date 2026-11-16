@@ -258,6 +258,23 @@ describe("C5: razones de fila (variantes sintéticas)", () => {
   });
 });
 
+describe("C5b: el cruce de filas de canto se saltea si la pieza ya tiene otra razón (sintético)", () => {
+  it("C03 (4 lados con canto) con Longitud ilegible: solo valor-invalido, sin fila-canto-no-coincide en cascada", () => {
+    const text = edit((rows) => {
+      rows[rowOf(rows, C03)][col(rows, "Longitud")] = "abc";
+    });
+    expect(excludedCodes(parseOclCsv(text))).toEqual([[C03, ["valor-invalido"]]]);
+  });
+
+  it("C01 (cantidad 2, con canto) con Cantidad 3: las filas de canto (cantidad 2) no coinciden → fila-canto-no-coincide", () => {
+    // Contraste: con la pieza sana, la comparación sí corre.
+    const text = edit((rows) => {
+      rows[rowOf(rows, C01)][col(rows, "Cantidad")] = "3";
+    });
+    expect(excludedCodes(parseOclCsv(text))).toEqual([[C01, ["fila-canto-no-coincide"]]]);
+  });
+});
+
 describe("C6: determinismo y L/A sin reordenar", () => {
   it("el mismo texto dos veces da el mismo JSON", () => {
     expect(JSON.stringify(parseOclCsv(LISTADO))).toBe(JSON.stringify(parseOclCsv(LISTADO)));

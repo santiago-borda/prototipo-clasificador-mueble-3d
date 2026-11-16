@@ -211,6 +211,36 @@ describe("Pantallas del spike (React DOM + API en memoria)", () => {
     await unmount();
   }, 30000);
 
+  it("subida: 4 zonas numeradas, cada una con su formato, «Elegir archivo» con ícono y obligatorio u opcional; al elegir, muestra el archivo", async () => {
+    await mount(createElement(CsvBackoffice, { configured: true }), "Backoffice: nueva carga");
+    const zones = [...container.querySelectorAll<HTMLLabelElement>("label[for]")].filter((l) => l.querySelector('input[type="file"]'));
+    expect(zones).toHaveLength(4);
+    expect(zones.map((z) => z.textContent?.replace(/\s+/g, " ").trim())).toEqual([
+      ".csvElegir archivoo arrastralo acá",
+      ".daeElegir archivoo arrastralo acá",
+      ".jpg.pngElegir archivoso arrastralos acá",
+      ".svgElegir archivoo arrastralo acá",
+    ]);
+    // Cada zona tiene su ícono de subida, y el input queda asociado a la zona (accesible) aunque no se vea.
+    for (const zone of zones) {
+      const input = zone.querySelector<HTMLInputElement>('input[type="file"]');
+      expect(zone.getAttribute("for")).toBe(input?.id);
+      expect(input?.className).toContain("sr-only");
+      expect(zone.querySelectorAll('svg[aria-hidden="true"]').length).toBeGreaterThanOrEqual(1);
+    }
+    expect(text()).toMatch(/1Listado de piezasobligatorio.*2Modelo 3Dobligatorio.*3Texturasopcional.*4Diagrama de la placaopcional/);
+    expect(text()).toContain("OpenCutList → pestaña Piezas → Exportar → fuente «Listado de piezas»");
+    expect(text()).toContain("SketchUp → Archivo → Exportar → Modelo 3D → formato COLLADA (.dae)");
+
+    const csvInput = zones[0].querySelector<HTMLInputElement>('input[type="file"]') as HTMLInputElement;
+    Object.defineProperty(csvInput, "files", { value: [new File([CSV], "gabinete-prueba-canto.csv", { type: "text/csv" })], configurable: true });
+    await act(async () => csvInput.dispatchEvent(new Event("change", { bubbles: true })));
+    expect(zones[0].textContent).toContain("gabinete-prueba-canto.csv");
+    expect(zones[0].textContent).toContain("Cambiar");
+    expect(zones[0].textContent).not.toContain("Elegir archivo");
+    await unmount();
+  }, 30000);
+
   it("backoffice: la lista muestra la carga incompleta con su botón Borrar", async () => {
     await mount(createElement(CsvBackoffice, { configured: true }), "Cargas guardadas");
     await act(async () => button("Ver cargas")?.click());

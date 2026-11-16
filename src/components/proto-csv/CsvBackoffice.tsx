@@ -15,6 +15,7 @@ import { useUploadKey } from "@/proto-csv/keyStore";
 import { MAX_BYTES, MAX_CARGAS, isSafeFileName, materialSlug, protoPath } from "@/proto-csv/paths";
 import { approveBlockers, summarizeReview } from "@/proto-csv/review";
 import { ESTADO_TEXT, REJECTION_TEXT } from "@/proto-csv/texts";
+import { FileDrop } from "./FileDrop";
 import { KeyField } from "./KeyField";
 
 interface CargaItem {
@@ -176,33 +177,66 @@ export function CsvBackoffice({ configured }: { configured: boolean }) {
       <h1 className="mt-1 text-xl font-bold text-slate-900">Backoffice: nueva carga</h1>
       {!configured && <p className="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-700">Carga por CSV no configurada en este entorno.</p>}
 
-      <section className="mt-6 grid gap-4 sm:grid-cols-2">
-        <label className="block text-sm">
-          <span className="font-medium text-slate-700">Listado de piezas (CSV)</span>
-          <input type="file" accept=".csv,text/csv" onChange={(e) => (setAnalysis(null), setCsvFile(e.target.files?.[0] ?? null))} className="mt-1 block w-full text-sm" />
-        </label>
-        <label className="block text-sm">
-          <span className="font-medium text-slate-700">Modelo 3D (.dae)</span>
-          <input type="file" accept=".dae" onChange={(e) => (setAnalysis(null), setDaeFile(e.target.files?.[0] ?? null))} className="mt-1 block w-full text-sm" />
-        </label>
-        <label className="block text-sm">
-          <span className="font-medium text-slate-700">Texturas (opcional, .jpg o .png)</span>
-          <input type="file" accept=".jpg,.jpeg,.png" multiple onChange={(e) => setTextures([...(e.target.files ?? [])])} className="mt-1 block w-full text-sm" />
-        </label>
-        <div className="text-sm">
-          <label className="block">
-            <span className="font-medium text-slate-700">Diagrama de la placa (SVG, opcional)</span>
-            <input type="file" accept=".svg,image/svg+xml" onChange={(e) => setSvgFile(e.target.files?.[0] ?? null)} className="mt-1 block w-full text-sm" />
-          </label>
+      <p className="mt-2 text-sm text-slate-600">
+        Subí los archivos exportados del mueble. Los dos primeros son obligatorios. Antes de subir se revisan en tu navegador y se te avisa si falta algo.
+      </p>
+
+      <section className="mt-6 grid gap-6 sm:grid-cols-2">
+        <FileDrop
+          step={1}
+          title="Listado de piezas"
+          formats={[".csv"]}
+          accept=".csv,text/csv"
+          required
+          hint="OpenCutList → pestaña Piezas → Exportar → fuente «Listado de piezas», formato CSV, separador punto y coma."
+          files={csvFile ? [csvFile] : []}
+          onFiles={(f) => (setAnalysis(null), setCsvFile(f[0] ?? null))}
+        />
+        <FileDrop
+          step={2}
+          title="Modelo 3D"
+          formats={[".dae"]}
+          accept=".dae"
+          required
+          hint="SketchUp → Archivo → Exportar → Modelo 3D → formato COLLADA (.dae)."
+          files={daeFile ? [daeFile] : []}
+          onFiles={(f) => (setAnalysis(null), setDaeFile(f[0] ?? null))}
+        />
+        <FileDrop
+          step={3}
+          title="Texturas"
+          formats={[".jpg", ".png"]}
+          accept=".jpg,.jpeg,.png"
+          required={false}
+          multiple
+          hint="Las imágenes de las placas que usa el modelo. Podés elegir varias a la vez."
+          files={textures}
+          onFiles={setTextures}
+        />
+        <div>
+          <FileDrop
+            step={4}
+            title="Diagrama de la placa"
+            formats={[".svg"]}
+            accept=".svg,image/svg+xml"
+            required={false}
+            hint="OpenCutList → Diagrama de corte → mostrar los cortes → exportar en SVG."
+            files={svgFile ? [svgFile] : []}
+            onFiles={(f) => setSvgFile(f[0] ?? null)}
+          />
           {svgFile && (
-            <select value={svgMaterial} onChange={(e) => setSvgMaterial(e.target.value)} className="mt-2 block w-full rounded-md border border-slate-300 px-2 py-1">
-              <option value="">¿De qué material es el SVG?</option>
-              {materials.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
+            <label className="mt-2 block text-sm">
+              <span className="font-medium text-slate-700">¿De qué material es este diagrama?</span>
+              <select value={svgMaterial} onChange={(e) => setSvgMaterial(e.target.value)} className="mt-1 block w-full rounded-md border border-slate-300 px-2 py-1.5">
+                <option value="">Elegí el material…</option>
+                {materials.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+              {materials.length === 0 && <span className="mt-1 block text-xs text-slate-500">Primero elegí el listado de piezas y el modelo 3D.</span>}
+            </label>
           )}
         </div>
       </section>

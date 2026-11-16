@@ -192,7 +192,7 @@ describe("Pantallas del spike (React DOM + API en memoria)", () => {
     ["Longitud en cm (sintético)", CSV.replace("800,0 mm;400,0 mm;18,0 mm", "80,0 cm;400,0 mm;18,0 mm"), "no están en milímetros", "Unidades: elegí milímetros"],
   ])("subida, rechazo «%s»: título, mensaje y qué hacer; no deja subir", async (_name, csv, title, fix) => {
     setUploadKey(KEY);
-    await mount(createElement(CsvBackoffice, { configured: true }), "Backoffice: nueva carga");
+    await mount(createElement(CsvBackoffice, { configured: true }), "Nueva carga");
     const [csvInput, daeInput] = [...container.querySelectorAll<HTMLInputElement>('input[type="file"]')];
     const choose = async (input: HTMLInputElement, file: File) => {
       Object.defineProperty(input, "files", { value: [file], configurable: true });
@@ -212,7 +212,7 @@ describe("Pantallas del spike (React DOM + API en memoria)", () => {
   }, 30000);
 
   it("subida: 4 zonas numeradas, cada una con su formato, «Elegir archivo» con ícono y obligatorio u opcional; al elegir, muestra el archivo", async () => {
-    await mount(createElement(CsvBackoffice, { configured: true }), "Backoffice: nueva carga");
+    await mount(createElement(CsvBackoffice, { configured: true }), "Nueva carga");
     const zones = [...container.querySelectorAll<HTMLLabelElement>("label[for]")].filter((l) => l.querySelector('input[type="file"]'));
     expect(zones).toHaveLength(4);
     expect(zones.map((z) => z.textContent?.replace(/\s+/g, " ").trim())).toEqual([

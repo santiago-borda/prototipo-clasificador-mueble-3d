@@ -13,7 +13,7 @@ import type { EdgeId } from "@/data/types";
 import { loadCarga, type LoadedCarga } from "@/proto-csv/browser";
 import { useUploadKey } from "@/proto-csv/keyStore";
 import { approveBlockers, type TypeReview } from "@/proto-csv/review";
-import { ESTADO_TEXT, SOURCE_TEXT, reasonText } from "@/proto-csv/texts";
+import { ESTADO_TEXT, SOURCE_TEXT, formatFecha, reasonText } from "@/proto-csv/texts";
 import { KeyField } from "./KeyField";
 
 const ReviewViewer = dynamic(() => import("./ReviewViewer"), { ssr: false, loading: () => <div className="h-80 rounded-lg bg-slate-100" /> });
@@ -186,7 +186,7 @@ export function CsvReviewScreen({ id }: { id: string }) {
         <EstadoBadge estado={estado} />
       </div>
       <p className="mt-1 text-xs text-slate-500">
-        Registrada {new Date(informe.fecha).toLocaleString("es-AR")} · {informe.csv.tipos} tipos, {informe.csv.piezas} piezas, {informe.csv.edgeTotalMm} mm de canto ·
+        Registrada {formatFecha(informe.fecha)} · {informe.csv.tipos} tipos, {informe.csv.piezas} piezas, {informe.csv.edgeTotalMm} mm de canto ·
         modelId <span className="font-mono">{informe.modelId.slice(7, 19)}…</span> · listadoId{" "}
         <span className="font-mono">{informe.listadoId ? `${informe.listadoId.slice(7, 19)}…` : "— (borrador)"}</span> · cruce calculado en el navegador
       </p>
@@ -303,7 +303,7 @@ export function CsvReviewScreen({ id }: { id: string }) {
         <ol className="mt-4 text-xs text-slate-500">
           {eventos.map((e) => (
             <li key={e.n}>
-              {e.n}. {ESTADO_TEXT[e.estado]} · {new Date(e.fecha).toLocaleString("es-AR")}
+              {e.n}. {ESTADO_TEXT[e.estado]} · {formatFecha(e.fecha)}
               {e.motivo ? ` · «${e.motivo}»` : ""}
             </li>
           ))}

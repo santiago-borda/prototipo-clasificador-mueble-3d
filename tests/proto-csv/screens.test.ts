@@ -9,7 +9,7 @@ import { CSV_REJECTIONS } from "@/proto-csv/reasons";
 import { parseOclCsv } from "@/proto-csv/parse";
 import { PREVIEW_MARK, QR_TEST_BASE, qrPreview } from "@/proto-csv/labels";
 import { approveBlockers, reviewListing } from "@/proto-csv/review";
-import { REJECTION_TEXT } from "@/proto-csv/texts";
+import { REJECTION_TEXT, formatFecha } from "@/proto-csv/texts";
 
 const ROOT = path.resolve(__dirname, "..", "..");
 const DIR = path.join(ROOT, "tests", "fixtures", "csv-ocl", "gabinete");
@@ -101,5 +101,23 @@ describe("Cada rechazo de carga dice qué exportar o corregir", () => {
     expect(REJECTION_TEXT["lista-de-instancias"].fix).toContain("«Listado de piezas»");
     expect(REJECTION_TEXT["columna-faltante"].fix).toContain("«ocultar la columna de cantos»");
     expect(REJECTION_TEXT["unidad-no-soportada"].fix).toContain("milímetros");
+  });
+});
+
+describe("Fechas: 24 horas y con zona horaria", () => {
+  it.each([
+    ["2026-11-16T19:55:09Z", "16/11/2026 16:55:09 (America/Buenos_Aires)"],
+    ["2026-11-17T03:00:00Z", "17/11/2026 00:00:00 (America/Buenos_Aires)"], // medianoche: 00, no 24 ni 12 a. m.
+    ["2026-11-17T02:59:59Z", "16/11/2026 23:59:59 (America/Buenos_Aires)"],
+  ])("%s → %s", (iso, expected) => {
+    expect(formatFecha(iso)).toBe(expected);
+  });
+
+  it("con otra zona la escribe", () => {
+    expect(formatFecha("2026-11-16T19:55:09Z", "UTC")).toBe("16/11/2026 19:55:09 (UTC)");
+  });
+
+  it("ninguna pantalla del spike usa toLocaleString/toLocaleDateString/toLocaleTimeString", () => {
+    for (const file of SCREEN_FILES) expect(codeOnly(file), file).not.toMatch(/toLocale(Date|Time)?String/);
   });
 });

@@ -33,7 +33,9 @@ const CSV_DUDOSA = CSV.replace(/^(A;0001-01-M01-C04;)1;/m, "$12;"); // sintétic
 const DAE = new Uint8Array(readFileSync(path.join(DIR, "gabinete-prueba-opencutlist.dae")));
 const KEY = "clave";
 const store = createMemoryStore();
-const api = createProtoApi({ store, uploadKey: KEY });
+/** Hora fija: 19:55:09 UTC = 16:55:09 en Buenos Aires (UTC−3). */
+const api = createProtoApi({ store, uploadKey: KEY, now: () => new Date("2026-11-16T19:55:09Z") });
+const FECHA = "16/11/2026 16:55:09 (America/Buenos_Aires)";
 const post = (url: string, body: unknown) => new Request(`http://localhost${url}`, { method: "POST", headers: { "x-import-key": KEY, "content-type": "application/json" }, body: JSON.stringify(body) });
 
 async function seed(id: string, csv: string, steps: { estado: string; motivo?: string }[]) {
@@ -162,6 +164,11 @@ describe("Pantallas del spike (React DOM + API en memoria)", () => {
   it("rechazado: muestra el motivo y la carga queda cerrada", async () => {
     await mount(createElement(CsvReviewScreen, { id: "e5e5e5e5e5e5e5e5" }), "Rechazada");
     expect(text()).toContain("«C04 dos veces en el CSV: reexportar»");
+    // Fechas en 24 horas y con zona horaria, en el encabezado y en el historial.
+    expect(text()).toContain(`Registrada ${FECHA}`);
+    expect(text()).toContain(`1. En revisión · ${FECHA}`);
+    expect(text()).toContain(`2. Rechazado · ${FECHA} · «C04 dos veces en el CSV: reexportar»`);
+    expect(text()).not.toMatch(/[ap]\. ?m\.|AM|PM/);
     expect(button("Aprobar")).toBeUndefined();
     await unmount();
   }, 30000);

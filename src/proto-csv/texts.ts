@@ -64,3 +64,25 @@ export const ESTADO_TEXT: Record<string, string> = {
   rechazado: "Rechazado",
   "publicado-simulado": "Publicado (simulado)",
 };
+
+/** Zona horaria con la que se muestran las fechas del spike (el taller está en Argentina). */
+export const DISPLAY_TIME_ZONE = "America/Buenos_Aires";
+
+/**
+ * "16/11/2026 16:55:09 (America/Buenos_Aires)": 24 horas, con segundos y la zona escrita. Se arma por partes (no con
+ * `toLocaleString`) para que el formato no dependa del navegador ni del locale (sin "p. m." ni coma).
+ */
+export function formatFecha(iso: string, timeZone: string = DISPLAY_TIME_ZONE): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(iso));
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("day")}/${get("month")}/${get("year")} ${get("hour")}:${get("minute")}:${get("second")} (${timeZone})`;
+}

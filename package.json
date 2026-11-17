@@ -25,7 +25,9 @@
     "@react-three/fiber": "^9.8.1",
     "@vercel/blob": "^2.8.2",
     "jsqr": "^1.4.0",
+    "kysely": "^0.28.20",
     "next": "16.4.3",
+    "pg": "^8.23.1",
     "qrcode": "^1.5.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -35,6 +37,7 @@
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",

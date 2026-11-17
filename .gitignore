@@ -72,3 +72,6 @@ next-env.d.ts
 /.fixtures-gen/
 # salidas locales del eval (docs/spec-t5-runner-eval.md §3)
 /eval/out/
+
+# scripts de diagnóstico locales (no se commitean)
+/.diag/

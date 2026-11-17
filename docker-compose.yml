@@ -1,0 +1,23 @@
+# Base local de desarrollo y pruebas (S2-D3, docs/spec-s2-base-de-datos.md). Solo escucha en 127.0.0.1.
+# La clave no está en el repo (S2-D4): definí PFG_DB_PASSWORD en tu entorno o en un archivo .env (ignorado por git).
+#   npm run db:up     levanta la base y espera a que acepte conexiones
+#   npm run db:down   la detiene (los datos quedan en el volumen pfg-db)
+services:
+  db:
+    image: postgres:17
+    ports:
+      - "127.0.0.1:${PFG_DB_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: pfg
+      POSTGRES_DB: pfg
+      POSTGRES_PASSWORD: ${PFG_DB_PASSWORD:?Definí PFG_DB_PASSWORD (clave de la base local) en el entorno o en .env}
+    volumes:
+      - pfg-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pfg -d pfg"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pfg-db:

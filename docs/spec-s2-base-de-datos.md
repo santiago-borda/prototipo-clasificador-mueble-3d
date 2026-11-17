@@ -132,3 +132,30 @@ Sin la aprobación, S2 puede entregar igual `ports.ts`, la implementación en me
 5. Implementación en SQL; la batería en verde contra PostgreSQL.
 6. `db:seed`, PB-9 a PB-11 contra PostgreSQL.
 7. Actualizar `CLAUDE.md` (la regla «sin base de datos» cambia) y `.env.example`.
+
+## 10. Estado y precisiones de la implementación (17/11/2026, rama `fable/s2-base-de-datos`)
+
+**Hecho (sin dependencias nuevas):** pasos 2 y 3 del §9: `ports.ts`, `rows.ts`, `mappers.ts`, `qrId.ts`, `localGuard.ts`, `memory/`, la batería de contrato contra memoria (PB-3 a PB-12) y PB-13, PB-14 y PB-15. Además `docker-compose.yml`, `db:up`, `db:down` y `.env.example`. **Pendiente:** las dos paradas (U-dependencias, U-esquema) y todo lo de SQL: migración, `src/persistence/sql/`, `db:migrate`, `db:seed`, PB-1, PB-2 y la batería contra PostgreSQL.
+
+Precisiones, **a revisar por el equipo** (el §3 no alcanzaba para escribir PB-4 a PB-7):
+
+| # | Precisión | Por qué |
+|---|---|---|
+| S2-I1 | `FurnitureRepository` suma `addPieceType(tenantId, designVersionId, { moduleId, piece })` y `listDesignVersions(tenantId)`. | PB-5 y PB-7 piden guardar un tipo de pieza suelto; PB-6 pide listar. |
+| S2-I2 | Aparece `TenantRepository` (`create`, `get`) y la interfaz `Persistence`, que reúne los cuatro repositorios. | Sin carpintería no hay a qué referir las filas (S2-D9). |
+| S2-I3 | Dos excepciones más: `TenantInexistenteError` (la carpintería no existe) y `MuebleInvalidoError` (pieza con módulo inexistente, módulo de otro mueble, versión nueva cuyo mueble no coincide). | Casos que el §3 no nombra y que las dos implementaciones tienen que resolver igual. |
+| S2-I4 | `ReferenciaDeOtroTenantError` no distingue «es de otra carpintería» de «no existe». | Distinguirlo revelaría datos de otra carpintería; una clave foránea compuesta tampoco lo distingue. |
+| S2-I5 | Columnas que el modelo de datos no nombra: `furniture.legacy_id` y `module.legacy_id` (los `id` del prototipo, `"olmo"`, `"mod-escritorio"`), `design_version.label` (`Furniture.designVersion`), `design_version.name`, `design_version.texture_base_url`, `piece_type.position` y `qr_code.ordinal`. | B7: sin ellas el `FurnitureDef` no vuelve igual, ni en el mismo orden. `ordinal` 1 es el QR que muestra la ficha. |
+| S2-I6 | `furniture.newerVersionAvailable` no se guarda: se calcula (el mueble tiene publicada una versión con número mayor). | Modelo de datos §4.2. B7 vale para el resto de los campos. |
+| S2-I7 | Un qrId es único entre `qr_code.id`, `furniture.legacy_qr_id` y `module.legacy_qr_id`. Lo comprueba el repositorio dentro de la transacción (la base solo garantiza la unicidad de cada columna). | B4 con los QR heredados de S2-D7. |
+| S2-I8 | `QrRepository.resolve` devuelve `kind` (`furniture`, `module`, `piece`), la carpintería, la versión y su estado. Un qrId de mueble resuelve a la versión **publicada**; sin ninguna, `null`. | PB-10 con QR en tres niveles. Regla 6 del modelo: lo que ve el operario lo decide una publicación. |
+| S2-I9 | `publish` pasa la versión de `borrador` a `publicada` y la anterior a `reemplazada`. Publicar una versión ya publicada lanza `VersionInmutableError`. No hay todavía «en revisión» ni «aprobada». | La máquina de estados completa es de S6. |
+| S2-I10 | `QrRepository.create` sobre una versión publicada lanza `VersionInmutableError`. | Lectura estricta de B5. **A decidir:** si hace falta emitir un QR nuevo para una versión ya publicada (CA-12). |
+| S2-I11 | Una versión nueva de un mueble existente no puede repetir los qrId de módulo ni de pieza de la anterior (`QrDuplicadoError`). | Un QR nunca cambia de destino (modelo de datos §4.2). |
+| S2-I12 | Un tipo de pieza sin módulo: la columna lo admite, pero los repositorios de S2 no lo escriben y la lectura lo rechaza (`DocumentoInvalidoError`). | La regla «módulo único con el nombre del mueble» (modelo de datos §5) necesita un qrId de módulo que hoy nadie define. Queda para la sesión que cambie la ficha. |
+| S2-I13 | `RunRepository.save` con un `engineRunId` ya guardado no hace nada. No compara `run.modelId` con el de la versión. | El run se identifica por su contenido. La comparación queda como propuesta. |
+| S2-I14 | `newQrId`: base 32 de Crockford en minúsculas (sin `i`, `l`, `o`, `u`). El `public_id` de la versión usa el mismo generador. | S2-D8. |
+| S2-I15 | `docker-compose.yml` pide la clave en `PFG_DB_PASSWORD` (entorno o `.env`, ignorado por git); imagen `postgres:17`. | S2-D4: sin credenciales en el repo. |
+| S2-I16 | No hay repositorio para `listing` ni para `stored_file` (el §3 no los pide): S2 crea solo sus tablas. | El uso llega con S3 y con la lectura de PDF. |
+
+**Diferencia entre el pedido de la sesión y esta spec (a decidir por el equipo).** El texto de la sesión 2 pide que el visor, la ficha y el importador lean de la base por detrás y que las migraciones corran en el pipeline. Esta spec dice lo contrario en el §1 («no es objetivo que la app lea de la base; `lookup.ts` no se toca») y en B9, y no menciona ningún pipeline (el proyecto no tiene CI). **ASUMIDO: manda la spec.** Conectar la ficha a la base o agregar un paso de migraciones en un pipeline necesita una enmienda de esta spec.

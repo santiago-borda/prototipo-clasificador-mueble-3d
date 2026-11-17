@@ -1,0 +1,134 @@
+# Especificación — S2: base de datos y repositorios
+
+Versión: **v0.1 (17/11/2026), borrador a aprobar por el equipo.** No hay código.
+Antecedentes: `docs/adr/ADR-001-stack.md`, `docs/adr/ADR-002-base-de-datos.md`, `docs/modelo-de-datos.md`, `docs/diagnostico-2026-11.md` (A2, A11), `src/data/types.ts`, `src/lib/lookup.ts`.
+Condición: ADR-001 y ADR-002 aceptados.
+
+---
+
+## 1. Objetivo y alcance
+
+Tener la persistencia del producto lista y probada **sin cambiar nada de lo que ve el usuario**: un esquema, sus migraciones, los repositorios y la prueba de que el primer fixture, guardado y leído de la base, produce exactamente la misma ficha que hoy.
+
+Incluye:
+1. Base PostgreSQL local en un contenedor.
+2. Migraciones de las tablas marcadas «S2» en `docs/modelo-de-datos.md` §2: `tenant`, `project`, `furniture`, `design_version`, `module`, `piece_type`, `qr_code`, `stored_file`, `listing`, `engine_run`.
+3. Repositorios con dos implementaciones: memoria y SQL.
+4. Carga (`seed`) del primer fixture desde `olmoDef` y lectura de vuelta como `FurnitureDef`.
+
+**No es objetivo:** que la app lea de la base (`/p/<qrId>` sigue estática y `lookup.ts` no se toca); el importador real; las tablas de S6; el almacenamiento de archivos (S3); sesiones (S4); SQL Server (queda preparado, no se prueba); una base que no sea local.
+
+## 2. Decisiones
+
+| # | Decisión | Por qué |
+|---|---|---|
+| S2-D1 | Código nuevo en `src/persistence/`: `ports.ts` (interfaces y excepciones), `memory/`, `sql/` (Kysely), `mappers.ts` (fila ↔ tipo del dominio, puro). Migraciones en `db/migrations/`. | Separa lo que conocen los casos de uso de lo que conoce la base (ADR-001, regla 2). |
+| S2-D2 | Solo `src/persistence/sql/` y `db/` importan `kysely` y `pg`. | Sacar Kysely o cambiar de motor toca una carpeta (ADR-002, «Cómo revertir»). |
+| S2-D3 | `docker-compose.yml` en la raíz con un servicio `db` (PostgreSQL, versión mayor fijada) en `127.0.0.1`. Scripts: `npm run db:up`, `db:down`, `db:migrate`, `db:seed`. | Un comando para tener la base. |
+| S2-D4 | La URL de la base llega por `DATABASE_URL` (app y scripts) y `TEST_DATABASE_URL` (pruebas). Sin valor por defecto en el código. `.env.example` las documenta vacías. | Sin credenciales en el repo. |
+| S2-D5 | **Guarda de base local:** `db:migrate` y `db:seed` lanzan `BaseNoLocalError` si el host de la URL no es `localhost` ni `127.0.0.1`. No hay bandera para saltearla en S2. | Migrar fuera de local requiere aprobación del equipo. |
+| S2-D6 | Subconjunto común de SQL (ADR-002, decisión 3): ids como texto generados en la aplicación, documentos como texto JSON, fechas UTC, medidas en doble precisión. | Que SQL Server siga siendo posible. |
+| S2-D7 | Los qrId del primer fixture (`olmo-mueble`, `olmo-mod-…`, `olmo-cNN`) se guardan como identificadores heredados. Los de mueble y de módulo van en columnas `legacy_qr_id` de `furniture` y `module`; los de pieza, en `qr_code`. | La ficha actual tiene QR en tres niveles y no cambia. El modelo objetivo solo da QR a las piezas (consulta 44). |
+| S2-D8 | `newQrId()`: 128 bits aleatorios (`crypto.getRandomValues`), en base 32 sin caracteres ambiguos. Se implementa y se prueba; **no se usa para imprimir nada**. | ADR-004, decisión 6. |
+| S2-D9 | El primer fixture se carga en una carpintería de desarrollo fija (`tenant` «desarrollo»). | No hay carpinterías reales hasta S4. |
+
+## 3. Contrato
+
+```ts
+// src/persistence/ports.ts (sin imports de kysely, pg ni next)
+export interface FurnitureRepository {
+  /** Guarda un mueble completo como una versión de diseño nueva, en una transacción. */
+  saveDesignVersion(tenantId: string, input: NewDesignVersion): Promise<DesignVersionRef>;
+  /** Lee una versión como el `FurnitureDef` que usa la ficha. null si no existe en esa carpintería. */
+  getFurnitureDef(tenantId: string, designVersionId: string): Promise<FurnitureDef | null>;
+  publish(tenantId: string, designVersionId: string, publishedBy: string): Promise<void>;
+}
+
+export interface QrRepository {
+  /** Única función sin tenantId: es la puerta de entrada. Devuelve la carpintería. */
+  resolve(qrId: string): Promise<QrResolution | null>;
+  create(tenantId: string, pieceTypeId: string): Promise<string>;
+}
+
+export interface RunRepository {
+  save(tenantId: string, designVersionId: string, run: AssociationRun): Promise<void>;
+  get(tenantId: string, designVersionId: string, engineRunId: string): Promise<AssociationRun | null>;
+}
+```
+
+Excepciones con nombre (todas en `ports.ts`): `TenantRequeridoError` (tenantId vacío), `CodigoRepetidoEnVersionError(code)`, `QrDuplicadoError(qrId)`, `VersionInmutableError(designVersionId)` (modificar una versión publicada), `ReferenciaDeOtroTenantError`, `DocumentoInvalidoError` (un documento JSON leído no tiene la forma esperada), `BaseNoLocalError(host)`.
+
+Las dos implementaciones lanzan las mismas excepciones en los mismos casos.
+
+## 4. Requisitos
+
+- **B1.** Las migraciones crean el esquema completo en una base vacía y son idempotentes (correrlas dos veces no cambia nada).
+- **B2.** Toda tabla salvo `tenant` tiene `tenant_id` obligatorio y sus claves foráneas incluyen `tenant_id`.
+- **B3.** (`design_version_id`, `code`) es único. El mismo código en dos muebles distintos es válido.
+- **B4.** `qr_code.id` es único en toda la base.
+- **B5.** Una versión publicada no se modifica: ni ella ni sus módulos, tipos de pieza o QR.
+- **B6.** Una función de repositorio nunca devuelve filas de otra carpintería. La única sin `tenantId` es `QrRepository.resolve`.
+- **B7.** `getFurnitureDef` devuelve un objeto igual, campo por campo, al que se guardó (incluidos `edgeBanding: null` y `[]`, que son distintos, y el orden de módulos y piezas).
+- **B8.** Un `AssociationRun` guardado y leído es igual byte a byte a su `JSON.stringify` original.
+- **B9.** `src/engine/`, `src/pdf/`, `src/app/`, `src/components/` y `src/lib/` no importan `src/persistence/`. `ports.ts`, `memory/` y `mappers.ts` no importan `kysely`, `pg` ni `next/*`.
+- **B10.** `db:migrate` y `db:seed` se niegan a correr contra un host no local.
+
+## 5. Criterios de aceptación y pruebas
+
+Las pruebas de contrato (`tests/persistence/contract.ts`) son una sola batería que recibe una fábrica de repositorios. Corre siempre contra memoria. Corre contra PostgreSQL si `TEST_DATABASE_URL` está definida; si no, se saltea y lo dice (como las pruebas del segundo fixture). Cada prueba contra PostgreSQL usa un esquema propio y lo borra al terminar.
+
+| Id | Requisito | Qué | Esperado |
+|---|---|---|---|
+| PB-1 | B1 | migrar una base vacía; migrar de nuevo | las diez tablas existen; la segunda corrida no aplica nada |
+| PB-2 | B2 | inspección del esquema | toda tabla salvo `tenant` tiene `tenant_id NOT NULL` y cada FK lo incluye |
+| PB-3 | B3 | dos tipos con el mismo código en una versión; el mismo código en dos muebles | `CodigoRepetidoEnVersionError`; el segundo caso se guarda |
+| PB-4 | B4 | crear dos QR con el mismo id (forzado) | `QrDuplicadoError` |
+| PB-5 | B5 | publicar y después guardar un tipo de pieza en esa versión | `VersionInmutableError` |
+| PB-6 | B6 | guardar en la carpintería A; leer con la B | `null`; listar con B no trae nada de A |
+| PB-7 | B6 | guardar un tipo de pieza que apunta a un módulo de otra carpintería | `ReferenciaDeOtroTenantError` |
+| PB-8 | B6 | `tenantId` vacío en cada función | `TenantRequeridoError` |
+| **PB-9** | B7 | **equivalencia de la ficha:** guardar `olmoDef`, leerlo | `toEqual(olmoDef)` |
+| **PB-10** | B7 | **equivalencia de la resolución:** para cada qrId de `listQrEntries()`, resolver con un registro armado desde la base y con el actual | mismos `QrTarget`, uno por uno (`toEqual`) |
+| PB-11 | B8 | guardar y leer el run del primer fixture (`buildRun`) | `JSON.stringify` idéntico |
+| PB-12 | B7 | mueble sintético con `edgeBanding` `null`, `[]` y con lados; notas `null` | se leen distintos entre sí e iguales a lo guardado |
+| PB-13 | B9 | prueba estática de imports | sin importaciones prohibidas |
+| PB-14 | B10 | `assertLocalDatabase` con hosts `localhost`, `127.0.0.1`, un dominio y una IP pública | pasa en los dos primeros; `BaseNoLocalError` en los otros |
+| PB-15 | S2-D8 | `newQrId()` mil veces | formato fijo, sin repetidos, 26 caracteres del alfabeto elegido |
+| PB-16 | — | `git diff` de `src/app/`, `src/components/`, `src/lib/`, `src/data/`, `src/model/`, `src/engine/`, `src/pdf/` respecto de la rama base | vacío (verificación manual al cerrar, anotada en el informe) |
+
+PB-9, PB-10 y PB-16 son la demostración de que lo que ve el usuario no cambió.
+
+Al cerrar: `npm run typecheck`, `npm run lint`, `npm test` y `npm run build` en verde, con y sin `TEST_DATABASE_URL`.
+
+## 6. Paradas obligatorias
+
+| Parada | Antes de | Qué aprueba el equipo |
+|---|---|---|
+| U-dependencias | `npm install` | `kysely`, `pg` y `@types/pg` (§7) |
+| U-esquema | escribir los repositorios en SQL | la migración inicial, leída tabla por tabla contra `docs/modelo-de-datos.md` |
+
+## 7. Dependencias nuevas (a aprobar)
+
+| Paquete | Para qué | Alternativa descartada |
+|---|---|---|
+| `kysely` | Constructor de consultas tipado y migraciones, con dialectos del núcleo para PostgreSQL y SQL Server (kysely.dev/docs/dialects). | Prisma: su versión 8 todavía no tiene SQL Server. SQL a mano con `pg`: no cubre los dos motores. |
+| `pg` | Controlador de PostgreSQL que usa `PostgresDialect`. | — |
+| `@types/pg` (desarrollo) | Tipos de `pg`. | — |
+
+Sin la aprobación, S2 puede entregar igual `ports.ts`, la implementación en memoria, los mapeadores y las pruebas PB-3 a PB-13 contra memoria. Queda pendiente todo lo de SQL.
+
+## 8. Supuestos (ASUMIDO)
+
+- PostgreSQL como motor (CA-2).
+- Carpintería de desarrollo fija para el primer fixture (S2-D9).
+- QR heredados de mueble y de módulo en columnas aparte (S2-D7).
+
+## 9. Orden de trabajo
+
+1. Parada U-dependencias.
+2. `ports.ts`, excepciones y batería de contrato (falla: no hay implementaciones).
+3. Implementación en memoria y mapeadores; PB-3 a PB-13 en verde.
+4. `docker-compose.yml`, migración inicial. Parada U-esquema.
+5. Implementación en SQL; la batería en verde contra PostgreSQL.
+6. `db:seed`, PB-9 a PB-11 contra PostgreSQL.
+7. Actualizar `CLAUDE.md` (la regla «sin base de datos» cambia) y `.env.example`.

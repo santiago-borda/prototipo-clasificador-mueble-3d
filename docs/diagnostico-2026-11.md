@@ -1,6 +1,6 @@
 # Diagnóstico del repositorio — noviembre de 2026
 
-Fecha: 17/11/2026 · Sesión 1 (rama `fable/s1-diagnostico-arquitectura`) · Estado: **propuesta, a aprobar por el equipo**.
+Fecha: 17/11/2026 · Sesión 1 (rama `fable/s1-docs`) · Estado: **propuesta, a aprobar por el equipo**.
 Esta sesión no escribe código de producción. Documentos relacionados: `docs/adr/` (ADR-001 a ADR-005), `docs/modelo-de-datos.md`, las specs `docs/spec-s2-…` a `docs/spec-s6-…` y `docs/consultas-casa-mueble-arquitectura.md`.
 
 ## 1. Resumen

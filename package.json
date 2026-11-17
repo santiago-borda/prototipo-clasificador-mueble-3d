@@ -17,7 +17,9 @@
     "ocr:sintetico": "vite-node -c vitest.config.ts scripts/ocr-sintetico.ts",
     "eval": "vite-node --config vitest.config.ts eval/run.ts --",
     "db:up": "docker compose up -d --wait db",
-    "db:down": "docker compose down"
+    "db:down": "docker compose down",
+    "db:migrate": "vite-node --config vitest.config.ts db/scripts/migrate.ts",
+    "db:seed": "vite-node --config vitest.config.ts db/scripts/seed.ts"
   },
   "dependencies": {
     "@google-cloud/vision": "^6.2.0",

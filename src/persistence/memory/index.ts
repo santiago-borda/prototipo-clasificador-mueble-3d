@@ -21,7 +21,7 @@ import {
   type TenantRepository,
 } from "../ports";
 import { assertDefValido, parseRunDocument, parseStatus, qrIdsOf, toEngineRunRow, toFurnitureDef, toPieceRows, toVersionRows } from "../mappers";
-import { newQrId } from "../qrId";
+import { defaultDeps } from "../deps";
 import type { DesignVersionRow, EngineRunRow, FurnitureRow, ModuleRow, PieceTypeRow, ProjectRow, QrCodeRow, TenantRow } from "../rows";
 
 interface Db {
@@ -34,12 +34,6 @@ interface Db {
   qr_code: QrCodeRow[];
   engine_run: EngineRunRow[];
 }
-
-export const defaultDeps: PersistenceDeps = {
-  newId: () => crypto.randomUUID(),
-  newQrId,
-  now: () => new Date(),
-};
 
 export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}): Persistence {
   const deps: PersistenceDeps = { ...defaultDeps, ...overrides };

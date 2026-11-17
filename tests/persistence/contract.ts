@@ -26,6 +26,7 @@ import {
   type PersistenceDeps,
 } from "@/persistence/ports";
 import { QR_ID_FORMAT } from "@/persistence/qrId";
+import { DEV_TENANT, seedOlmo } from "../../db/seed";
 import { olmoDocuments } from "../helpers/pdfFixtures";
 
 export type PersistenceFactory = (overrides?: Partial<PersistenceDeps>) => Promise<Persistence>;
@@ -343,6 +344,18 @@ export function persistenceContract(label: string, factory: PersistenceFactory):
       });
       expect(await p.qr.resolve("uno-mod-b")).toMatchObject({ kind: "module", tenantId: a, moduleId: ref.moduleIds["mod-b"] });
       expect((await p.furniture.getFurnitureDef(a, ref.designVersionId))?.pieceTypes.map((x) => x.qrId)).toEqual(["uno-c02", "uno-c01"]);
+      await p.close();
+    });
+
+    it("seed (S2-D9): carga el primer fixture en la carpintería de desarrollo, una sola vez", async () => {
+      const p = await factory();
+      const uno = await seedOlmo(p);
+      const dos = await seedOlmo(p);
+      expect(uno).toMatchObject({ created: true, tenantId: DEV_TENANT.id, pieceTypes: 21, physicalPieces: 33 });
+      expect(dos).toEqual({ ...uno, created: false });
+      expect(await p.furniture.listDesignVersions(DEV_TENANT.id)).toMatchObject([{ number: 1, status: "publicada" }]);
+      expect(await p.furniture.getFurnitureDef(DEV_TENANT.id, uno.designVersionId)).toEqual(olmoDef);
+      expect(await p.qr.resolve("olmo-c04")).toMatchObject({ kind: "piece", tenantId: DEV_TENANT.id, designVersionId: uno.designVersionId });
       await p.close();
     });
 

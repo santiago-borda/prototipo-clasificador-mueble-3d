@@ -65,5 +65,5 @@ Requisito de esta sesión: que la capa soporte los dos motores, justificado con 
 
 ## Acciones
 1. [ ] El equipo acepta o corrige este ADR.
-2. [ ] Aprobar las dependencias `kysely`, `pg` y `@types/pg` (spec de S2, parada U-dependencias).
+2. [x] Aprobar las dependencias `kysely`, `pg` y `@types/pg` (spec de S2, parada U-dependencias). Aprobadas por Santiago el 17/11/2026; `kysely` en 0.28.x (la 0.29 pide Node 22).
 3. [ ] Enviar CA-2 a Casa Mueble.

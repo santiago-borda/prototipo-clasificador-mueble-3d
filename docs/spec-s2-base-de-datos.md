@@ -1,6 +1,6 @@
 # Especificación — S2: base de datos y repositorios
 
-Versión: **v0.1 (17/11/2026), borrador a aprobar por el equipo.** No hay código.
+Versión: **v0.2 (17/11/2026), implementada.** Santiago la dio por aprobada al pedir la sesión 2 y aprobó en la sesión las paradas U-dependencias y U-esquema. Estado y precisiones de la implementación en el §10 (a revisar por el equipo).
 Antecedentes: `docs/adr/ADR-001-stack.md`, `docs/adr/ADR-002-base-de-datos.md`, `docs/modelo-de-datos.md`, `docs/diagnostico-2026-11.md` (A2, A11), `src/data/types.ts`, `src/lib/lookup.ts`.
 Condición: ADR-001 y ADR-002 aceptados.
 
@@ -135,7 +135,7 @@ Sin la aprobación, S2 puede entregar igual `ports.ts`, la implementación en me
 
 ## 10. Estado y precisiones de la implementación (17/11/2026, rama `fable/s2-base-de-datos`)
 
-**Hecho (sin dependencias nuevas):** pasos 2 y 3 del §9: `ports.ts`, `rows.ts`, `mappers.ts`, `qrId.ts`, `localGuard.ts`, `memory/`, la batería de contrato contra memoria (PB-3 a PB-12) y PB-13, PB-14 y PB-15. Además `docker-compose.yml`, `db:up`, `db:down` y `.env.example`. **Pendiente:** las dos paradas (U-dependencias, U-esquema) y todo lo de SQL: migración, `src/persistence/sql/`, `db:migrate`, `db:seed`, PB-1, PB-2 y la batería contra PostgreSQL.
+**Hecho:** los siete pasos del §9. `src/persistence/` (`ports.ts`, `rows.ts`, `mappers.ts`, `deps.ts`, `qrId.ts`, `localGuard.ts`, `memory/`, `sql/`), `db/` (migración inicial, `migrate.ts`, `seed.ts`, scripts), `docker-compose.yml`, `db:up`, `db:down`, `db:migrate`, `db:seed` y `.env.example`. PB-1 a PB-15 pasan; la batería de contrato corre contra memoria y contra PostgreSQL (17/11, base local descartable). PB-16: `git diff` vacío contra `fable/s1-docs`. Paradas: U-dependencias y U-esquema aprobadas por Santiago en la sesión. **Pendiente:** nada de esta spec; SQL Server sigue preparado y sin probar.
 
 Precisiones, **a revisar por el equipo** (el §3 no alcanzaba para escribir PB-4 a PB-7):
 
@@ -157,5 +157,9 @@ Precisiones, **a revisar por el equipo** (el §3 no alcanzaba para escribir PB-4
 | S2-I14 | `newQrId`: base 32 de Crockford en minúsculas (sin `i`, `l`, `o`, `u`). El `public_id` de la versión usa el mismo generador. | S2-D8. |
 | S2-I15 | `docker-compose.yml` pide la clave en `PFG_DB_PASSWORD` (entorno o `.env`, ignorado por git); imagen `postgres:17`. | S2-D4: sin credenciales en el repo. |
 | S2-I16 | No hay repositorio para `listing` ni para `stored_file` (el §3 no los pide): S2 crea solo sus tablas. | El uso llega con S3 y con la lectura de PDF. |
+| S2-I17 | `kysely` queda en 0.28.x. | La 0.29 declara Node 22 o superior y el equipo usa Node 20. |
+| S2-I18 | `migrateToLatest(db, { schema })`: con un esquema propio hay que pasárselo al migrador. Las pruebas abren la conexión con `search_path` en su esquema. | Sin eso, el migrador de Kysely encuentra sus tablas de control en otro esquema y no las crea. |
+| S2-I19 | Restricciones que el modelo no nombra: clave primaria (`tenant_id`, `id`) en toda tabla salvo `tenant` y `qr_code` (su `id` es clave global); un tipo de pieza solo puede apuntar a un módulo de su misma versión y un QR a un tipo de pieza de su misma versión (claves foráneas de tres columnas); (`tenant_id`, `furniture_id`, `number`) único. | B2 y B6 garantizados también por la base. La inmutabilidad (B5) la aplican solo los repositorios. |
+| S2-I20 | `db:seed` crea la carpintería `desarrollo`, guarda el primer fixture con el `modelId` de su .dae y **lo publica** (autor `seed`). Si ya está, no hace nada. Las URL llegan por variables del entorno de la terminal; los scripts no leen `.env.local`. | S2-I8: sin versión publicada el qrId de mueble no resuelve. Mismo criterio que los scripts existentes. |
 
-**Diferencia entre el pedido de la sesión y esta spec (a decidir por el equipo).** El texto de la sesión 2 pide que el visor, la ficha y el importador lean de la base por detrás y que las migraciones corran en el pipeline. Esta spec dice lo contrario en el §1 («no es objetivo que la app lea de la base; `lookup.ts` no se toca») y en B9, y no menciona ningún pipeline (el proyecto no tiene CI). **ASUMIDO: manda la spec.** Conectar la ficha a la base o agregar un paso de migraciones en un pipeline necesita una enmienda de esta spec.
+**Diferencia entre el pedido de la sesión y esta spec (decidida por Santiago el 17/11: manda la spec).** El texto de la sesión 2 pide que el visor, la ficha y el importador lean de la base por detrás y que las migraciones corran en el pipeline. Esta spec dice lo contrario en el §1 («no es objetivo que la app lea de la base; `lookup.ts` no se toca») y en B9, y no menciona ningún pipeline (el proyecto no tiene CI). **Manda la spec.** Conectar la ficha a la base o agregar un paso de migraciones en un pipeline necesita una enmienda de esta spec.

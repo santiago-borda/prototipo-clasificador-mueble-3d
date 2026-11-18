@@ -124,7 +124,7 @@ describe("C11: API del spike con el store en memoria", () => {
   it("con dudosas (cruce sin canApprove) solo se puede rechazar", async () => {
     const { api, store } = setup();
     await upload(store);
-    const cruce = { ...CRUCE, canApprove: false, dudosas: 1, types: CRUCE.types.map((t, i) => (i === 0 ? { ...t, level: "dudosa" as const } : t)) };
+    const cruce = { ...CRUCE, canApprove: false, dudosas: 1, types: CRUCE.types.map((t, i) => (i === 0 ? { ...t, level: "dudosa" as const, reasons: [{ source: "csv" as const, reason: "nombre-anomalo" }] } : t)) };
     await api.register(req("POST", registerBody({ cruce })));
     expect(await state(api, "aprobado")).toMatchObject({ status: 409, body: { code: "dudosas" } });
     expect((await state(api, "rechazado", "dudosa")).status).toBe(200);
@@ -405,7 +405,7 @@ describe("C11e: aprobar con advertencias", () => {
   });
 
   it("con dudosas: 409 dudosas (aunque haya motivo); solo se puede rechazar", async () => {
-    const cruce = { ...CRUCE_ADV, canApprove: false, dudosas: 1, types: CRUCE_ADV.types.map((t) => (t.code === "0001-01-M01-C01" ? { ...t, level: "dudosa" as const } : t)) };
+    const cruce = { ...CRUCE_ADV, canApprove: false, dudosas: 1, types: CRUCE_ADV.types.map((t) => (t.code === "0001-01-M01-C01" ? { ...t, level: "dudosa" as const, reasons: [{ source: "csv" as const, reason: "nombre-anomalo" }] } : t)) };
     const api = await registeredWith(cruce);
     expect(await state(api, "aprobado", "lo acepto")).toMatchObject({ status: 409, body: { code: "dudosas" } });
     expect((await state(api, "rechazado", "dudosa")).status).toBe(200);
@@ -426,6 +426,71 @@ describe("C11e: aprobar con advertencias", () => {
     const api = await registeredWith({ ...viejo, types: CRUCE.types });
     // CSV_ADV tiene los mismos códigos que el CSV original: el registro pasa y, sin advertencias, aprobar no exige motivo.
     expect((await state(api, "aprobado")).status).toBe(200);
+  });
+
+  it("A2: contador advertencias en 0 con un tipo en advertencia: 400 cuerpo al registrar (incoherente)", async () => {
+    const { api, store } = setup();
+    await upload(store, ID, { "listado.csv": CSV_ADV, "modelo.dae": DAE });
+    const res = await api.register(req("POST", registerBody({ cruce: { ...CRUCE_ADV, advertencias: 0 }, svgMaterial: null })));
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { code: string }).code).toBe("cuerpo");
+  });
+
+  it("A2: el motivo se decide por los tipos aunque el informe guardado traiga el contador en 0", async () => {
+    const { api, store } = setup();
+    await upload(store, ID, { "listado.csv": CSV_ADV, "modelo.dae": DAE });
+    expect((await api.register(req("POST", registerBody({ cruce: CRUCE_ADV, svgMaterial: null })))).status).toBe(201);
+    // Sintético: se reescribe el informe con el contador en 0 (no pasa por parseCruce).
+    const key = protoPath(ID, "informe.json");
+    const informe = JSON.parse(new TextDecoder().decode((await store.get(key))!.body)) as ProtoInforme;
+    await store.delete([key]);
+    await store.put(key, JSON.stringify({ ...informe, cruce: { ...informe.cruce, advertencias: 0 } }), "application/json");
+    expect(await state(api, "aprobado")).toMatchObject({ status: 400, body: { code: "motivo" } });
+  });
+
+  it("A1: un contador de advertencias que no coincide con los tipos (7 con un tipo): 400 cuerpo", async () => {
+    const { api, store } = setup();
+    await upload(store, ID, { "listado.csv": CSV_ADV, "modelo.dae": DAE });
+    const res = await api.register(req("POST", registerBody({ cruce: { ...CRUCE_ADV, advertencias: 7 }, svgMaterial: null })));
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { code: string }).code).toBe("cuerpo");
+  });
+
+  it("A1: un tipo dudosa con dudosas: 0 y canApprove: true: 400 cuerpo al registrar", async () => {
+    const { api, store } = setup();
+    await upload(store);
+    const cruce = { ...CRUCE, types: CRUCE.types.map((t, i) => (i === 0 ? { ...t, level: "dudosa" as const, reasons: [{ source: "csv" as const, reason: "nombre-anomalo" }] } : t)) };
+    const res = await api.register(req("POST", registerBody({ cruce })));
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { code: string }).code).toBe("cuerpo");
+  });
+
+  it("A1: un tipo con razones blandas declarado segura (advertencias: 0): 400 cuerpo", async () => {
+    const { api, store } = setup();
+    await upload(store, ID, { "listado.csv": CSV_ADV, "modelo.dae": DAE });
+    const cruce = { ...CRUCE_ADV, advertencias: 0, types: CRUCE_ADV.types.map((t) => (t.level === "advertencia" ? { ...t, level: "segura" as const } : t)) };
+    const res = await api.register(req("POST", registerBody({ cruce, svgMaterial: null })));
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { code: string }).code).toBe("cuerpo");
+  });
+
+  it("A1: el 409 dudosas se decide por los tipos, no por el contador (informe guardado con dudosas: 0 y canApprove: true)", async () => {
+    const { api, store } = setup();
+    await upload(store);
+    expect((await api.register(req("POST", registerBody()))).status).toBe(201);
+    const key = protoPath(ID, "informe.json");
+    const informe = JSON.parse(new TextDecoder().decode((await store.get(key))!.body)) as ProtoInforme;
+    const types = informe.cruce.types.map((t, i) => (i === 0 ? { ...t, level: "dudosa" as const, reasons: [{ source: "csv" as const, reason: "nombre-anomalo" }] } : t));
+    await store.delete([key]);
+    await store.put(key, JSON.stringify({ ...informe, cruce: { ...informe.cruce, types } }), "application/json");
+    expect(await state(api, "aprobado", "lo acepto")).toMatchObject({ status: 409, body: { code: "dudosas" } });
+  });
+
+  it("B1: motivo de más de 500 caracteres: 400 motivo (aprobar y rechazar); 500 justos pasan", async () => {
+    const api = await registeredWith();
+    expect(await state(api, "aprobado", "x".repeat(501))).toMatchObject({ status: 400, body: { code: "motivo" } });
+    expect(await state(api, "rechazado", "x".repeat(501))).toMatchObject({ status: 400, body: { code: "motivo" } });
+    expect((await state(api, "aprobado", "x".repeat(500))).status).toBe(200);
   });
 
   it("un nivel desconocido en el cruce se rechaza (400)", async () => {

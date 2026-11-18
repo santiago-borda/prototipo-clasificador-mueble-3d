@@ -120,7 +120,7 @@ beforeAll(async () => {
   await seed("c3c3c3c3c3c3c3c3", CSV, [{ estado: "aprobado" }]);
   await seed("d4d4d4d4d4d4d4d4", CSV, [{ estado: "aprobado" }, { estado: "publicado-simulado" }]);
   await seed("a7a7a7a7a7a7a7a7", CSV_ADVERTENCIA, []);
-  await seed("e5e5e5e5e5e5e5e5", CSV_DUDOSA, [{ estado: "rechazado", motivo: "C04 dos veces en el CSV: reexportar" }]);
+  await seed("e5e5e5e5e5e5e5e5", CSV_DUDOSA, [{ estado: "rechazado", motivo: "C03 con guiones bajos de más: reexportar" }]);
   await store.put(protoPath("f6f6f6f6f6f6f6f6", "listado.csv"), new TextEncoder().encode(CSV), "text/csv");
 }, 60000);
 afterAll(() => {
@@ -129,7 +129,7 @@ afterAll(() => {
 });
 
 describe("Pantallas del spike (React DOM + API en memoria)", () => {
-  it("en revisión con dudosas: C04 dudosa con sus razones, Aprobar deshabilitado con el motivo, Rechazar pide motivo", async () => {
+  it("en revisión con dudosas: C03 dudosa (nombre anómalo) con sus razones, Aprobar deshabilitado con el motivo, Rechazar pide motivo", async () => {
     setUploadKey(KEY);
     await mount(createElement(CsvReviewScreen, { id: "b2b2b2b2b2b2b2b2" }), "Decisión");
     expect(text()).toContain("En revisión");
@@ -145,8 +145,11 @@ describe("Pantallas del spike (React DOM + API en memoria)", () => {
   it("v0.4, en revisión con advertencias: insignia «advertencia» con texto, CSV contra .dae a la vista, motivo obligatorio para Aprobar", async () => {
     setUploadKey(KEY);
     await mount(createElement(CsvReviewScreen, { id: "a7a7a7a7a7a7a7a7" }), "Decisión");
-    // Insignia con texto (no solo color) y sin bloqueo.
-    expect(text()).toMatch(/0001-01-M01-C04.*advertencia/);
+    // Insignia con texto (no solo color), dentro de la fila de C04 de la tabla, y sin bloqueo.
+    const fila = [...container.querySelectorAll("tbody tr")].find((tr) => tr.querySelector("td")?.textContent?.trim() === "0001-01-M01-C04");
+    expect(fila, "falta la fila de C04 en la tabla").toBeDefined();
+    const insignia = fila?.querySelector("td:last-child span");
+    expect(insignia?.textContent?.replace(/\s+/g, " ").trim()).toBe("⚠ advertencia");
     expect(text()).not.toContain("No se puede aprobar");
     // Lista de advertencias antes del motivo, con el CSV contra el .dae del tipo afectado, sin abrir la fila.
     const lista = container.querySelector('[data-testid="advertencias"]');
@@ -187,10 +190,11 @@ describe("Pantallas del spike (React DOM + API en memoria)", () => {
     await unmount();
   }, 30000);
 
-  it("con dudosas sigue deshabilitado, con el motivo escrito, aunque haya advertencias o un motivo", async () => {
+  it("con dudosas sigue deshabilitado, con el motivo escrito (sin campo de motivo de aprobación)", async () => {
     await mount(createElement(CsvReviewScreen, { id: "b2b2b2b2b2b2b2b2" }), "Decisión");
     expect(button("Aprobar")?.disabled).toBe(true);
     expect(text()).toContain("Con dudosas solo se puede rechazar.");
+    expect(text()).not.toContain("Motivo de la aprobación");
     await unmount();
   }, 30000);
 
@@ -240,11 +244,11 @@ describe("Pantallas del spike (React DOM + API en memoria)", () => {
 
   it("rechazado: muestra el motivo y la carga queda cerrada", async () => {
     await mount(createElement(CsvReviewScreen, { id: "e5e5e5e5e5e5e5e5" }), "Rechazada");
-    expect(text()).toContain("«C04 dos veces en el CSV: reexportar»");
+    expect(text()).toContain("«C03 con guiones bajos de más: reexportar»");
     // Fechas en 24 horas y con zona horaria, en el encabezado y en el historial.
     expect(text()).toContain(`Registrada ${FECHA}`);
     expect(text()).toContain(`1. En revisión · ${FECHA}`);
-    expect(text()).toContain(`2. Rechazado · ${FECHA} · «C04 dos veces en el CSV: reexportar»`);
+    expect(text()).toContain(`2. Rechazado · ${FECHA} · «C03 con guiones bajos de más: reexportar»`);
     expect(text()).not.toMatch(/[ap]\. ?m\.|AM|PM/);
     expect(button("Aprobar")).toBeUndefined();
     await unmount();

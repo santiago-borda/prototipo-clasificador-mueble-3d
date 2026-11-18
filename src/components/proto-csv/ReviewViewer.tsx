@@ -1,17 +1,21 @@
 "use client";
 
 // Visor 3D chico de la revisión (spike): el .dae guardado, con el mismo cargador del visor principal, sin texturas
-// y sin el registro global de muebles. La pieza elegida en la tabla se resalta; las dudosas van en ámbar.
+// y sin el registro global de muebles. La pieza elegida en la tabla se resalta; los tipos dudosos van en rojo y los de advertencia en ámbar (`viewerColors.ts`).
 
 import { Suspense, useMemo } from "react";
 import { Canvas, useLoader } from "@react-three/fiber";
 import { Bounds, OrbitControls } from "@react-three/drei";
 import { buildFurnitureModel } from "@/model/colladaModel";
 import { NamedColladaLoader, skipTextures } from "@/model/namedColladaLoader";
+import { pieceColor } from "@/proto-csv/viewerColors";
 
-const COLORS = { selected: "#0d9488", dudosa: "#f59e0b", neutral: "#cbd5e1" };
+interface Sets {
+  dudosas: ReadonlySet<string>;
+  advertencias: ReadonlySet<string>;
+}
 
-function Model({ url, selected, dudosas }: { url: string; selected: string | null; dudosas: ReadonlySet<string> }) {
+function Model({ url, selected, dudosas, advertencias }: { url: string; selected: string | null } & Sets) {
   const collada = useLoader(NamedColladaLoader, url, skipTextures);
   const model = useMemo(() => {
     if (!collada) throw new Error(`No se pudo leer ${url}`);
@@ -22,7 +26,7 @@ function Model({ url, selected, dudosas }: { url: string; selected: string | nul
       {model.parts.map((part) => {
         const code = part.instanceId.split("#")[0];
         const isSelected = code === selected;
-        const color = isSelected ? COLORS.selected : dudosas.has(code) ? COLORS.dudosa : COLORS.neutral;
+        const color = pieceColor(code, selected, dudosas, advertencias);
         const faded = selected !== null && !isSelected;
         return (
           <mesh key={part.instanceId} geometry={part.geometry}>
@@ -34,7 +38,7 @@ function Model({ url, selected, dudosas }: { url: string; selected: string | nul
   );
 }
 
-export default function ReviewViewer({ url, selected, dudosas }: { url: string; selected: string | null; dudosas: ReadonlySet<string> }) {
+export default function ReviewViewer({ url, selected, dudosas, advertencias }: { url: string; selected: string | null } & Sets) {
   return (
     <div className="h-80 w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
       <Canvas frameloop="demand" camera={{ position: [1.6, 1.1, 2], fov: 36, near: 0.01, far: 50 }}>
@@ -42,7 +46,7 @@ export default function ReviewViewer({ url, selected, dudosas }: { url: string; 
         <directionalLight position={[2.5, 4, 3]} intensity={1.4} />
         <Suspense fallback={null}>
           <Bounds fit clip observe margin={1.25}>
-            <Model url={url} selected={selected} dudosas={dudosas} />
+            <Model url={url} selected={selected} dudosas={dudosas} advertencias={advertencias} />
           </Bounds>
         </Suspense>
         <OrbitControls makeDefault />

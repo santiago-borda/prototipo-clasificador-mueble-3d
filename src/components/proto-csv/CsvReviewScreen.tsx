@@ -162,8 +162,9 @@ export function CsvReviewScreen({ id }: { id: string }) {
     };
   }, [id, version]);
 
-  /** Para el visor: en ámbar lo que pide atención (dudosas y advertencias). */
-  const dudosas = useMemo(() => new Set(carga?.analysis.ok ? carga.analysis.review.types.filter((t) => t.level !== "segura").map((t) => t.code) : []), [carga]);
+  /** Para el visor: dos conjuntos de tipos, rojo los dudosos y ámbar los de advertencia. */
+  const dudosas = useMemo(() => new Set(carga?.analysis.ok ? carga.analysis.review.types.filter((t) => t.level === "dudosa").map((t) => t.code) : []), [carga]);
+  const advertencias = useMemo(() => new Set(carga?.analysis.ok ? carga.analysis.review.types.filter((t) => t.level === "advertencia").map((t) => t.code) : []), [carga]);
 
   if (error) {
     return (
@@ -264,8 +265,8 @@ export function CsvReviewScreen({ id }: { id: string }) {
           {review.looseMeshes > 0 && <p className="mt-2 text-xs text-slate-500">{review.looseMeshes} mallas del .dae sin componente (informativo, no bloquea).</p>}
 
           <div className="mt-6">
-            <ReviewViewer url={`/api/proto-csv/${id}/archivo/modelo.dae`} selected={selected} dudosas={dudosas} />
-            <p className="mt-1 text-xs text-slate-500">Verde: pieza elegida · ámbar: dudosas o con advertencia · gris: el resto. Arrastrá para girar.</p>
+            <ReviewViewer url={`/api/proto-csv/${id}/archivo/modelo.dae`} selected={selected} dudosas={dudosas} advertencias={advertencias} />
+            <p className="mt-1 text-xs text-slate-500">Verde: pieza elegida · rojo: tipos dudosos · ámbar: tipos con advertencia · gris: el resto. Arrastrá para girar.</p>
           </div>
 
           {svgFile && informe.svgMaterial && (

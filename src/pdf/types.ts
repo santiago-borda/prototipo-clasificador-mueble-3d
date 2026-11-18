@@ -133,6 +133,23 @@ export interface PdfTextElement {
   text: string;
 }
 
+/**
+ * Cómo agrupar elementos en segmentos y filas (spec-esquema §8.2, "Granularidad con OCR"). Cada campo omitido toma el
+ * valor de TextoPdf, así que sin `layout` el parser lee exactamente igual que antes. Las razones son proporciones del
+ * alto de la caja, no puntos: no dependen de la unidad de la extracción.
+ */
+export interface PdfTextLayout {
+  /** Hueco máximo, × el alto del más bajo de los dos elementos, para unirlos en un segmento con un espacio. Por defecto 1. */
+  joinGapRatio?: number;
+  /**
+   * Hueco máximo (también negativo: cajas solapadas), × el alto del más bajo, para unirlos SIN espacio, siempre que
+   * al menos uno de los dos no tenga letras ni dígitos (un signo suelto: ".", "~", "-"). Por defecto no se pega nada.
+   */
+  glueGapRatio?: number;
+  /** Cuánto antes del borde superior de su letra "No." empieza una fila, × el alto de esa letra. Por defecto 0. */
+  rowToleranceRatio?: number;
+}
+
 /** Lo que no sale de los elementos de texto va directo a `CutListPdf.source`. */
 export interface PdfTextInput {
   fileName: string;
@@ -143,6 +160,8 @@ export interface PdfTextInput {
   pageWidths: readonly { page: number; width: number }[];
   /** De todas las páginas, en cualquier orden. */
   elements: readonly PdfTextElement[];
+  /** Parámetros de agrupación. Solo los pasa la lectura por OCR (`parseOcrWords`); TextoPdf usa los valores por defecto. */
+  layout?: PdfTextLayout;
 }
 
 // --- Evidencia de OcrLlm (docs/spec-extraccion-pdf.md §4) ---

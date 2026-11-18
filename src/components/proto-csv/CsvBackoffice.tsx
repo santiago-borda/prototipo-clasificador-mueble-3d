@@ -11,12 +11,10 @@ import { useEffect, useMemo, useState } from "react";
 import { newImportId } from "@/importer/paths";
 import { analyze, type Analysis } from "@/proto-csv/browser";
 import { parseOclCsv } from "@/proto-csv/parse";
-import { useUploadKey } from "@/proto-csv/keyStore";
 import { MAX_BYTES, MAX_CARGAS, isSafeFileName, materialSlug, protoPath } from "@/proto-csv/paths";
 import { approveBlockers, summarizeReview } from "@/proto-csv/review";
 import { ESTADO_TEXT, REJECTION_TEXT } from "@/proto-csv/texts";
 import { FileDrop } from "./FileDrop";
-import { KeyField } from "./KeyField";
 
 interface CargaItem {
   id: string;
@@ -64,7 +62,6 @@ function AnalysisBox({ analysis }: { analysis: Analysis }) {
 
 export function CsvBackoffice({ configured }: { configured: boolean }) {
   const router = useRouter();
-  const key = useUploadKey();
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [daeFile, setDaeFile] = useState<File | null>(null);
   const [textures, setTextures] = useState<File[]>([]);
@@ -109,13 +106,11 @@ export function CsvBackoffice({ configured }: { configured: boolean }) {
   if (svgFile && !svgMaterial) fileProblems.push("Elegí a qué material corresponde el SVG (el SVG no lo dice).");
   if (svgFile && svgFile.size > MAX_BYTES.svg) fileProblems.push("El SVG supera 1 MB.");
 
-  const headers = { "x-import-key": key };
-  const canUpload = Boolean(configured && key && analysis?.ok && csvFile && daeFile && fileProblems.length === 0 && !busy);
+  const canUpload = Boolean(configured && analysis?.ok && csvFile && daeFile && fileProblems.length === 0 && !busy);
 
   async function refreshList() {
     setError(null);
-    const res = await fetch("/api/proto-csv", { headers, cache: "no-store" });
-    if (res.status === 401) return setError("La clave es incorrecta.");
+    const res = await fetch("/api/proto-csv", { cache: "no-store" });
     if (!res.ok) return setError(`No se pudo listar las cargas (error ${res.status}).`);
     setItems(((await res.json()) as { cargas: CargaItem[] }).cargas);
   }
@@ -123,7 +118,7 @@ export function CsvBackoffice({ configured }: { configured: boolean }) {
   async function remove(id: string, registrada: boolean) {
     const what = registrada ? "la carga" : "la carga incompleta";
     if (!window.confirm(`¿Borrar ${what} ${id}? No se puede deshacer.`)) return;
-    const res = await fetch(`/api/proto-csv/${id}`, { method: "DELETE", headers });
+    const res = await fetch(`/api/proto-csv/${id}`, { method: "DELETE" });
     if (!res.ok) return setError(`No se pudo borrar (error ${res.status}).`);
     await refreshList();
   }
@@ -132,7 +127,7 @@ export function CsvBackoffice({ configured }: { configured: boolean }) {
     if (!analysis?.ok || !csvFile || !daeFile) return;
     setError(null);
     const id = newImportId();
-    const options = { access: "private", handleUploadUrl: "/api/proto-csv/token", headers } as const;
+    const options = { access: "private", handleUploadUrl: "/api/proto-csv/token" } as const;
     try {
       setBusy("Subiendo el .dae…");
       await upload(protoPath(id, "modelo.dae"), daeFile, { ...options, contentType: "model/vnd.collada+xml" });
@@ -149,7 +144,7 @@ export function CsvBackoffice({ configured }: { configured: boolean }) {
       setBusy("Registrando…");
       const res = await fetch("/api/proto-csv", {
         method: "POST",
-        headers: { ...headers, "content-type": "application/json" },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
           id,
           modelId: analysis.modelId,
@@ -258,8 +253,7 @@ export function CsvBackoffice({ configured }: { configured: boolean }) {
         </ul>
       )}
 
-      <section className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,28rem)_auto] sm:items-center">
-        <KeyField />
+      <section className="mt-4">
         <button type="button" disabled={!canUpload} onClick={handleUpload} className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
           {busy ?? "Subir y pasar a revisión"}
         </button>
@@ -269,7 +263,7 @@ export function CsvBackoffice({ configured }: { configured: boolean }) {
       <section className="mt-5 border-t border-slate-200 pt-4">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold text-slate-900">Cargas guardadas</h2>
-          <button type="button" disabled={!key} onClick={refreshList} className="rounded-md border border-slate-300 px-3 py-1 text-sm disabled:opacity-40">
+          <button type="button" onClick={refreshList} className="rounded-md border border-slate-300 px-3 py-1 text-sm disabled:opacity-40">
             {items ? "Actualizar" : "Ver cargas"}
           </button>
         </div>

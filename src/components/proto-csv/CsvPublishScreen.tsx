@@ -7,13 +7,10 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { loadCarga, type LoadedCarga } from "@/proto-csv/browser";
-import { useUploadKey } from "@/proto-csv/keyStore";
 import { PREVIEW_MARK, qrPreview } from "@/proto-csv/labels";
 import { EstadoBadge } from "./CsvReviewScreen";
-import { KeyField } from "./KeyField";
 
 export function CsvPublishScreen({ id }: { id: string }) {
-  const key = useUploadKey();
   const [carga, setCarga] = useState<LoadedCarga | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -44,7 +41,7 @@ export function CsvPublishScreen({ id }: { id: string }) {
     setBusy(true);
     const res = await fetch(`/api/proto-csv/${id}/estado`, {
       method: "POST",
-      headers: { "x-import-key": key, "content-type": "application/json" },
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({ estado: "publicado-simulado" }),
     });
     setBusy(false);
@@ -66,9 +63,8 @@ export function CsvPublishScreen({ id }: { id: string }) {
       </div>
 
       {estado === "aprobado" && (
-        <section className="mt-4 grid gap-3 rounded-lg border border-slate-200 p-4 sm:grid-cols-[1fr_auto] sm:items-end">
-          <KeyField />
-          <button type="button" disabled={!key || busy} onClick={publish} className="rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
+        <section className="mt-4 rounded-lg border border-slate-200 p-4">
+          <button type="button" disabled={busy} onClick={publish} className="rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
             Publicar (simulado)
           </button>
           <p className="text-xs text-slate-500 sm:col-span-2">No se publica nada de verdad: solo cambia el estado y se genera la vista previa.</p>

@@ -14,7 +14,6 @@ import { modelId } from "@/engine/hash";
 import { createMemoryStore } from "@/importer/store";
 import { observeDae } from "@/model/observe";
 import { createProtoApi } from "@/proto-csv/api";
-import { setUploadKey } from "@/proto-csv/keyStore";
 import { parseOclCsv } from "@/proto-csv/parse";
 import { protoPath } from "@/proto-csv/paths";
 import { reviewListing, summarizeReview } from "@/proto-csv/review";
@@ -42,12 +41,11 @@ const CSV_ADVERTENCIA = CSV.replace(/^(A;0001-01-M01-C04;)1;/m, "$12;"); // sint
 const CSV_DUDOSA = CSV.replace(/^A;0001-01-M01-C03;/m, "A;_0001-01-M01-C03__;"); // sintético: C03 con nombre anómalo (excluido): dudosa
 const SVG = new Uint8Array(readFileSync(path.join(DIR, "diagrama-blanco18.svg")));
 const DAE = new Uint8Array(readFileSync(path.join(DIR, "gabinete-prueba-opencutlist.dae")));
-const KEY = "clave";
 const store = createMemoryStore();
 /** Hora fija: 19:55:09 UTC = 16:55:09 en Buenos Aires (UTC−3). */
-const api = createProtoApi({ store, uploadKey: KEY, now: () => new Date("2026-11-16T19:55:09Z") });
+const api = createProtoApi({ store, now: () => new Date("2026-11-16T19:55:09Z") });
 const FECHA = "16/11/2026 16:55:09 (America/Buenos_Aires)";
-const post = (url: string, body: unknown) => new Request(`http://localhost${url}`, { method: "POST", headers: { "x-import-key": KEY, "content-type": "application/json" }, body: JSON.stringify(body) });
+const post = (url: string, body: unknown) => new Request(`http://localhost${url}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
 
 async function seed(id: string, csv: string, steps: { estado: string; motivo?: string }[]) {
   await store.put(protoPath(id, "listado.csv"), new TextEncoder().encode(csv), "text/csv");
@@ -67,10 +65,10 @@ async function route(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
   const parts = url.pathname.split("/").filter(Boolean); // api, proto-csv, id?, ...
   if (parts[0] !== "api" || parts[1] !== "proto-csv") throw new Error(`fetch inesperado: ${url.pathname}`);
   const id = parts[2];
-  if (!id) return request.method === "GET" ? api.list(request) : api.register(request);
+  if (!id) return request.method === "GET" ? api.list() : api.register(request);
   if (parts[3] === "archivo") return api.file(id, parts.slice(4).join("/"));
   if (parts[3] === "estado") return api.changeState(request, id);
-  return request.method === "DELETE" ? api.remove(request, id) : api.read(id);
+  return request.method === "DELETE" ? api.remove(id) : api.read(id);
 }
 
 let root: Root;
@@ -125,12 +123,10 @@ beforeAll(async () => {
 }, 60000);
 afterAll(() => {
   vi.unstubAllGlobals();
-  setUploadKey("");
 });
 
 describe("Pantallas del spike (React DOM + API en memoria)", () => {
   it("en revisión con dudosas: C03 dudosa (nombre anómalo) con sus razones, Aprobar deshabilitado con el motivo, Rechazar pide motivo", async () => {
-    setUploadKey(KEY);
     await mount(createElement(CsvReviewScreen, { id: "b2b2b2b2b2b2b2b2" }), "Decisión");
     expect(text()).toContain("En revisión");
     expect(text()).toContain("No se puede aprobar: 1 pieza dudosa.");
@@ -143,7 +139,6 @@ describe("Pantallas del spike (React DOM + API en memoria)", () => {
   }, 30000);
 
   it("v0.4, en revisión con advertencias: insignia «advertencia» con texto, CSV contra .dae a la vista, motivo obligatorio para Aprobar", async () => {
-    setUploadKey(KEY);
     await mount(createElement(CsvReviewScreen, { id: "a7a7a7a7a7a7a7a7" }), "Decisión");
     // Insignia con texto (no solo color), dentro de la fila de C04 de la tabla, y sin bloqueo.
     const fila = [...container.querySelectorAll("tbody tr")].find((tr) => tr.querySelector("td")?.textContent?.trim() === "0001-01-M01-C04");
@@ -201,7 +196,7 @@ describe("Pantallas del spike (React DOM + API en memoria)", () => {
     await unmount();
   }, 30000);
 
-  it("en revisión limpia: 4 seguras, comparación CSV vs .dae, esquema de canteado, Aprobar habilitado con la clave", async () => {
+  it("en revisión limpia: 4 seguras, comparación CSV vs .dae, esquema de canteado, Aprobar habilitado sin clave", async () => {
     await mount(createElement(CsvReviewScreen, { id: "a1a1a1a1a1a1a1a1" }), "Decisión");
     expect(text()).not.toContain("No se puede aprobar");
     expect(text()).not.toContain("dudosa ");
@@ -262,7 +257,6 @@ describe("Pantallas del spike (React DOM + API en memoria)", () => {
     ["sin «Ancho de borde 2» (sintético)", CSV.replace(/;Ancho de borde 2/, ";Columna borrada"), "Falta una columna", "desmarcá «ocultar la columna de cantos»"],
     ["Longitud en cm (sintético)", CSV.replace("800,0 mm;400,0 mm;18,0 mm", "80,0 cm;400,0 mm;18,0 mm"), "no están en milímetros", "Unidades: elegí milímetros"],
   ])("subida, rechazo «%s»: título, mensaje y qué hacer; no deja subir", async (_name, csv, title, fix) => {
-    setUploadKey(KEY);
     await mount(createElement(CsvBackoffice, { configured: true }), "Nueva carga");
     const [csvInput, daeInput] = [...container.querySelectorAll<HTMLInputElement>('input[type="file"]')];
     const choose = async (input: HTMLInputElement, file: File) => {

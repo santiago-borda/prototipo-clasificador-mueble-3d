@@ -1,13 +1,12 @@
 // Lógica de las rutas del spike (Request -> Response), separada de los route.ts para probarla con el store en memoria
 // (docs/spec-proto-csv-ocl.md §4). Solo servidor: usa node:crypto (sha256 y modelId).
 //
-// Escritura (token, registrar, cambiar estado, listar, borrar): clave compartida `x-import-key`, con el mismo `guard`
-// del importador. Lectura (`read`, `file`): abierta por link, con id no adivinable, solo de cargas registradas.
+// Sin clave (v0.5, decisión del 18/11): escritura (token, registrar, cambiar estado, listar, borrar) y lectura (`read`,
+// `file`) quedan abiertas por link; solo hace falta que haya store (si no, 503). Solo fixtures sin datos de terceros.
 // Todo acceso al store pasa por `scopedStore` (solo `proto-csv/`, P3).
 
 import { createHash } from "node:crypto";
 import { listadoId, modelId as modelIdOf } from "@/engine/hash";
-import { createImportApi } from "@/importer/api";
 import type { ImportStore } from "@/importer/store";
 import { parseOclCsv, type CsvIssue } from "./parse";
 import { levelOf, type CruceCliente, type TypeReason } from "./review";
@@ -51,7 +50,6 @@ export interface ProtoInforme {
 
 export interface ProtoApiConfig {
   store?: ImportStore;
-  uploadKey?: string;
   now?: () => Date;
   /** Registro de fallos (borrado de una carga rechazada). Por defecto, console.error. */
   log?: (message: string) => void;
@@ -130,10 +128,8 @@ export const FILE_SECURITY_HEADERS = {
   "content-security-policy": "default-src 'none'; sandbox",
 } as const;
 
-export function createProtoApi({ store: rawStore, uploadKey, now = () => new Date(), log = (m) => console.error(m) }: ProtoApiConfig) {
+export function createProtoApi({ store: rawStore, now = () => new Date(), log = (m) => console.error(m) }: ProtoApiConfig) {
   const store = rawStore ? scopedStore(rawStore) : undefined;
-  // Mismo guard del importador: 503 sin store o sin clave, 401 con clave ausente o incorrecta.
-  const { guard } = createImportApi({ store, uploadKey });
 
   const need = (): ImportStore => {
     if (!store) throw new HttpError(503, "Carga por CSV no configurada.", "sin-configurar");
@@ -198,9 +194,8 @@ export function createProtoApi({ store: rawStore, uploadKey, now = () => new Dat
 
   return {
     get configured() {
-      return Boolean(store && uploadKey);
+      return Boolean(store);
     },
-    guard,
 
     /** Token de subida directa: solo archivos que sube el navegador, con su tamaño máximo, y respetando el tope. */
     async authorizeUpload(pathname: string) {
@@ -221,8 +216,6 @@ export function createProtoApi({ store: rawStore, uploadKey, now = () => new Dat
 
     register: (request: Request) =>
       run(async () => {
-        const denied = await guard(request);
-        if (denied) return denied;
         const s = need();
 
         let body: unknown;
@@ -294,8 +287,6 @@ export function createProtoApi({ store: rawStore, uploadKey, now = () => new Dat
 
     changeState: (request: Request, id: string) =>
       run(async () => {
-        const denied = await guard(request);
-        if (denied) return denied;
         const s = need();
         const informe = await informeOf(s, id);
         let body: unknown;
@@ -332,10 +323,8 @@ export function createProtoApi({ store: rawStore, uploadKey, now = () => new Dat
         return Response.json({ id, estado: evento.estado, evento });
       }),
 
-    list: (request: Request) =>
+    list: () =>
       run(async () => {
-        const denied = await guard(request);
-        if (denied) return denied;
         const s = need();
         const items = [];
         for (const id of await existingIds(s)) {
@@ -376,10 +365,8 @@ export function createProtoApi({ store: rawStore, uploadKey, now = () => new Dat
         });
       }),
 
-    remove: (request: Request, id: string) =>
+    remove: (id: string) =>
       run(async () => {
-        const denied = await guard(request);
-        if (denied) return denied;
         const s = need();
         if (!PROTO_ID.test(id)) throw new HttpError(404, "No existe esa carga.", "no-existe");
         const keys = await s.list(protoDir(id));

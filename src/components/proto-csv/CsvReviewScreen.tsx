@@ -11,10 +11,8 @@ import { useEffect, useMemo, useState } from "react";
 import { EdgeBandingDiagram } from "@/components/EdgeBandingDiagram";
 import type { EdgeId } from "@/data/types";
 import { loadCarga, type LoadedCarga } from "@/proto-csv/browser";
-import { useUploadKey } from "@/proto-csv/keyStore";
 import { DERIVED_REASONS, approveBlockers, type TypeLevel, type TypeReview } from "@/proto-csv/review";
 import { ESTADO_TEXT, SOURCE_TEXT, formatFecha, reasonText } from "@/proto-csv/texts";
-import { KeyField } from "./KeyField";
 import { PlacaView } from "./PlacaView";
 
 const ReviewViewer = dynamic(() => import("./ReviewViewer"), { ssr: false, loading: () => <div className="h-80 rounded-lg bg-slate-100" /> });
@@ -128,7 +126,6 @@ function PieceDetail({ type }: { type: TypeReview }) {
 }
 
 export function CsvReviewScreen({ id }: { id: string }) {
-  const key = useUploadKey();
   const [carga, setCarga] = useState<LoadedCarga | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -193,7 +190,7 @@ export function CsvReviewScreen({ id }: { id: string }) {
     setActionError(null);
     const res = await fetch(`/api/proto-csv/${id}/estado`, {
       method: "POST",
-      headers: { "x-import-key": key, "content-type": "application/json" },
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({ estado: to, motivo: to === "rechazado" ? motivo : needsMotivo ? approveMotivo : undefined }),
     });
     setBusy(false);
@@ -318,11 +315,10 @@ export function CsvReviewScreen({ id }: { id: string }) {
               </div>
             )}
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
-              <KeyField />
               <div>
                 <button
                   type="button"
-                  disabled={blockers.length > 0 || !key || busy || (needsMotivo && approveMotivo.trim() === "")}
+                  disabled={blockers.length > 0 || busy || (needsMotivo && approveMotivo.trim() === "")}
                   onClick={() => change("aprobado")}
                   className="w-full rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
                 >
@@ -336,7 +332,6 @@ export function CsvReviewScreen({ id }: { id: string }) {
                 {blockers.length === 0 && needsMotivo && approveMotivo.trim() === "" && (
                   <p className="mt-2 text-xs text-yellow-900">Para aprobar con advertencias, escribí el motivo de abajo.</p>
                 )}
-                {blockers.length === 0 && !key && <p className="mt-2 text-xs text-slate-500">Ingresá la clave para aprobar o rechazar.</p>}
               </div>
             </div>
             {needsMotivo && blockers.length === 0 && (
@@ -358,7 +353,7 @@ export function CsvReviewScreen({ id }: { id: string }) {
               </label>
               <button
                 type="button"
-                disabled={motivo.trim() === "" || !key || busy}
+                disabled={motivo.trim() === "" || busy}
                 onClick={() => change("rechazado")}
                 className="rounded-md border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 disabled:opacity-40"
               >

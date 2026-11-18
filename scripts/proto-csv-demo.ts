@@ -3,7 +3,7 @@
 // Solo el fixture del gabinete (sin datos de terceros). No usa red.
 //
 //   npx vite-node -c vitest.config.ts scripts/proto-csv-demo.ts
-//   IMPORT_STORE=local IMPORT_UPLOAD_KEY=<la que elijas> npm run dev   →  /backoffice/csv/<id>
+//   IMPORT_STORE=local npm run dev (sin clave, v0.5)   →  /backoffice/csv/<id>
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -22,13 +22,12 @@ const DIR = path.resolve("tests/fixtures/csv-ocl/gabinete");
 const CSV = readFileSync(path.join(DIR, "gabinete-prueba-canto.csv"), "utf8");
 const DAE = new Uint8Array(readFileSync(path.join(DIR, "gabinete-prueba-opencutlist.dae")));
 const SVG = new Uint8Array(readFileSync(path.join(DIR, "diagrama-blanco18.svg")));
-const KEY = "demo-local";
 const enc = (t: string) => new TextEncoder().encode(t);
 
 const store = createLocalStore(path.resolve(LOCAL_STORE_DIR));
-const api = createProtoApi({ store, uploadKey: KEY });
+const api = createProtoApi({ store });
 const post = (url: string, body: unknown) =>
-  new Request(`http://localhost${url}`, { method: "POST", headers: { "x-import-key": KEY, "content-type": "application/json" }, body: JSON.stringify(body) });
+  new Request(`http://localhost${url}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
 
 /** Variante sintética del CSV real: C04 con Cantidad 2 (el .dae tiene 1): advertencia, se acepta con motivo. */
 const CSV_ADVERTENCIA = CSV.replace(/^(A;0001-01-M01-C04;)1;/m, "$12;");

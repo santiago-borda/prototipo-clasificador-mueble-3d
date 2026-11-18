@@ -4,11 +4,10 @@ import { protoApiFromEnv } from "@/proto-csv/config";
 import { ProtoPathError } from "@/proto-csv/paths";
 
 // Token de subida directa del navegador al Blob, solo para claves proto-csv/<id>/ que sube el navegador (spike).
-// Exige la clave (x-import-key). El registro lo hace el navegador después, con POST /api/proto-csv.
+// Sin clave (v0.5): solo exige que haya store. El registro lo hace el navegador después, con POST /api/proto-csv.
 export async function POST(request: Request) {
   const api = protoApiFromEnv(process.env);
-  const denied = await api.guard(request);
-  if (denied) return denied;
+  if (!api.configured) return Response.json({ error: "Carga por CSV no configurada.", code: "sin-configurar" }, { status: 503 });
 
   let body: HandleUploadBody;
   try {

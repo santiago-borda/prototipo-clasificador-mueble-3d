@@ -1,7 +1,7 @@
 // C12 y condiciones de las pantallas del spike (docs/spec-proto-csv-ocl.md §4). Puras y estáticas: la interacción en
 // el navegador se verifica a mano (capturas) y en M1.
 
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { observeDae } from "@/model/observe";
@@ -58,14 +58,22 @@ describe("C12: QR (solo texto) y etiquetas", () => {
   });
 });
 
-describe("Clave de subida: fuera del bundle y solo en memoria", () => {
+describe("v0.5: sin clave en el spike", () => {
+  it("ningún archivo del spike manda x-import-key, lee IMPORT_UPLOAD_KEY ni tiene campo de clave", () => {
+    for (const file of SCREEN_FILES) expect(codeOnly(file), file).not.toMatch(/x-import-key|IMPORT_UPLOAD_KEY|uploadKey|KeyField|keyStore|guard\(/);
+    expect(existsSync(path.join(ROOT, "src/components/proto-csv/KeyField.tsx"))).toBe(false);
+    expect(existsSync(path.join(ROOT, "src/proto-csv/keyStore.ts"))).toBe(false);
+  });
+});
+
+describe("Nada del spike en el bundle ni en el navegador", () => {
   it("ningún archivo del spike usa NEXT_PUBLIC_*, localStorage, sessionStorage ni cookies", () => {
     for (const file of SCREEN_FILES) {
       expect(codeOnly(file), file).not.toMatch(/NEXT_PUBLIC_|localStorage|sessionStorage|document\.cookie/);
     }
   });
 
-  it("la página del backoffice solo pasa un booleano al cliente (no la clave)", () => {
+  it("la página del backoffice solo pasa un booleano al cliente (hay store)", () => {
     const page = readFileSync(path.join(ROOT, "src/app/backoffice/csv/page.tsx"), "utf8");
     expect(page).toMatch(/configured=\{protoApiFromEnv\(process\.env\)\.configured\}/);
     expect(page).not.toMatch(/IMPORT_UPLOAD_KEY/);

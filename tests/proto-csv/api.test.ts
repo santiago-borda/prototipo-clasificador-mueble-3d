@@ -17,7 +17,6 @@ const DIR = path.resolve(__dirname, "..", "fixtures", "csv-ocl", "gabinete");
 const CSV = new Uint8Array(readFileSync(path.join(DIR, "gabinete-prueba-canto.csv")));
 const DAE = new Uint8Array(readFileSync(path.join(DIR, "gabinete-prueba-opencutlist.dae")));
 const SVG = new Uint8Array(readFileSync(path.join(DIR, "diagrama-blanco18.svg")));
-const KEY = "clave-de-prueba";
 const ID = "0123456789abcdef";
 const OTHER = "fedcba9876543210";
 
@@ -25,10 +24,10 @@ const parsed = parseOclCsv(new TextDecoder().decode(CSV));
 if (!parsed.ok) throw new Error("fixture");
 const CRUCE: CruceCliente = summarizeReview(reviewListing(parsed.listing, observeDae(DAE), 2));
 
-const req = (method: string, body?: unknown, key: string | null = KEY) =>
+const req = (method: string, body?: unknown) =>
   new Request("http://localhost/api/proto-csv", {
     method,
-    headers: { "content-type": "application/json", ...(key === null ? {} : { "x-import-key": key }) },
+    headers: { "content-type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 
@@ -39,7 +38,7 @@ async function upload(store: ImportStore, id = ID, files: Record<string, Uint8Ar
 const registerBody = (over: Record<string, unknown> = {}) => ({ id: ID, modelId: modelId(DAE), cruce: CRUCE, svgMaterial: "Blanco 18", nombres: { csv: "gabinete-prueba-canto.csv", dae: "gabinete-prueba-opencutlist.dae" }, ...over });
 
 function setup(store: ImportStore = createMemoryStore(), log = vi.fn()) {
-  return { store, log, api: createProtoApi({ store, uploadKey: KEY, now: () => new Date("2026-11-16T12:00:00Z"), log }) };
+  return { store, log, api: createProtoApi({ store, now: () => new Date("2026-11-16T12:00:00Z"), log }) };
 }
 
 /** Store que anota cada clave y prefijo que se le pide. */
@@ -60,15 +59,17 @@ const state = async (api: ReturnType<typeof setup>["api"], estado: string, motiv
 };
 
 describe("C11: API del spike con el store en memoria", () => {
-  it("sin store o sin clave configurados: 503; sin clave o con clave incorrecta: 401", async () => {
+  it("v0.5, sin clave: sin store, 503; con store, las escrituras responden sin x-import-key y configured es true", async () => {
     expect((await createProtoApi({}).register(req("POST", registerBody()))).status).toBe(503);
-    expect((await createProtoApi({ store: createMemoryStore() }).register(req("POST", registerBody()))).status).toBe(503);
-    const { api } = setup();
-    expect((await api.register(req("POST", registerBody(), null))).status).toBe(401);
-    expect((await api.register(req("POST", registerBody(), "otra"))).status).toBe(401);
-    expect((await api.list(req("GET", undefined, null))).status).toBe(401);
-    expect((await api.remove(req("DELETE", undefined, "otra"), ID)).status).toBe(401);
-    expect((await api.changeState(req("POST", { estado: "aprobado" }, null), ID)).status).toBe(401);
+    expect((await createProtoApi({}).list()).status).toBe(503);
+    expect(createProtoApi({}).configured).toBe(false);
+    const { api, store } = setup();
+    expect(api.configured).toBe(true);
+    await upload(store);
+    expect((await api.register(req("POST", registerBody()))).status).toBe(201);
+    expect((await api.list()).status).toBe(200);
+    expect((await api.changeState(req("POST", { estado: "aprobado" }), ID)).status).toBe(200);
+    expect((await api.remove(ID)).status).toBe(200);
   });
 
   it("registro: 201, informe con el sha256 de cada archivo, modelId y listadoId del servidor, y evento en-revision", async () => {
@@ -155,10 +156,10 @@ describe("C11: API del spike con el store en memoria", () => {
     const { api, store } = setup();
     await upload(store);
     await api.register(req("POST", registerBody()));
-    expect(await (await api.list(req("GET"))).json()).toEqual({ cargas: [{ id: ID, registrada: true, estado: "en-revision", fecha: "2026-11-16T12:00:00.000Z" }], tope: MAX_CARGAS });
-    expect(await (await api.remove(req("DELETE"), ID)).json()).toEqual({ id: ID, borrados: 5 });
+    expect(await (await api.list()).json()).toEqual({ cargas: [{ id: ID, registrada: true, estado: "en-revision", fecha: "2026-11-16T12:00:00.000Z" }], tope: MAX_CARGAS });
+    expect(await (await api.remove(ID)).json()).toEqual({ id: ID, borrados: 5 });
     expect(await store.list(protoDir(ID))).toEqual([]);
-    expect((await api.remove(req("DELETE"), ID)).status).toBe(404);
+    expect((await api.remove(ID)).status).toBe(404);
   });
 });
 
@@ -242,9 +243,9 @@ describe("C11d: cargas incompletas", () => {
   it("una carga subida y sin registrar aparece en la lista (registrada: false) y se puede borrar", async () => {
     const { api, store } = setup();
     await upload(store, ID, { "listado.csv": CSV });
-    expect(await (await api.list(req("GET"))).json()).toEqual({ cargas: [{ id: ID, registrada: false, estado: null, fecha: null }], tope: MAX_CARGAS });
-    expect(await (await api.remove(req("DELETE"), ID)).json()).toEqual({ id: ID, borrados: 1 });
-    expect(await (await api.list(req("GET"))).json()).toEqual({ cargas: [], tope: MAX_CARGAS });
+    expect(await (await api.list()).json()).toEqual({ cargas: [{ id: ID, registrada: false, estado: null, fecha: null }], tope: MAX_CARGAS });
+    expect(await (await api.remove(ID)).json()).toEqual({ id: ID, borrados: 1 });
+    expect(await (await api.list()).json()).toEqual({ cargas: [], tope: MAX_CARGAS });
   });
 });
 
@@ -302,11 +303,11 @@ describe("C13: todo queda bajo proto-csv/ (P3)", () => {
     await api.register(req("POST", registerBody()));
     await state(api, "aprobado");
     await state(api, "publicado-simulado");
-    await api.list(req("GET"));
+    await api.list();
     await api.read(ID);
     await api.file(ID, "modelo.dae");
     await api.file(ID, "../../importaciones/aaaaaaaaaaaaaaaa/mueble.json");
-    await api.remove(req("DELETE"), ID);
+    await api.remove(ID);
 
     expect(rec.touched.length).toBeGreaterThan(10);
     expect(rec.touched.filter((k) => !k.startsWith("proto-csv/"))).toEqual([]);

@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { parseRecords } from "@/importer/listing";
 import { observeDae } from "@/model/observe";
 import { parseOclCsv } from "@/proto-csv/parse";
-import { reviewListing } from "@/proto-csv/review";
+import { DERIVED_REASONS, SOFT_REASONS, levelOf, reviewListing } from "@/proto-csv/review";
 
 const DIR = path.resolve(__dirname, "..", "fixtures", "csv-ocl", "gabinete");
 const LISTADO = readFileSync(path.join(DIR, "gabinete-prueba-canto.csv"), "utf8");
@@ -69,20 +69,20 @@ describe("C8: CSV del gabinete × gabinete-prueba-opencutlist.dae (fixtures real
 });
 
 describe("C9: desajustes (variantes sintéticas del CSV)", () => {
-  it("C04 × 2 en el CSV (el .dae tiene 1): C04 dudosa y Aprobar bloqueado", () => {
+  it("C04 × 2 en el CSV (el .dae tiene 1): C04 advertencia (faltante + cantidad) y se puede aprobar", () => {
     const r = review(
       edit((rows, col, rowOf) => {
         rows[rowOf(C04)][col("Cantidad")] = "2";
       }),
     );
     const c04 = r.types.find((t) => t.code === C04);
-    expect(c04?.level).toBe("dudosa");
+    expect(c04?.level).toBe("advertencia");
     expect(c04?.reasons).toEqual(expect.arrayContaining([{ source: "motor", reason: "faltante" }, { source: "cruce", reason: "cantidad-no-coincide" }]));
     expect(r.types.filter((t) => t.code !== C04).every((t) => t.level === "segura")).toBe(true);
-    expect([r.dudosas, r.canApprove]).toEqual([1, false]);
+    expect([r.dudosas, r.advertencias, r.canApprove]).toEqual([0, 1, true]);
   });
 
-  it("medida fuera de tolerancia (C02 Longitud 770 en el CSV): dudosa por el motor y por el cruce", () => {
+  it("medida fuera de tolerancia (C02 Longitud 770 en el CSV): advertencia, con sus razones del motor y del cruce", () => {
     const r = review(
       edit((rows, col, rowOf) => {
         rows[rowOf(C02)][col("Longitud")] = "770,0 mm";
@@ -90,11 +90,19 @@ describe("C9: desajustes (variantes sintéticas del CSV)", () => {
       }),
     );
     const c02 = r.types.find((t) => t.code === C02);
-    expect(c02?.reasons).toEqual(expect.arrayContaining([{ source: "motor", reason: "medida-fuera-de-tolerancia" }, { source: "cruce", reason: "medida-no-coincide" }]));
-    expect(r.canApprove).toBe(false);
+    expect(c02?.level).toBe("advertencia");
+    expect(c02?.reasons).toEqual(
+      expect.arrayContaining([
+        { source: "motor", reason: "medida-fuera-de-tolerancia" },
+        { source: "cruce", reason: "medida-no-coincide" },
+        { source: "cruce", reason: "canteado-no-coincide" },
+        { source: "motor", reason: "instancia-no-segura" },
+      ]),
+    );
+    expect([r.dudosas, r.advertencias, r.canApprove]).toEqual([0, 1, true]);
   });
 
-  it("canto marcado en el CSV que el .dae no tiene (C04 con borde inferior): canteado-no-coincide por la regla de modelo", () => {
+  it("canto marcado en el CSV que el .dae no tiene (C04 con borde inferior): advertencia canteado-no-coincide por la regla de modelo", () => {
     const r = review(
       edit((rows, col, rowOf) => {
         rows[rowOf(C04)][col("Longitud del borde 1")] = "Canto_Blanco (0,2 mm x 22,0 mm)";
@@ -107,7 +115,8 @@ describe("C9: desajustes (variantes sintéticas del CSV)", () => {
     const c04 = r.types.find((t) => t.code === C04);
     expect(c04?.edgeCheck).toBe("no-coincide");
     expect(c04?.reasons).toEqual([{ source: "cruce", reason: "canteado-no-coincide" }]);
-    expect(r.canApprove).toBe(false);
+    expect(c04?.level).toBe("advertencia");
+    expect([r.dudosas, r.advertencias, r.canApprove]).toEqual([0, 1, true]);
   });
 
   it("límite: C01 con el canto izquierdo pasado a derecho en el CSV sigue segura (mismo lado A)", () => {
@@ -120,6 +129,7 @@ describe("C9: desajustes (variantes sintéticas del CSV)", () => {
       }),
     );
     expect(r.types.find((t) => t.code === C01)?.level).toBe("segura");
+    expect(r.advertencias).toBe(0);
   });
 
   it("CSV sin C02 (pieza y sus filas de canto quitadas): la instancia de C02 queda huérfana y bloquea", () => {
@@ -129,6 +139,7 @@ describe("C9: desajustes (variantes sintéticas del CSV)", () => {
       }),
     );
     expect(r.orphanInstances.map((o) => o.reasons)).toEqual([["codigo-inexistente"]]);
+    expect(r.advertencias).toBe(0);
     expect(r.types.map((t) => t.code)).toEqual([C01, C03, C04]);
     expect(r.canApprove).toBe(false);
   });
@@ -143,5 +154,24 @@ describe("C9: desajustes (variantes sintéticas del CSV)", () => {
     expect(c03).toMatchObject({ level: "dudosa", piece: null, edgeCheck: "excluido", reasons: [{ source: "csv", reason: "nombre-anomalo" }] });
     expect(r.pass1.results.find((x) => x.instanceKey === c03?.instances[0].instanceKey)?.reasons).toEqual(["codigo-excluido"]);
     expect(r.canApprove).toBe(false);
+  });
+});
+
+describe("C9b: mezcla de razones (levelOf, lista cerrada en review.ts)", () => {
+  const cruce = (reason: string) => ({ source: "cruce" as const, reason });
+
+  it("SOFT_REASONS y DERIVED_REASONS son las listas cerradas de la spec §3", () => {
+    expect([...SOFT_REASONS].sort()).toEqual(["cantidad-no-coincide", "canteado-no-coincide", "cupo-excedido", "faltante", "medida-fuera-de-tolerancia", "medida-no-coincide"]);
+    expect([...DERIVED_REASONS].sort()).toEqual(["instancia-no-segura", "sin-confirmar"]);
+  });
+
+  it("sin razones: segura", () => expect(levelOf([])).toBe("segura"));
+  it("una razón blanda: advertencia", () => expect(levelOf([cruce("medida-no-coincide")])).toBe("advertencia"));
+  it("blandas más derivadas: advertencia", () => expect(levelOf([cruce("faltante"), cruce("cupo-excedido"), cruce("instancia-no-segura"), cruce("sin-confirmar")])).toBe("advertencia"));
+  it("una blanda con una dura: dudosa", () => expect(levelOf([cruce("faltante"), cruce("geometria-no-alineada")])).toBe("dudosa"));
+  it("solo derivadas: dudosa (la causa real no está)", () => expect(levelOf([cruce("instancia-no-segura"), cruce("sin-confirmar")])).toBe("dudosa"));
+  it("una razón fuera de SOFT_REASONS: dudosa", () => expect(levelOf([cruce("medida-no-coincide"), cruce("razon-inventada")])).toBe("dudosa"));
+  it.each(["geometria-no-alineada", "empate", "conflicto", "cupo-completo-sugerido", "nombre-anomalo", "codigo-excluido", "codigo-inexistente"])("%s sola: dudosa", (reason) => {
+    expect(levelOf([cruce(reason)])).toBe("dudosa");
   });
 });

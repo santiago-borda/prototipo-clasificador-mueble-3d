@@ -29,7 +29,8 @@ const { CsvBackoffice } = await import("@/components/proto-csv/CsvBackoffice");
 
 const DIR = path.resolve(__dirname, "..", "fixtures", "csv-ocl", "gabinete");
 const CSV = readFileSync(path.join(DIR, "gabinete-prueba-canto.csv"), "utf8");
-const CSV_DUDOSA = CSV.replace(/^(A;0001-01-M01-C04;)1;/m, "$12;"); // sintético: C04 × 2
+const CSV_ADVERTENCIA = CSV.replace(/^(A;0001-01-M01-C04;)1;/m, "$12;"); // sintético: C04 × 2 (el .dae tiene 1): advertencia
+const CSV_DUDOSA = CSV.replace(/^A;0001-01-M01-C03;/m, "A;_0001-01-M01-C03__;"); // sintético: C03 con nombre anómalo (excluido): dudosa
 const SVG = new Uint8Array(readFileSync(path.join(DIR, "diagrama-blanco18.svg")));
 const DAE = new Uint8Array(readFileSync(path.join(DIR, "gabinete-prueba-opencutlist.dae")));
 const KEY = "clave";
@@ -109,6 +110,7 @@ beforeAll(async () => {
   await seed("b2b2b2b2b2b2b2b2", CSV_DUDOSA, []);
   await seed("c3c3c3c3c3c3c3c3", CSV, [{ estado: "aprobado" }]);
   await seed("d4d4d4d4d4d4d4d4", CSV, [{ estado: "aprobado" }, { estado: "publicado-simulado" }]);
+  await seed("a7a7a7a7a7a7a7a7", CSV_ADVERTENCIA, []);
   await seed("e5e5e5e5e5e5e5e5", CSV_DUDOSA, [{ estado: "rechazado", motivo: "C04 dos veces en el CSV: reexportar" }]);
   await store.put(protoPath("f6f6f6f6f6f6f6f6", "listado.csv"), new TextEncoder().encode(CSV), "text/csv");
 }, 60000);
@@ -123,12 +125,49 @@ describe("Pantallas del spike (React DOM + API en memoria)", () => {
     await mount(createElement(CsvReviewScreen, { id: "b2b2b2b2b2b2b2b2" }), "Decisión");
     expect(text()).toContain("En revisión");
     expect(text()).toContain("No se puede aprobar: 1 pieza dudosa.");
-    expect(text()).toContain("el .dae tiene menos instancias que la cantidad del CSV");
-    expect(text()).toContain("la cantidad del CSV no coincide con el .dae");
-    expect(text()).toMatch(/0001-01-M01-C04.*2 \/ 1/);
+    expect(text()).toContain("código con guiones bajos de más");
+    expect(text()).toMatch(/0001-01-M01-C03.*dudosa/);
     expect(text()).toContain("[visor 3D]");
     expect(button("Aprobar")?.disabled).toBe(true);
     expect(button("Rechazar")?.disabled).toBe(true); // sin motivo
+    await unmount();
+  }, 30000);
+
+  it("v0.4, en revisión con advertencias: insignia «advertencia» con texto, CSV contra .dae a la vista, motivo obligatorio para Aprobar", async () => {
+    setUploadKey(KEY);
+    await mount(createElement(CsvReviewScreen, { id: "a7a7a7a7a7a7a7a7" }), "Decisión");
+    // Insignia con texto (no solo color) y sin bloqueo.
+    expect(text()).toMatch(/0001-01-M01-C04.*advertencia/);
+    expect(text()).not.toContain("No se puede aprobar");
+    // Lista de advertencias antes del motivo, con el CSV contra el .dae del tipo afectado, sin abrir la fila.
+    const lista = container.querySelector('[data-testid="advertencias"]');
+    expect(lista).not.toBeNull();
+    const t = (lista?.textContent ?? "").replace(/\s+/g, " ");
+    expect(t).toContain("0001-01-M01-C04");
+    expect(t).toContain("CSV × 2");
+    expect(t).toContain(".dae");
+    expect(t).toContain("el .dae tiene menos instancias que la cantidad del CSV");
+    expect(t).toContain("la cantidad del CSV no coincide con el .dae");
+    expect(t).toContain("Caras de canto");
+    // Aprobar exige motivo; con motivo se habilita y el servidor guarda lo aceptado.
+    expect(text()).toContain("Motivo de la aprobación (obligatorio)");
+    expect(button("Aprobar")?.disabled).toBe(true);
+    const input = [...container.querySelectorAll("input")].find((i) => i.closest("label")?.textContent?.includes("Motivo de la aprobación")) as HTMLInputElement;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "C04 va en otra placa");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(button("Aprobar")?.disabled).toBe(false);
+    await act(async () => button("Aprobar")?.click());
+    await vi.waitFor(() => expect(text()).toContain("Ir a publicar (simulado)"), { timeout: 15000 });
+    expect(text()).toContain("«C04 va en otra placa»");
+    await unmount();
+  }, 30000);
+
+  it("con dudosas sigue deshabilitado, con el motivo escrito, aunque haya advertencias o un motivo", async () => {
+    await mount(createElement(CsvReviewScreen, { id: "b2b2b2b2b2b2b2b2" }), "Decisión");
+    expect(button("Aprobar")?.disabled).toBe(true);
+    expect(text()).toContain("Con dudosas solo se puede rechazar.");
     await unmount();
   }, 30000);
 

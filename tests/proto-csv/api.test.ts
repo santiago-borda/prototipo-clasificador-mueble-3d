@@ -362,3 +362,76 @@ describe("C15: rechazo del servidor con limpieza", () => {
     await expect(api.authorizeUpload(`proto-csv/${OTHER}/listado.csv`)).resolves.toBeDefined();
   });
 });
+
+describe("C11e: aprobar con advertencias", () => {
+  const C04 = "0001-01-M01-C04";
+  /** Sintético: el CSV del gabinete con C04 × 2 (el .dae tiene 1): C04 sale advertencia (faltante + cantidad). */
+  const CSV_ADV = new TextEncoder().encode(new TextDecoder().decode(CSV).replace(/^(A;0001-01-M01-C04;)1;/m, "$12;"));
+  const parsedAdv = parseOclCsv(new TextDecoder().decode(CSV_ADV));
+  if (!parsedAdv.ok) throw new Error("variante");
+  const CRUCE_ADV = summarizeReview(reviewListing(parsedAdv.listing, observeDae(DAE), 2));
+
+  async function registeredWith(cruce: unknown = CRUCE_ADV) {
+    const { api, store } = setup();
+    await upload(store, ID, { "listado.csv": CSV_ADV, "modelo.dae": DAE });
+    expect((await api.register(req("POST", registerBody({ cruce, svgMaterial: null })))).status).toBe(201);
+    return api;
+  }
+  const events = async (api: Awaited<ReturnType<typeof registeredWith>>) => ((await (await api.read(ID)).json()) as { eventos: Record<string, unknown>[] }).eventos;
+
+  it("el cruce del cliente trae el nivel advertencia y su contador", () => {
+    expect(CRUCE_ADV.types.find((t) => t.code === C04)?.level).toBe("advertencia");
+    expect([CRUCE_ADV.dudosas, CRUCE_ADV.advertencias, CRUCE_ADV.canApprove]).toEqual([0, 1, true]);
+  });
+
+  it("sin motivo (o solo espacios): 400 motivo, y sigue en revisión", async () => {
+    const api = await registeredWith();
+    expect(await state(api, "aprobado")).toMatchObject({ status: 400, body: { code: "motivo" } });
+    expect(await state(api, "aprobado", "   ")).toMatchObject({ status: 400, body: { code: "motivo" } });
+    expect((await events(api)).map((e) => e.estado)).toEqual(["en-revision"]);
+  });
+
+  it("con motivo: 200 y el evento aprobado trae el motivo y advertenciasAceptadas (código y razones) leídas de informe.cruce", async () => {
+    const api = await registeredWith();
+    const falsa = [{ code: "0001-01-M01-C01", reasons: [{ source: "cruce", reason: "inventada" }] }];
+    const res = await api.changeState(req("POST", { estado: "aprobado", motivo: " C04 se arma con otra placa ", advertenciasAceptadas: falsa }), ID);
+    expect(res.status).toBe(200);
+    const aprobado = (await events(api)).find((e) => e.estado === "aprobado");
+    expect(aprobado).toMatchObject({ motivo: "C04 se arma con otra placa" });
+    const aceptadas = aprobado?.advertenciasAceptadas as { code: string; reasons: { source: string; reason: string }[] }[];
+    expect(aceptadas.map((a) => a.code)).toEqual([C04]); // lo del cuerpo se ignora
+    expect(aceptadas[0].reasons).toEqual(expect.arrayContaining([{ source: "motor", reason: "faltante" }, { source: "cruce", reason: "cantidad-no-coincide" }]));
+    expect(aceptadas[0].reasons).toEqual(CRUCE_ADV.types.find((t) => t.code === C04)?.reasons);
+  });
+
+  it("con dudosas: 409 dudosas (aunque haya motivo); solo se puede rechazar", async () => {
+    const cruce = { ...CRUCE_ADV, canApprove: false, dudosas: 1, types: CRUCE_ADV.types.map((t) => (t.code === "0001-01-M01-C01" ? { ...t, level: "dudosa" as const } : t)) };
+    const api = await registeredWith(cruce);
+    expect(await state(api, "aprobado", "lo acepto")).toMatchObject({ status: 409, body: { code: "dudosas" } });
+    expect((await state(api, "rechazado", "dudosa")).status).toBe(200);
+  });
+
+  it("sin advertencias el motivo sigue siendo opcional y el evento no trae advertenciasAceptadas", async () => {
+    const { api, store } = setup();
+    await upload(store);
+    await api.register(req("POST", registerBody()));
+    expect((await state(api, "aprobado")).status).toBe(200);
+    const evento = ((await (await api.read(ID)).json()) as { eventos: Record<string, unknown>[] }).eventos.find((e) => e.estado === "aprobado");
+    expect(evento).not.toHaveProperty("advertenciasAceptadas");
+  });
+
+  it("un cruce con formato anterior (sin contador advertencias, niveles segura y dudosa) sigue siendo válido", async () => {
+    const { advertencias: _omit, ...viejo } = CRUCE;
+    void _omit;
+    const api = await registeredWith({ ...viejo, types: CRUCE.types });
+    // CSV_ADV tiene los mismos códigos que el CSV original: el registro pasa y, sin advertencias, aprobar no exige motivo.
+    expect((await state(api, "aprobado")).status).toBe(200);
+  });
+
+  it("un nivel desconocido en el cruce se rechaza (400)", async () => {
+    const { api, store } = setup();
+    await upload(store, ID, { "listado.csv": CSV_ADV, "modelo.dae": DAE });
+    const cruce = { ...CRUCE_ADV, types: CRUCE_ADV.types.map((t, i) => (i === 0 ? { ...t, level: "tal-vez" } : t)) };
+    expect((await api.register(req("POST", registerBody({ cruce })))).status).toBe(400);
+  });
+});

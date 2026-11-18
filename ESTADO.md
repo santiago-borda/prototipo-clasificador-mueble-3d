@@ -47,7 +47,7 @@ Fuera de `main`: el **spike de carga por CSV y SVG** (rama `proto-csv-opencutlis
 
 - Entrada principal **propuesta** (pendiente de prueba real con exportaciones de Olmo y Sabrina): el CSV del "Listado de piezas" y el SVG de cada placa de OpenCutList, más el `.dae` y sus texturas. El PDF leído por OCR queda como respaldo.
 - Flujo: se suben los archivos, el sistema valida el CSV por reglas, lo cruza con el `.dae` y deja la carga en revisión; una persona aprueba o rechaza (con piezas dudosas solo se puede rechazar, con motivo obligatorio). La publicación es simulada: direcciones de QR como texto y etiquetas "VISTA PREVIA — NO SE IMPRIME". Sin imagen de QR escaneable hasta definir el dominio de producción.
-- Spec: `docs/spec-proto-csv-ocl.md` v0.4.1 (v0.4 aprobada por el equipo el 18/11: niveles `segura` / `advertencia` / `dudosa`; las advertencias se aceptan con motivo obligatorio; v0.4.1 cierra la revisión: el servidor verifica la coherencia del cruce y el motivo tiene tope de 500 caracteres). Pruebas C1 a C17 en `tests/proto-csv/`. El 18/11 la rama tiene commits locales sin push (v0.4 y v0.4.1); el último commit pusheado y desplegado en la preview es anterior. Preview de Vercel del 16/11 (commit `fc91a27`) con la protección de despliegue activa.
+- Spec: `docs/spec-proto-csv-ocl.md` v0.4.1 (v0.4 aprobada por el equipo el 18/11: niveles `segura` / `advertencia` / `dudosa`; las advertencias se aceptan con motivo obligatorio; v0.4.1 cierra la revisión: el servidor verifica la coherencia del cruce y el motivo tiene tope de 500 caracteres). Pruebas C1 a C17 en `tests/proto-csv/`. La v0.4 y la v0.4.1 se pushearon el 18/11 (HEAD remoto `f7e4e76`); la preview de ese commit no se revisó todavía. Preview de Vercel del 16/11 (commit `fc91a27`) con la protección de despliegue activa.
 - Verificación del 16/11 (worktree limpio): 741 pruebas pasan, 0 fallan, 20 salteadas (las de Sabrina) y 4 `todo`; typecheck y lint sin errores. Prueba manual M1 en la preview, hecha por Santiago: OK.
 - Supuestos ASUMIDOS (reversibles) y guion de M1: ver `CLAUDE.md` y la spec.
 
@@ -139,5 +139,5 @@ Para probar la API del importador en local sin Blob: `IMPORT_STORE=local` (guard
 - (7/11) `pdf-fixture-sintetico` a `main` (HEAD `7e09232`); (8/11) sesión 2b y T1 + T2 por PR
 - (10/11) PR #3 `566e13d` (T3 + T4), PR #4 `223ae0e` (T5), PR #5 `283c4c1` (T7), PR #6 `5f9eb3e` (T8), PR #7 `daf5746` (T10), PR #8 `b5789cb` (T11)
 - PR #10 `4dacd48` (compuerta y script de OCR real); PR #11 (`ocr-revision-real`) abierto al 16/11; PR #12 (`deps-next-16.4.6`) mergeado el 18/11 (`c820fd4`)
-- (16/11) rama `proto-csv-opencutlist` (spike CSV/SVG), HEAD `bc2d192`; (18/11) v0.4 y v0.4.1 del spike en commits locales, sin push
+- (16/11) rama `proto-csv-opencutlist` (spike CSV/SVG), HEAD `bc2d192`; (18/11) v0.4 y v0.4.1 del spike pusheadas, HEAD `f7e4e76`
 - `scripts/vision-smoke.mjs` no está en el historial a propósito: es local y descartable (excluido en `.git/info/exclude`).

@@ -1,0 +1,907 @@
+{
+  "def": {
+    "furniture": {
+      "id": "olmo",
+      "qrId": "olmo-mueble",
+      "name": "Escritorio Olmo",
+      "dimsMm": {
+        "x": 1200,
+        "y": 750,
+        "z": 550
+      },
+      "designVersion": "v1",
+      "newerVersionAvailable": false,
+      "edgeBandSpec": {
+        "type": "ABS",
+        "widthMm": 22,
+        "thicknessMm": 0.45,
+        "status": "provisorio",
+        "note": "la lista de compra dice 0,22"
+      }
+    },
+    "modules": [
+      {
+        "id": "mod-escritorio",
+        "qrId": "olmo-mod-escritorio",
+        "furnitureId": "olmo",
+        "name": "Escritorio"
+      },
+      {
+        "id": "mod-cajones",
+        "qrId": "olmo-mod-cajones",
+        "furnitureId": "olmo",
+        "name": "Módulo cajones"
+      }
+    ],
+    "pieceTypes": [
+      {
+        "qrId": "olmo-c01",
+        "code": "0001-01-M01-C01",
+        "name": "Mesa/Techo escritorio",
+        "moduleId": "mod-escritorio",
+        "lengthMm": 980,
+        "widthMm": 550,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 1,
+        "edgeBanding": [
+          "largo-A",
+          "largo-B",
+          "corto-A",
+          "corto-B"
+        ],
+        "notes": null
+      },
+      {
+        "qrId": "olmo-c02",
+        "code": "0001-01-M01-C02",
+        "name": "Lateral escritorio",
+        "moduleId": "mod-escritorio",
+        "lengthMm": 732,
+        "widthMm": 550,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 1,
+        "edgeBanding": [
+          "largo-A",
+          "largo-B",
+          "corto-A"
+        ],
+        "notes": null
+      },
+      {
+        "qrId": "olmo-c03",
+        "code": "0001-01-M01-C03",
+        "name": "Faja grande medio escritorio",
+        "moduleId": "mod-escritorio",
+        "lengthMm": 742,
+        "widthMm": 200,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 1,
+        "edgeBanding": [
+          "largo-A",
+          "corto-A"
+        ],
+        "notes": null
+      },
+      {
+        "qrId": "olmo-c04",
+        "code": "0001-01-M01-C04",
+        "name": "Laterales sector cajones",
+        "moduleId": "mod-cajones",
+        "lengthMm": 550,
+        "widthMm": 494,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 2,
+        "edgeBanding": [
+          "largo-A",
+          "corto-A"
+        ],
+        "notes": null
+      },
+      {
+        "qrId": "olmo-c05",
+        "code": "0001-01-M01-C05",
+        "name": "Piso y techo sector cajones",
+        "moduleId": "mod-cajones",
+        "lengthMm": 550,
+        "widthMm": 404,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 2,
+        "edgeBanding": [
+          "corto-A"
+        ],
+        "notes": null
+      },
+      {
+        "qrId": "olmo-c06",
+        "code": "0001-01-M01-C06",
+        "name": "Gola Vertical",
+        "moduleId": "mod-cajones",
+        "lengthMm": 404,
+        "widthMm": 50,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 1,
+        "edgeBanding": [],
+        "notes": null
+      },
+      {
+        "qrId": "olmo-c07",
+        "code": "0001-01-M01-C07",
+        "name": "Gola Horizontal",
+        "moduleId": "mod-cajones",
+        "lengthMm": 404,
+        "widthMm": 36,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 2,
+        "edgeBanding": [
+          "largo-A"
+        ],
+        "notes": "Medida provisoria (404 x 36 mm), a confirmar."
+      },
+      {
+        "qrId": "olmo-c08",
+        "code": "0001-01-M01-C08",
+        "name": "Cajon 1",
+        "moduleId": "mod-cajones",
+        "lengthMm": 400,
+        "widthMm": 100,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 2,
+        "edgeBanding": [
+          "largo-A"
+        ],
+        "notes": null
+      },
+      {
+        "qrId": "olmo-c09",
+        "code": "0001-01-M01-C09",
+        "name": "Cajon 1",
+        "moduleId": "mod-cajones",
+        "lengthMm": 342,
+        "widthMm": 100,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 2,
+        "edgeBanding": [
+          "largo-A"
+        ],
+        "notes": null
+      },
+      {
+        "qrId": "olmo-c10",
+        "code": "0001-01-M01-C10",
+        "name": "Cajon 2",
+        "moduleId": "mod-cajones",
+        "lengthMm": 400,
+        "widthMm": 200,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 2,
+        "edgeBanding": [
+          "largo-A"
+        ],
+        "notes": null
+      },
+      {
+        "qrId": "olmo-c11",
+        "code": "0001-01-M01-C11",
+        "name": "Cajon 2",
+        "moduleId": "mod-cajones",
+        "lengthMm": 342,
+        "widthMm": 200,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 2,
+        "edgeBanding": [
+          "largo-A"
+        ],
+        "notes": null
+      },
+      {
+        "qrId": "olmo-c12",
+        "code": "0001-01-M01-C12",
+        "name": "Tapa cajon 1",
+        "moduleId": "mod-cajones",
+        "lengthMm": 440,
+        "widthMm": 165,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 1,
+        "edgeBanding": [
+          "largo-A",
+          "largo-B",
+          "corto-A",
+          "corto-B"
+        ],
+        "notes": null
+      },
+      {
+        "qrId": "olmo-c13",
+        "code": "0001-01-M01-C13",
+        "name": "Tapa cajon 2",
+        "moduleId": "mod-cajones",
+        "lengthMm": 440,
+        "widthMm": 296,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 1,
+        "edgeBanding": [
+          "largo-A",
+          "largo-B",
+          "corto-A",
+          "corto-B"
+        ],
+        "notes": null
+      },
+      {
+        "qrId": "olmo-c14",
+        "code": "0001-01-M01-C14",
+        "name": "Techo y piso estante abierto",
+        "moduleId": "mod-cajones",
+        "lengthMm": 550,
+        "widthMm": 440,
+        "thicknessMm": 18,
+        "material": "Gaudi",
+        "quantity": 2,
+        "edgeBanding": [
+          "largo-A",
+          "largo-B",
+          "corto-A"
+        ],
+        "notes": null
+      },
+      {
+        "qrId": "olmo-c15",
+        "code": "0001-01-M01-C15",
+        "name": "Laterales estante abierto",
+        "moduleId": "mod-cajones",
+        "lengthMm": 550,
+        "widthMm": 102,
+        "thicknessMm": 18,
+        "material": "Gaudi",
+        "quantity": 2,
+        "edgeBanding": [
+          "corto-A"
+        ],
+        "notes": null
+      },
+      {
+        "qrId": "olmo-c16",
+        "code": "0001-01-M01-C16",
+        "name": "Fajas verticales",
+        "moduleId": "mod-escritorio",
+        "lengthMm": 682,
+        "widthMm": 50,
+        "thicknessMm": 18,
+        "material": "Gaudi",
+        "quantity": 2,
+        "edgeBanding": [
+          "largo-A",
+          "corto-A"
+        ],
+        "notes": null
+      },
+      {
+        "qrId": "olmo-c17",
+        "code": "0001-01-M01-C17",
+        "name": "Fajas horizontales grandes",
+        "moduleId": "mod-escritorio",
+        "lengthMm": 962,
+        "widthMm": 50,
+        "thicknessMm": 18,
+        "material": "Gaudi",
+        "quantity": 2,
+        "edgeBanding": [
+          "largo-A",
+          "corto-A"
+        ],
+        "notes": null
+      },
+      {
+        "qrId": "olmo-c18",
+        "code": "0001-01-M01-C18",
+        "name": "Faja horizontal chica",
+        "moduleId": "mod-escritorio",
+        "lengthMm": 514,
+        "widthMm": 50,
+        "thicknessMm": 18,
+        "material": "Gaudi",
+        "quantity": 1,
+        "edgeBanding": [
+          "largo-A"
+        ],
+        "notes": null
+      },
+      {
+        "qrId": "olmo-c19",
+        "code": "0001-01-M01-C19",
+        "name": "Faja donde apoya mesa",
+        "moduleId": "mod-escritorio",
+        "lengthMm": 514,
+        "widthMm": 100,
+        "thicknessMm": 18,
+        "material": "Gaudi",
+        "quantity": 1,
+        "edgeBanding": [
+          "corto-A",
+          "corto-B"
+        ],
+        "notes": null
+      },
+      {
+        "qrId": "olmo-c20",
+        "code": "0001-01-M01-C20",
+        "name": "Fondo cajones",
+        "moduleId": "mod-cajones",
+        "lengthMm": 400,
+        "widthMm": 378,
+        "thicknessMm": 3,
+        "material": "MDF blanco",
+        "quantity": 2,
+        "edgeBanding": [],
+        "notes": null
+      },
+      {
+        "qrId": "olmo-c21",
+        "code": "0001-01-M01-C21",
+        "name": "Fondo sector cajones",
+        "moduleId": "mod-cajones",
+        "lengthMm": 614,
+        "widthMm": 422,
+        "thicknessMm": 3,
+        "material": "MDF blanco",
+        "quantity": 1,
+        "edgeBanding": [],
+        "notes": null
+      }
+    ],
+    "modelUrl": "/models/Olmo/olmo.dae",
+    "toleranceMm": 2
+  },
+  "entries": [
+    {
+      "kind": "piece",
+      "qrId": "olmo-c01",
+      "piece": {
+        "qrId": "olmo-c01",
+        "code": "0001-01-M01-C01",
+        "name": "Mesa/Techo escritorio",
+        "moduleId": "mod-escritorio",
+        "lengthMm": 980,
+        "widthMm": 550,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 1,
+        "edgeBanding": [
+          "largo-A",
+          "largo-B",
+          "corto-A",
+          "corto-B"
+        ],
+        "notes": null
+      },
+      "module": {
+        "id": "mod-escritorio",
+        "qrId": "olmo-mod-escritorio",
+        "furnitureId": "olmo",
+        "name": "Escritorio"
+      }
+    },
+    {
+      "kind": "piece",
+      "qrId": "olmo-c02",
+      "piece": {
+        "qrId": "olmo-c02",
+        "code": "0001-01-M01-C02",
+        "name": "Lateral escritorio",
+        "moduleId": "mod-escritorio",
+        "lengthMm": 732,
+        "widthMm": 550,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 1,
+        "edgeBanding": [
+          "largo-A",
+          "largo-B",
+          "corto-A"
+        ],
+        "notes": null
+      },
+      "module": {
+        "id": "mod-escritorio",
+        "qrId": "olmo-mod-escritorio",
+        "furnitureId": "olmo",
+        "name": "Escritorio"
+      }
+    },
+    {
+      "kind": "piece",
+      "qrId": "olmo-c03",
+      "piece": {
+        "qrId": "olmo-c03",
+        "code": "0001-01-M01-C03",
+        "name": "Faja grande medio escritorio",
+        "moduleId": "mod-escritorio",
+        "lengthMm": 742,
+        "widthMm": 200,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 1,
+        "edgeBanding": [
+          "largo-A",
+          "corto-A"
+        ],
+        "notes": null
+      },
+      "module": {
+        "id": "mod-escritorio",
+        "qrId": "olmo-mod-escritorio",
+        "furnitureId": "olmo",
+        "name": "Escritorio"
+      }
+    },
+    {
+      "kind": "piece",
+      "qrId": "olmo-c04",
+      "piece": {
+        "qrId": "olmo-c04",
+        "code": "0001-01-M01-C04",
+        "name": "Laterales sector cajones",
+        "moduleId": "mod-cajones",
+        "lengthMm": 550,
+        "widthMm": 494,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 2,
+        "edgeBanding": [
+          "largo-A",
+          "corto-A"
+        ],
+        "notes": null
+      },
+      "module": {
+        "id": "mod-cajones",
+        "qrId": "olmo-mod-cajones",
+        "furnitureId": "olmo",
+        "name": "Módulo cajones"
+      }
+    },
+    {
+      "kind": "piece",
+      "qrId": "olmo-c05",
+      "piece": {
+        "qrId": "olmo-c05",
+        "code": "0001-01-M01-C05",
+        "name": "Piso y techo sector cajones",
+        "moduleId": "mod-cajones",
+        "lengthMm": 550,
+        "widthMm": 404,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 2,
+        "edgeBanding": [
+          "corto-A"
+        ],
+        "notes": null
+      },
+      "module": {
+        "id": "mod-cajones",
+        "qrId": "olmo-mod-cajones",
+        "furnitureId": "olmo",
+        "name": "Módulo cajones"
+      }
+    },
+    {
+      "kind": "piece",
+      "qrId": "olmo-c06",
+      "piece": {
+        "qrId": "olmo-c06",
+        "code": "0001-01-M01-C06",
+        "name": "Gola Vertical",
+        "moduleId": "mod-cajones",
+        "lengthMm": 404,
+        "widthMm": 50,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 1,
+        "edgeBanding": [],
+        "notes": null
+      },
+      "module": {
+        "id": "mod-cajones",
+        "qrId": "olmo-mod-cajones",
+        "furnitureId": "olmo",
+        "name": "Módulo cajones"
+      }
+    },
+    {
+      "kind": "piece",
+      "qrId": "olmo-c07",
+      "piece": {
+        "qrId": "olmo-c07",
+        "code": "0001-01-M01-C07",
+        "name": "Gola Horizontal",
+        "moduleId": "mod-cajones",
+        "lengthMm": 404,
+        "widthMm": 36,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 2,
+        "edgeBanding": [
+          "largo-A"
+        ],
+        "notes": "Medida provisoria (404 x 36 mm), a confirmar."
+      },
+      "module": {
+        "id": "mod-cajones",
+        "qrId": "olmo-mod-cajones",
+        "furnitureId": "olmo",
+        "name": "Módulo cajones"
+      }
+    },
+    {
+      "kind": "piece",
+      "qrId": "olmo-c08",
+      "piece": {
+        "qrId": "olmo-c08",
+        "code": "0001-01-M01-C08",
+        "name": "Cajon 1",
+        "moduleId": "mod-cajones",
+        "lengthMm": 400,
+        "widthMm": 100,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 2,
+        "edgeBanding": [
+          "largo-A"
+        ],
+        "notes": null
+      },
+      "module": {
+        "id": "mod-cajones",
+        "qrId": "olmo-mod-cajones",
+        "furnitureId": "olmo",
+        "name": "Módulo cajones"
+      }
+    },
+    {
+      "kind": "piece",
+      "qrId": "olmo-c09",
+      "piece": {
+        "qrId": "olmo-c09",
+        "code": "0001-01-M01-C09",
+        "name": "Cajon 1",
+        "moduleId": "mod-cajones",
+        "lengthMm": 342,
+        "widthMm": 100,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 2,
+        "edgeBanding": [
+          "largo-A"
+        ],
+        "notes": null
+      },
+      "module": {
+        "id": "mod-cajones",
+        "qrId": "olmo-mod-cajones",
+        "furnitureId": "olmo",
+        "name": "Módulo cajones"
+      }
+    },
+    {
+      "kind": "piece",
+      "qrId": "olmo-c10",
+      "piece": {
+        "qrId": "olmo-c10",
+        "code": "0001-01-M01-C10",
+        "name": "Cajon 2",
+        "moduleId": "mod-cajones",
+        "lengthMm": 400,
+        "widthMm": 200,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 2,
+        "edgeBanding": [
+          "largo-A"
+        ],
+        "notes": null
+      },
+      "module": {
+        "id": "mod-cajones",
+        "qrId": "olmo-mod-cajones",
+        "furnitureId": "olmo",
+        "name": "Módulo cajones"
+      }
+    },
+    {
+      "kind": "piece",
+      "qrId": "olmo-c11",
+      "piece": {
+        "qrId": "olmo-c11",
+        "code": "0001-01-M01-C11",
+        "name": "Cajon 2",
+        "moduleId": "mod-cajones",
+        "lengthMm": 342,
+        "widthMm": 200,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 2,
+        "edgeBanding": [
+          "largo-A"
+        ],
+        "notes": null
+      },
+      "module": {
+        "id": "mod-cajones",
+        "qrId": "olmo-mod-cajones",
+        "furnitureId": "olmo",
+        "name": "Módulo cajones"
+      }
+    },
+    {
+      "kind": "piece",
+      "qrId": "olmo-c12",
+      "piece": {
+        "qrId": "olmo-c12",
+        "code": "0001-01-M01-C12",
+        "name": "Tapa cajon 1",
+        "moduleId": "mod-cajones",
+        "lengthMm": 440,
+        "widthMm": 165,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 1,
+        "edgeBanding": [
+          "largo-A",
+          "largo-B",
+          "corto-A",
+          "corto-B"
+        ],
+        "notes": null
+      },
+      "module": {
+        "id": "mod-cajones",
+        "qrId": "olmo-mod-cajones",
+        "furnitureId": "olmo",
+        "name": "Módulo cajones"
+      }
+    },
+    {
+      "kind": "piece",
+      "qrId": "olmo-c13",
+      "piece": {
+        "qrId": "olmo-c13",
+        "code": "0001-01-M01-C13",
+        "name": "Tapa cajon 2",
+        "moduleId": "mod-cajones",
+        "lengthMm": 440,
+        "widthMm": 296,
+        "thicknessMm": 18,
+        "material": "Blanco Nature",
+        "quantity": 1,
+        "edgeBanding": [
+          "largo-A",
+          "largo-B",
+          "corto-A",
+          "corto-B"
+        ],
+        "notes": null
+      },
+      "module": {
+        "id": "mod-cajones",
+        "qrId": "olmo-mod-cajones",
+        "furnitureId": "olmo",
+        "name": "Módulo cajones"
+      }
+    },
+    {
+      "kind": "piece",
+      "qrId": "olmo-c14",
+      "piece": {
+        "qrId": "olmo-c14",
+        "code": "0001-01-M01-C14",
+        "name": "Techo y piso estante abierto",
+        "moduleId": "mod-cajones",
+        "lengthMm": 550,
+        "widthMm": 440,
+        "thicknessMm": 18,
+        "material": "Gaudi",
+        "quantity": 2,
+        "edgeBanding": [
+          "largo-A",
+          "largo-B",
+          "corto-A"
+        ],
+        "notes": null
+      },
+      "module": {
+        "id": "mod-cajones",
+        "qrId": "olmo-mod-cajones",
+        "furnitureId": "olmo",
+        "name": "Módulo cajones"
+      }
+    },
+    {
+      "kind": "piece",
+      "qrId": "olmo-c15",
+      "piece": {
+        "qrId": "olmo-c15",
+        "code": "0001-01-M01-C15",
+        "name": "Laterales estante abierto",
+        "moduleId": "mod-cajones",
+        "lengthMm": 550,
+        "widthMm": 102,
+        "thicknessMm": 18,
+        "material": "Gaudi",
+        "quantity": 2,
+        "edgeBanding": [
+          "corto-A"
+        ],
+        "notes": null
+      },
+      "module": {
+        "id": "mod-cajones",
+        "qrId": "olmo-mod-cajones",
+        "furnitureId": "olmo",
+        "name": "Módulo cajones"
+      }
+    },
+    {
+      "kind": "piece",
+      "qrId": "olmo-c16",
+      "piece": {
+        "qrId": "olmo-c16",
+        "code": "0001-01-M01-C16",
+        "name": "Fajas verticales",
+        "moduleId": "mod-escritorio",
+        "lengthMm": 682,
+        "widthMm": 50,
+        "thicknessMm": 18,
+        "material": "Gaudi",
+        "quantity": 2,
+        "edgeBanding": [
+          "largo-A",
+          "corto-A"
+        ],
+        "notes": null
+      },
+      "module": {
+        "id": "mod-escritorio",
+        "qrId": "olmo-mod-escritorio",
+        "furnitureId": "olmo",
+        "name": "Escritorio"
+      }
+    },
+    {
+      "kind": "piece",
+      "qrId": "olmo-c17",
+      "piece": {
+        "qrId": "olmo-c17",
+        "code": "0001-01-M01-C17",
+        "name": "Fajas horizontales grandes",
+        "moduleId": "mod-escritorio",
+        "lengthMm": 962,
+        "widthMm": 50,
+        "thicknessMm": 18,
+        "material": "Gaudi",
+        "quantity": 2,
+        "edgeBanding": [
+          "largo-A",
+          "corto-A"
+        ],
+        "notes": null
+      },
+      "module": {
+        "id": "mod-escritorio",
+        "qrId": "olmo-mod-escritorio",
+        "furnitureId": "olmo",
+        "name": "Escritorio"
+      }
+    },
+    {
+      "kind": "piece",
+      "qrId": "olmo-c18",
+      "piece": {
+        "qrId": "olmo-c18",
+        "code": "0001-01-M01-C18",
+        "name": "Faja horizontal chica",
+        "moduleId": "mod-escritorio",
+        "lengthMm": 514,
+        "widthMm": 50,
+        "thicknessMm": 18,
+        "material": "Gaudi",
+        "quantity": 1,
+        "edgeBanding": [
+          "largo-A"
+        ],
+        "notes": null
+      },
+      "module": {
+        "id": "mod-escritorio",
+        "qrId": "olmo-mod-escritorio",
+        "furnitureId": "olmo",
+        "name": "Escritorio"
+      }
+    },
+    {
+      "kind": "piece",
+      "qrId": "olmo-c19",
+      "piece": {
+        "qrId": "olmo-c19",
+        "code": "0001-01-M01-C19",
+        "name": "Faja donde apoya mesa",
+        "moduleId": "mod-escritorio",
+        "lengthMm": 514,
+        "widthMm": 100,
+        "thicknessMm": 18,
+        "material": "Gaudi",
+        "quantity": 1,
+        "edgeBanding": [
+          "corto-A",
+          "corto-B"
+        ],
+        "notes": null
+      },
+      "module": {
+        "id": "mod-escritorio",
+        "qrId": "olmo-mod-escritorio",
+        "furnitureId": "olmo",
+        "name": "Escritorio"
+      }
+    },
+    {
+      "kind": "piece",
+      "qrId": "olmo-c20",
+      "piece": {
+        "qrId": "olmo-c20",
+        "code": "0001-01-M01-C20",
+        "name": "Fondo cajones",
+        "moduleId": "mod-cajones",
+        "lengthMm": 400,
+        "widthMm": 378,
+        "thicknessMm": 3,
+        "material": "MDF blanco",
+        "quantity": 2,
+        "edgeBanding": [],
+        "notes": null
+      },
+      "module": {
+        "id": "mod-cajones",
+        "qrId": "olmo-mod-cajones",
+        "furnitureId": "olmo",
+        "name": "Módulo cajones"
+      }
+    },
+    {
+      "kind": "piece",
+      "qrId": "olmo-c21",
+      "piece": {
+        "qrId": "olmo-c21",
+        "code": "0001-01-M01-C21",
+        "name": "Fondo sector cajones",
+        "moduleId": "mod-cajones",
+        "lengthMm": 614,
+        "widthMm": 422,
+        "thicknessMm": 3,
+        "material": "MDF blanco",
+        "quantity": 1,
+        "edgeBanding": [],
+        "notes": null
+      },
+      "module": {
+        "id": "mod-cajones",
+        "qrId": "olmo-mod-cajones",
+        "furnitureId": "olmo",
+        "name": "Módulo cajones"
+      }
+    }
+  ]
+}

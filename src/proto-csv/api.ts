@@ -10,7 +10,7 @@ import { listadoId, modelId as modelIdOf } from "@/engine/hash";
 import { createImportApi } from "@/importer/api";
 import type { ImportStore } from "@/importer/store";
 import { parseOclCsv, type CsvIssue } from "./parse";
-import type { CruceCliente } from "./review";
+import type { CruceCliente, TypeReason } from "./review";
 import { MAX_BYTES, MAX_CARGAS, PROTO_ID, PROTO_PREFIX, ProtoPathError, parseProtoKey, protoDir, protoPath, scopedStore } from "./paths";
 
 export const ESTADOS = ["en-revision", "aprobado", "rechazado", "publicado-simulado"] as const;
@@ -29,6 +29,11 @@ export interface Evento {
   estado: Estado;
   fecha: string;
   motivo?: string;
+  /**
+   * Solo en `aprobado` con advertencias (v0.4): las que quien revisa aceptó, leídas de `informe.cruce` (no del cuerpo de
+   * la petición). Opcional: los eventos anteriores, sin este campo, siguen siendo válidos.
+   */
+  advertenciasAceptadas?: { code: string; reasons: TypeReason[] }[];
 }
 
 export interface ProtoInforme {
@@ -73,11 +78,22 @@ function parseCruce(value: unknown): CruceCliente {
     isObject(value) &&
     typeof value.canApprove === "boolean" &&
     ["dudosas", "orphanInstances", "looseMeshes", "unkeyedRows"].every((k) => typeof value[k] === "number") &&
+    (value.advertencias === undefined || typeof value.advertencias === "number") &&
     typeof value.modelHasEdgeFaces === "boolean" &&
     Array.isArray(value.types) &&
-    value.types.every((t) => isObject(t) && typeof t.code === "string" && (t.level === "segura" || t.level === "dudosa") && Array.isArray(t.reasons) && typeof t.edgeCheck === "string");
+    value.types.every(
+      (t) =>
+        isObject(t) &&
+        typeof t.code === "string" &&
+        (t.level === "segura" || t.level === "advertencia" || t.level === "dudosa") &&
+        Array.isArray(t.reasons) &&
+        t.reasons.every((r) => isObject(r) && typeof r.source === "string" && typeof r.reason === "string") &&
+        typeof t.edgeCheck === "string",
+    );
   if (!ok) throw new HttpError(400, "El resultado del cruce con el .dae no tiene el formato esperado.", "cuerpo");
-  return value as unknown as CruceCliente;
+  const cruce = value as unknown as CruceCliente;
+  // Cruce con el formato anterior (sin contador): se completa desde los tipos.
+  return { ...cruce, advertencias: cruce.advertencias ?? cruce.types.filter((t) => t.level === "advertencia").length };
 }
 
 /**
@@ -139,9 +155,9 @@ export function createProtoApi({ store: rawStore, uploadKey, now = () => new Dat
     return events;
   }
 
-  async function writeEvent(s: ImportStore, id: string, estado: Estado, motivo?: string) {
+  async function writeEvent(s: ImportStore, id: string, estado: Estado, motivo?: string, advertenciasAceptadas?: Evento["advertenciasAceptadas"]) {
     const n = (await eventsOf(s, id)).length + 1;
-    const evento: Evento = { n, estado, fecha: now().toISOString(), ...(motivo ? { motivo } : {}) };
+    const evento: Evento = { n, estado, fecha: now().toISOString(), ...(motivo ? { motivo } : {}), ...(advertenciasAceptadas ? { advertenciasAceptadas } : {}) };
     try {
       await s.put(protoPath(id, `eventos/${String(n).padStart(4, "0")}-${estado}.json`), JSON.stringify(evento), "application/json");
     } catch {
@@ -290,7 +306,15 @@ export function createProtoApi({ store: rawStore, uploadKey, now = () => new Dat
           throw new HttpError(409, "Con dudosas solo se puede rechazar: resolverlas queda fuera del spike.", "dudosas", { estado: current });
         }
         if (to === "rechazado" && motivo === "") throw new HttpError(400, "Rechazar exige un motivo.", "motivo");
-        const evento = await writeEvent(s, id, to as Estado, motivo || undefined);
+        // Aprobar con advertencias (v0.4): motivo obligatorio y se guarda lo aceptado, leído del informe y no del cuerpo.
+        const aceptadas =
+          to === "aprobado"
+            ? informe.cruce.types.filter((t) => t.level === "advertencia").map((t) => ({ code: t.code, reasons: t.reasons }))
+            : [];
+        if (aceptadas.length > 0 && motivo === "") {
+          throw new HttpError(400, "Aprobar con advertencias exige un motivo: indicá que las revisaste y por qué las aceptás.", "motivo");
+        }
+        const evento = await writeEvent(s, id, to as Estado, motivo || undefined, aceptadas.length > 0 ? aceptadas : undefined);
         return Response.json({ id, estado: evento.estado, evento });
       }),
 

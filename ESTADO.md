@@ -47,7 +47,7 @@ Fuera de `main`: el **spike de carga por CSV y SVG** (rama `proto-csv-opencutlis
 
 - Entrada principal **propuesta** (pendiente de prueba real con exportaciones de Olmo y Sabrina): el CSV del "Listado de piezas" y el SVG de cada placa de OpenCutList, más el `.dae` y sus texturas. El PDF leído por OCR queda como respaldo.
 - Flujo: se suben los archivos, el sistema valida el CSV por reglas, lo cruza con el `.dae` y deja la carga en revisión; una persona aprueba o rechaza (con piezas dudosas solo se puede rechazar, con motivo obligatorio). La publicación es simulada: direcciones de QR como texto y etiquetas "VISTA PREVIA — NO SE IMPRIME". Sin imagen de QR escaneable hasta definir el dominio de producción.
-- Spec: `docs/spec-proto-csv-ocl.md` v0.3. Pruebas C1 a C17 en `tests/proto-csv/`. Último HEAD verificado de la rama el 16/11: `bc2d192`; preview de Vercel en estado READY (commit `fc91a27`) con la protección de despliegue activa.
+- Spec: `docs/spec-proto-csv-ocl.md` v0.4.1 (v0.4 aprobada por el equipo el 18/11: niveles `segura` / `advertencia` / `dudosa`; las advertencias se aceptan con motivo obligatorio; v0.4.1 cierra la revisión: el servidor verifica la coherencia del cruce y el motivo tiene tope de 500 caracteres). Pruebas C1 a C17 en `tests/proto-csv/`. El 18/11 la rama tiene commits locales sin push (v0.4 y v0.4.1); el último commit pusheado y desplegado en la preview es anterior. Preview de Vercel del 16/11 (commit `fc91a27`) con la protección de despliegue activa.
 - Verificación del 16/11 (worktree limpio): 741 pruebas pasan, 0 fallan, 20 salteadas (las de Sabrina) y 4 `todo`; typecheck y lint sin errores. Prueba manual M1 en la preview, hecha por Santiago: OK.
 - Supuestos ASUMIDOS (reversibles) y guion de M1: ver `CLAUDE.md` y la spec.
 
@@ -57,7 +57,7 @@ Fuera de `main`: el **spike de carga por CSV y SVG** (rama `proto-csv-opencutlis
 - Mergeado a `main` el 10/11: T1 + T2 (`modelId`, `listadoId`, normalizador único), T3 + T4 (adapter `src/model/`), T5 (runner del eval), T7 mínimo (`checkDims`), T8 (pasada 1), T10 mínimo (`buildRun`) y T11 mínimo (harness, gate parcial G2, G3, G4 y publicación). PRs #3 a #8.
 - Resultado sobre el Olmo (K17 y N9): 32 `segura`, 1 `dudosa` (C01, `nombre-anomalo`) y 6 `sin-asociar`. Última verificación informada: 624 pruebas pasan y 4 `todo` (TP-23, TP-55, TP-70 y M13).
 - `npm run eval` sale con código 1 **por diseño** hasta T12 (falta `eval/esperados.json`). No existen `eval/esperados.json` ni `eval/runs/`.
-- Pendiente: T12 (primera corrida revisada a mano por Santiago y Lautaro, 39 observaciones) y T14 (visor y ficha con las asociaciones seguras). Recorte E6 aprobado para la pre-entrega del 20/11: pasada 1 + G2 + visor con las seguras; T6, T9, T13, T15 y el etiquetado quedan para después.
+- T12 **pausado** (decisión del 17/11): su prueba y `eval/esperados.json` quedan locales en `.diag/t12-pausado/`, sin commitear. Pendiente al retomarlo: T12 (primera corrida revisada a mano por Santiago y Lautaro, 39 observaciones) y T14 (visor y ficha con las asociaciones seguras). Recorte E6 aprobado para la pre-entrega del 20/11: pasada 1 + G2 + visor con las seguras; T6, T9, T13, T15 y el etiquetado quedan para después.
 
 ## Supuestos pendientes de confirmar con Casa Mueble
 
@@ -92,7 +92,7 @@ Fuera de `main`: el **spike de carga por CSV y SVG** (rama `proto-csv-opencutlis
 - Acceso a la app y a las fichas: abierto a propósito. `robots.ts` y `X-Robots-Tag` evitan la indexación pero no dan control de acceso; el `.dae` del Olmo es público para quien tenga la URL. El importador (subir, listar, borrar) exige `IMPORT_UPLOAD_KEY`.
 - Variables de entorno en Vercel: `BLOB_READ_WRITE_TOKEN` (Sensitive), `IMPORT_UPLOAD_KEY` (Secret), `BLOB_STORE_ID`, `BLOB_WEBHOOK_PUBLIC_KEY` y `NEXT_PUBLIC_BASE_URL` (Config).
 - La clave de la cuenta de servicio de Google no está en Vercel. Cuando llegue (P-15): variable Sensitive, solo de servidor, sin prefijo `NEXT_PUBLIC_`.
-- PR #12 (`deps-next-16.4.6`, aviso GHSA-mfr8-8qww-v76h): abierto, sin mergear. `npm audit` marca otras alertas cuya corrección exige cambios de versión mayor; se evalúan después de la entrega.
+- PR #12 (`deps-next-16.4.6`, Next 16.4.3 → 16.4.6 por el aviso GHSA-mfr8-8qww-v76h): mergeado a `main` el 18/11 (`c820fd4`) y traído a la rama del spike con un merge (`dba9227`). `npm audit` marca otras alertas cuya corrección exige cambios de versión mayor; se evalúan después de la entrega.
 
 ## Limitaciones
 
@@ -138,6 +138,6 @@ Para probar la API del importador en local sin Blob: `IMPORT_STORE=local` (guard
 - Vision / OCR (5/11): `18daa6a` agregar `@google-cloud/vision`, `5c9ff54` registro de la prueba de humo, `afb6233` sección Extracción OCR en CLAUDE.md
 - (7/11) `pdf-fixture-sintetico` a `main` (HEAD `7e09232`); (8/11) sesión 2b y T1 + T2 por PR
 - (10/11) PR #3 `566e13d` (T3 + T4), PR #4 `223ae0e` (T5), PR #5 `283c4c1` (T7), PR #6 `5f9eb3e` (T8), PR #7 `daf5746` (T10), PR #8 `b5789cb` (T11)
-- PR #10 `4dacd48` (compuerta y script de OCR real); PR #11 (`ocr-revision-real`) y PR #12 (`deps-next-16.4.6`) abiertos al 16/11
-- (16/11) rama `proto-csv-opencutlist` (spike CSV/SVG), HEAD `bc2d192`
+- PR #10 `4dacd48` (compuerta y script de OCR real); PR #11 (`ocr-revision-real`) abierto al 16/11; PR #12 (`deps-next-16.4.6`) mergeado el 18/11 (`c820fd4`)
+- (16/11) rama `proto-csv-opencutlist` (spike CSV/SVG), HEAD `bc2d192`; (18/11) v0.4 y v0.4.1 del spike en commits locales, sin push
 - `scripts/vision-smoke.mjs` no está en el historial a propósito: es local y descartable (excluido en `.git/info/exclude`).

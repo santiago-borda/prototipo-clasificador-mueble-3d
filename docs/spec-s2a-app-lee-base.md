@@ -5,6 +5,8 @@ Enmienda a: `docs/spec-s2-base-de-datos.md` v0.2 (aprobada el 17/11).
 Motivo: decisión del 18/11 (`claude/decisiones-18-11-integracion-erp.md`, decisiones 2 a 4).
 Rama sugerida: `s2a-app-lee-base`, desde `fable/s2-base-de-datos`.
 
+> Nombres ajustados al repositorio el 18/11 (sesión S2A). **Nota de numeración:** PB-14 a PB-16 de esta enmienda no son las PB-14 a PB-16 de S2 (`assertLocalDatabase`, `newQrId`, `git diff`), que ya existen en `tests/persistence/puro.test.ts`; en el código se nombran «S2A PB-14», «S2A PB-15» y «S2A PB-16».
+>
 > Escrita sin acceso al repositorio. Los nombres de archivos y funciones salen del reporte de S2. Si no coinciden con el código, la sesión los corrige en esta spec antes de implementar y lo informa.
 
 ## 1. Objetivo
@@ -20,10 +22,10 @@ Que la resolución de un QR (`/p/<qrId>`) y los datos que muestran la ficha y el
 ## 3. Requisitos
 - **S2A-1. Raíz de composición única.** Un módulo de servidor (propuesto: `src/server/datos.ts`, con `import "server-only"`) elige la implementación del repositorio:
   - con `DATABASE_URL` definida, la de SQL;
-  - sin ella, la de memoria, cargada con la misma semilla del Olmo que `db:seed`.
+  - sin ella, la de memoria, cargada con la misma semilla del Olmo que `db:seed` (`seedOlmo`, `db/seed.ts`). Las implementaciones son `createSqlPersistence(createDb(url))` (`src/persistence/sql/`) y `createMemoryPersistence()` (`src/persistence/memory/`); las dos devuelven `Persistence` (`src/persistence/ports.ts`).
 
   Es el único lugar fuera de `src/persistence/` y `db/` que importa `src/persistence/sql/`.
-- **S2A-2. `lookup.ts` usa el contrato.** La resolución de `qrId` y la carga del tipo de pieza pasan por la función del repositorio que resuelve un QR, la única sin `tenantId`. Las firmas que hoy usan las páginas no cambian, o cambian solo de síncronas a `async`.
+- **S2A-2. `src/lib/lookup.ts` usa el contrato.** La resolución de `qrId` y la carga del tipo de pieza pasan por la función del repositorio que resuelve un QR, la única sin `tenantId` (`QrRepository.resolve`, `Persistence.qr.resolve`), y por `FurnitureRepository.getFurnitureDef(tenantId, designVersionId)`. Las funciones que hoy usa `/p/<qrId>` son `resolveQr` y `listQrEntries` (`generateStaticParams`). Las firmas que hoy usan las páginas no cambian, o cambian solo de síncronas a `async`.
 - **S2A-3. Sin datos estáticos en la ruta de la ficha.** La ficha y el visor no leen de `src/data/` en tiempo de ejecución. `src/data/` queda solo como fuente de la semilla.
 - **S2A-4. QR inexistente o no publicado.** Se comporta igual que hoy (misma página y mismo código HTTP). Si la base no responde, sale un error con nombre (`PersistenciaNoDisponible`), se registra y la página muestra el estado de error existente. Nunca se cae a los datos estáticos en silencio.
 - **S2A-5. Frontera de imports actualizada (enmienda a PB-13):**
@@ -38,7 +40,7 @@ Que la resolución de un QR (`/p/<qrId>`) y los datos que muestran la ficha y el
 | PB-14 | Para los 21 tipos del Olmo, los datos que recibe la ficha (el objeto que se pasa al componente) son iguales a los de antes de la enmienda. Se capturan antes de cambiar `lookup.ts` y se comparan después. | memoria y PostgreSQL |
 | PB-15 | Los 24 qrId devuelven el mismo destino y el mismo HTTP en `/p/<qrId>`. Un qrId inexistente devuelve lo mismo que hoy. | memoria y PostgreSQL |
 | PB-16 | Con la base caída, `/p/<qrId>` muestra el estado de error y no datos estáticos. | PostgreSQL (contenedor detenido o URL inválida) |
-| PB-13 (enmendada) | Frontera de imports de S2A-5. | estática |
+| PB-13 (enmendada) | Frontera de imports de S2A-5 (`tests/persistence/puro.test.ts`). | estática |
 
 La captura de PB-14 se hace en un commit propio, antes de tocar `lookup.ts`, para que el diff demuestre que no se ajustó a posteriori.
 

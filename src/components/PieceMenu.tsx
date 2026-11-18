@@ -2,13 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { defaultFurnitureDef, getFurnitureDefByQrId, listFurniture, qrHref, resolveQr } from "@/lib/lookup";
+import { usePathname } from "next/navigation";
+import type { FurnitureDef } from "@/data/types";
+import { listFurniture, qrHref, targetFromDef } from "@/lib/lookup";
 import { shortCode } from "@/model/ids";
 import { useViewStore } from "@/store/viewStore";
+import { isBaseRoute, useActiveFurniture } from "./viewer/useActiveFurniture";
 
 /** Etiqueta corta del QR actual para el botón del menú. */
-function currentLabel(qrId: string | null): string {
-  const target = qrId ? resolveQr(qrId) : undefined;
+function currentLabel(def: FurnitureDef | null, qrId: string | null): string {
+  const target = def && qrId ? targetFromDef(def, qrId) : undefined;
   if (!target) return "Menú";
   if (target.kind === "piece") return `Pieza ${shortCode(target.piece.code)}`;
   if (target.kind === "module") return target.module.name;
@@ -26,6 +29,8 @@ export function PieceMenu() {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const selectedQrId = useViewStore((s) => s.selectedQrId);
+  const def = useActiveFurniture();
+  const onBase = isBaseRoute(usePathname());
 
   // Cierra con Escape o al tocar fuera del menú.
   useEffect(() => {
@@ -45,10 +50,8 @@ export function PieceMenu() {
   }, [open]);
 
   // El menú lista los QR del mueble que se está viendo; los demás muebles van al final.
-  const def = getFurnitureDefByQrId(selectedQrId) ?? defaultFurnitureDef();
-  const { furniture } = def;
-  const pieces = def.pieceTypes;
-  const otherFurniture = listFurniture().filter((other) => other !== def);
+  // En /p/* el mueble sale de la base y no se listan otros muebles del registro estático (S2A-3).
+  const otherFurniture = def && !onBase ? listFurniture().filter((other) => other !== def) : [];
 
   return (
     <div ref={rootRef} className="pointer-events-auto relative">
@@ -60,29 +63,29 @@ export function PieceMenu() {
         className="inline-flex items-center gap-2 rounded-full bg-white/95 px-4 py-2 text-sm font-medium text-slate-800 shadow-md ring-1 ring-slate-200"
       >
         <span aria-hidden>☰</span>
-        <span>{currentLabel(selectedQrId)}</span>
+        <span>{currentLabel(def, selectedQrId)}</span>
         <span aria-hidden className={`text-xs transition-transform ${open ? "rotate-180" : ""}`}>
           ▾
         </span>
       </button>
 
-      {open && (
+      {open && def && (
         <nav
           aria-label="QR del mueble"
           className="absolute left-0 top-full z-30 mt-2 max-h-[min(70dvh,26rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl bg-white p-2 shadow-xl ring-1 ring-slate-200"
         >
           <Link
-            href={qrHref(furniture.qrId)}
-            aria-current={selectedQrId === furniture.qrId ? "page" : undefined}
+            href={qrHref(def.furniture.qrId)}
+            aria-current={selectedQrId === def.furniture.qrId ? "page" : undefined}
             onClick={() => setOpen(false)}
-            className={rowClass(selectedQrId === furniture.qrId)}
+            className={rowClass(selectedQrId === def.furniture.qrId)}
           >
-            <span className="font-medium">{furniture.name}</span>
+            <span className="font-medium">{def.furniture.name}</span>
             <span className="shrink-0 text-xs text-slate-500">Mueble</span>
           </Link>
 
           {def.modules.map((mod) => {
-            const modPieces = pieces.filter((piece) => piece.moduleId === mod.id);
+            const modPieces = def.pieceTypes.filter((piece) => piece.moduleId === mod.id);
             return (
               <div key={mod.id} className="mt-2">
                 <Link

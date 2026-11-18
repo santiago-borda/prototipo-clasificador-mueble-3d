@@ -2,8 +2,11 @@ import { olmoDef } from "@/data/furniture.mock";
 import { pieceMatchesInstance } from "@/data/mapping";
 import { loadOptionalFurniture } from "@/data/optionalFurniture";
 import { createRegistry } from "@/data/registry";
-import type { Furniture, FurnitureDef, Module, PieceType } from "@/data/types";
+import type { FurnitureDef, PieceType } from "@/data/types";
 import { componentCode, shortCode } from "@/model/ids";
+import { getModule, targetFromDef, type QrKind, type QrTarget } from "./qrTarget";
+
+export { getModule, targetFromDef, type QrKind, type QrTarget };
 
 // Olmo siempre; los muebles opcionales (carpetas ignoradas por git) solo si están presentes.
 const baseDefs: readonly FurnitureDef[] = [olmoDef, ...loadOptionalFurniture()];
@@ -69,42 +72,13 @@ export function getPieceByInstanceId(def: FurnitureDef, instanceId: string): Pie
   return def.pieceTypes.find((piece) => pieceMatchesInstance(piece, instanceId));
 }
 
-export function getModule(def: FurnitureDef, moduleId: string): Module | undefined {
-  return def.modules.find((m) => m.id === moduleId);
-}
-
 // --- Resolución de cualquier QR (mueble, módulo o pieza) -------------------------------------
 
-export type QrKind = "furniture" | "module" | "piece";
-
-export type QrTarget =
-  | { kind: "furniture"; qrId: string; def: FurnitureDef; furniture: Furniture; modules: readonly Module[] }
-  | {
-      kind: "module";
-      qrId: string;
-      def: FurnitureDef;
-      module: Module;
-      /** Tipos de pieza que pertenecen al módulo. */
-      pieces: readonly PieceType[];
-      /** Códigos de los componentes del módulo en el .dae. */
-      componentCodes: readonly string[];
-    }
-  | { kind: "piece"; qrId: string; def: FurnitureDef; piece: PieceType; module: Module | undefined };
-
+// Registro estático: lo usan /, /qr, /escanear y /prueba (fuera de S2A). /p/<qrId> resuelve contra la base
+// (`resolveQrTarget`, src/server/datos.ts; docs/spec-s2a-app-lee-base.md S2A-2).
 export function resolveQr(qrId: string): QrTarget | undefined {
   const def = registry.findDefByQrId(qrId);
-  if (!def) return undefined;
-
-  if (qrId === def.furniture.qrId) return { kind: "furniture", qrId, def, furniture: def.furniture, modules: def.modules };
-
-  const mod = def.modules.find((m) => m.qrId === qrId);
-  if (mod) {
-    const pieces = def.pieceTypes.filter((piece) => piece.moduleId === mod.id);
-    return { kind: "module", qrId, def, module: mod, pieces, componentCodes: pieces.map((piece) => piece.code) };
-  }
-
-  const piece = def.pieceTypes.find((p) => p.qrId === qrId);
-  return piece ? { kind: "piece", qrId, def, piece, module: getModule(def, piece.moduleId) } : undefined;
+  return def ? targetFromDef(def, qrId) : undefined;
 }
 
 /** ¿Esta instancia del 3D hay que resaltarla para el QR dado? (El mueble completo no resalta nada.) */

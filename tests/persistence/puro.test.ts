@@ -1,5 +1,5 @@
-// S2: pruebas de lo que no necesita repositorios. PB-13 (imports), PB-14 (guarda de base local), PB-15 (newQrId)
-// y los mapeadores con datos mal formados (DocumentoInvalidoError).
+// S2: pruebas de lo que no necesita repositorios. PB-13 (imports; enmendada por S2A-5, docs/spec-s2a-app-lee-base.md),
+// PB-14 (guarda de base local), PB-15 (newQrId) y los mapeadores con datos mal formados (DocumentoInvalidoError).
 
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -23,22 +23,72 @@ function specifiers(src: string): string[] {
   return found;
 }
 
-describe("PB-13 (B9, S2-D2): imports", () => {
+/** Archivo de src/ al que apunta un especificador (`@/…` o relativo), o null si es un paquete o no existe. */
+function resolveSource(from: string, spec: string, names: ReadonlySet<string>): string | null {
+  let base: string;
+  if (spec.startsWith("@/")) base = spec.slice(2);
+  else if (spec.startsWith(".")) base = path.posix.normalize(path.posix.join(path.posix.dirname(from), spec));
+  else return null;
+  for (const candidate of [base, `${base}.ts`, `${base}.tsx`, `${base}/index.ts`, `${base}/index.tsx`]) {
+    if (names.has(candidate)) return candidate;
+  }
+  return null;
+}
+
+/** La directiva "use client" al principio del archivo (puede haber comentarios de línea antes). */
+const USE_CLIENT = /^(?:\s*\/\/.*\n)*\s*["']use client["']/;
+
+describe("PB-13 (B9, S2-D2; enmendada por S2A-5): imports", () => {
   const all = sources(SRC);
 
   it("hay archivos que revisar", () => {
     const names = all.map((f) => f.name);
     expect(names).toEqual(
-      expect.arrayContaining(["persistence/ports.ts", "persistence/mappers.ts", "persistence/rows.ts", "persistence/memory/index.ts", "lib/lookup.ts"]),
+      expect.arrayContaining([
+        "persistence/ports.ts",
+        "persistence/mappers.ts",
+        "persistence/rows.ts",
+        "persistence/memory/index.ts",
+        "lib/lookup.ts",
+        "server/datos.ts",
+      ]),
     );
   });
 
-  it("src/engine, src/pdf, src/app, src/components y src/lib no importan src/persistence", () => {
+  it("S2A-5: fuera de src/persistence y src/server, nada de src importa src/persistence", () => {
     const prohibidos = all
-      .filter((f) => /^(engine|pdf|app|components|lib)\//.test(f.name))
+      .filter((f) => !/^(persistence|server)\//.test(f.name))
       .filter((f) => specifiers(f.src).some((s) => /(^@\/|\/)persistence(\/|$)/.test(s)))
       .map((f) => f.name);
     expect(prohibidos).toEqual([]);
+  });
+
+  it("S2A-5: fuera de src/persistence/sql, solo src/server/datos.ts importa la implementación SQL", () => {
+    const conSql = all
+      .filter((f) => !f.name.startsWith("persistence/sql/"))
+      .filter((f) => specifiers(f.src).some((s) => /(^@\/|\/)persistence\/sql(\/|$)/.test(s) || (f.name.startsWith("persistence/") && /^\.\/sql(\/|$)/.test(s))))
+      .map((f) => f.name);
+    expect(conSql).toEqual(["server/datos.ts"]);
+  });
+
+  it('S2A-5: ningún módulo de cliente ("use client" y lo que importa, en cadena) importa src/server', () => {
+    const names = new Set(all.map((f) => f.name));
+    const byName = new Map(all.map((f) => [f.name, f]));
+    const roots = all.filter((f) => USE_CLIENT.test(f.src)).map((f) => f.name);
+    expect(roots).toEqual(expect.arrayContaining(["components/viewer/LoadBaseFurniture.tsx", "app/p/error.tsx"]));
+    const client = new Set<string>();
+    const pending = [...roots];
+    while (pending.length > 0) {
+      const name = pending.pop()!;
+      if (client.has(name)) continue;
+      client.add(name);
+      for (const spec of specifiers(byName.get(name)!.src)) {
+        const target = resolveSource(name, spec, names);
+        if (target && !client.has(target)) pending.push(target);
+      }
+    }
+    expect(client.has("components/viewer/useActiveFurniture.ts")).toBe(true); // la cadena se sigue
+    expect([...client].filter((name) => name.startsWith("server/")).sort()).toEqual([]);
   });
 
   it("solo src/persistence/sql importa kysely y pg; nada de src/persistence fuera de sql/ importa next", () => {

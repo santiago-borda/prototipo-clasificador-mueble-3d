@@ -200,6 +200,17 @@ export class BaseNoLocalError extends Error {
   }
 }
 
+/**
+ * S2A-4: la base no respondió (conexión rechazada, caída, tiempo agotado). Lleva la causa original en `cause`.
+ * El mensaje no incluye la URL de la base (lleva la clave). Quien la recibe muestra un error: nunca cae a datos estáticos.
+ */
+export class PersistenciaNoDisponibleError extends Error {
+  constructor(options: { cause?: unknown } = {}) {
+    super("La base de datos no respondió.", options);
+    this.name = "PersistenciaNoDisponibleError";
+  }
+}
+
 export function assertTenant(tenantId: string): void {
   if (typeof tenantId !== "string" || tenantId.trim() === "") throw new TenantRequeridoError();
 }

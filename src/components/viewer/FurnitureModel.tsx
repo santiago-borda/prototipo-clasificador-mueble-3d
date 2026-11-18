@@ -6,7 +6,7 @@ import { Html } from "@react-three/drei";
 import { useRouter } from "next/navigation";
 import { MeshStandardMaterial } from "three";
 import type { EdgeId } from "@/data/types";
-import { getPieceByInstanceId, isInstanceHot, qrHref, resolveQr } from "@/lib/lookup";
+import { getPieceByInstanceId, isInstanceHot, qrHref, targetFromDef } from "@/lib/lookup";
 import { pieceMatchesInstance } from "@/data/mapping";
 import type { FurnitureDef } from "@/data/types";
 import { shortCode } from "@/model/ids";
@@ -49,10 +49,8 @@ export function FurnitureModel({ def }: { def: FurnitureDef }) {
 
   // Derivado de los datos: qué es el QR seleccionado (pieza, módulo o mueble).
   // Solo cuenta si es de ESTE mueble: durante el cambio de mueble el store ya apunta al nuevo.
-  const target = useMemo(() => {
-    const resolved = selectedQrId ? resolveQr(selectedQrId) : undefined;
-    return resolved?.def === def ? resolved : undefined;
-  }, [selectedQrId, def]);
+  // Se busca en el `def` del visor (en /p/*, el de la base; S2A-3), no en el registro estático.
+  const target = useMemo(() => (selectedQrId ? targetFromDef(def, selectedQrId) : undefined), [selectedQrId, def]);
   const currentPiece = target?.kind === "piece" ? target.piece : undefined;
   const edgeBanding = currentPiece?.edgeBanding ?? NO_EDGES;
   // El mueble completo no resalta nada, así que Aislar/Atenuar no tienen sentido: se ve siempre normal.

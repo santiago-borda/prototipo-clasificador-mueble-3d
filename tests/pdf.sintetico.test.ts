@@ -19,6 +19,7 @@ import { HAS_SABRINA_FIXTURE, olmoDocuments, sabrinaDocuments } from "./helpers/
 import { buildAll, buildSynthetic, idealInput, idealWords, visionPage, visionResponses, type SyntheticDocument } from "./helpers/pdfSintetico/outputs";
 import { edgeCenters } from "./helpers/pdfSintetico/layout";
 import { withoutSource } from "./helpers/pdfTextLayout";
+import { ocrRealLikeExpected } from "./helpers/ocrRealLike";
 
 const ROOT = path.resolve(__dirname, "..");
 const FIXTURE_DIR = path.join(ROOT, "tests", "fixtures", "pdf-sintetico");
@@ -375,8 +376,14 @@ const scanned = [
   ...readdirSync(path.join(FIXTURE_DIR, "esperado")).map((file) => path.join(FIXTURE_DIR, "esperado", file)),
   // Replays de la respuesta real de Vision (10/11): palabras y cajas de los PDF sintéticos, sin datos reales.
   ...readdirSync(path.join(FIXTURE_DIR, "replay")).map((file) => path.join(FIXTURE_DIR, "replay", file)),
+  // TS-12b (spec-revision-ocr-real §5.3, CA-6): el fixture en memoria con la geometría de la corrida real.
+  path.join(ROOT, "tests", "helpers", "ocrRealLike.ts"),
 ];
-const syntheticPairs = new Set(FUENTE.flatMap((doc) => doc.boards.flatMap((board) => board.pieces.map((p) => [p.finalL, p.finalA].sort((a, b) => a - b).join("x")))));
+const syntheticPairs = new Set([
+  ...FUENTE.flatMap((doc) => doc.boards.flatMap((board) => board.pieces.map((p) => [p.finalL, p.finalA].sort((a, b) => a - b).join("x")))),
+  // TS-12b: las piezas del documento que arma tests/helpers/ocrRealLike.ts.
+  ...ocrRealLikeExpected().boards.flatMap((board) => board.pieces.flatMap((p) => (p.finalL !== null && p.finalA !== null ? [[p.finalL, p.finalA].sort((a, b) => a - b).join("x")] : []))),
+]);
 const realPairs = (documents: CutListPdf[]) =>
   documents.flatMap((d) => d.boards.flatMap((b) => b.pieces.flatMap((p) => (p.finalL !== null && p.finalA !== null ? [[p.finalL, p.finalA].sort((x, y) => x - y).join("x")] : []))));
 

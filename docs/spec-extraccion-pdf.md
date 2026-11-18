@@ -4,10 +4,10 @@
 |---|---|
 | Proyecto | PFG-Muebles-3D (Casa Mueble) |
 | Módulo | B, apoyo de IA: extracción de datos del PDF (OCR + LLM) |
-| Versión | 0.3.1 (v0.3 aprobada el 3/11; reemplaza a la 0.2). La 0.3.1 es una corrección de mantenimiento del 5/11: credenciales fuera del repo, rutas del esquema y bandera de procesamiento externo. No cambia el diseño aprobado |
+| Versión | 0.3.2 (v0.3 aprobada el 3/11; reemplaza a la 0.2). La 0.3.1 es una corrección de mantenimiento del 5/11: credenciales fuera del repo, rutas del esquema y bandera de procesamiento externo. La 0.3.2 (10/11) aplica las enmiendas C1 y C2 de `docs/spec-revision-ocr-real.md` (aprobado por equipo y profesor, informado por Santiago el 10/11/2026; evidencia: a archivar). **La 0.3.3 (11/11) está APROBADA por el equipo y el profesor, informado por Santiago el 11/11/2026 (evidencia: respuestas al mensaje de aprobación, a archivar): ajusta H-02 y §5.1 (C6, aprobada por Santiago el 10/11/2026)** |
 | Fecha | 03/11/2026 (ajustes del 05/11 en §8, §9, §12, §14 y P-02/P-15: credenciales y salidas del OCR). 05/11: prueba de humo de Cloud Vision, credenciales y conectividad OK en local; no valida calidad del OCR |
 | Autores | Santiago Borda, Lautaro Salina |
-| Estado | **Aprobada el 3/11** (por el equipo y el profesor). Siguen abiertos los puntos de §15 y la decisión de §5.3; el adaptador de OCR no se programa antes de resolver P-02 y P-12, **salvo el script manual `scripts/ocr-real.ts` con un único PDF real** (`docs/spec-ocr-prueba-real.md`, SPEC-B2, 10/11). P-02 está **parcial** (no resuelta): script listo, a correr por una persona con su clave; P-04 (captura escrita) sigue sin archivar |
+| Estado | **Aprobada el 3/11** (por el equipo y el profesor). Siguen abiertos los puntos de §15 y la decisión de §5.3; el adaptador de OCR no se programa antes de resolver P-02 y P-12, **salvo el script manual `scripts/ocr-real.ts` con un único PDF real por corrida** (`docs/spec-ocr-prueba-real.md`, SPEC-B2 v0.4: con la enmienda D, aprobada el 11/11/2026, se admite además un segundo PDF real, el Blanco 18 del segundo fixture; la lista blanca sigue con una sola entrada). P-02 está **parcial** (no resuelta): script listo, a correr por una persona con su clave; P-04 (captura escrita) sigue sin archivar |
 | Contrato del que depende | `docs/spec-esquema-pdf.md` (aprobada el 3/11): `CutListPdf`, `FuenteDePdf`, INV-0 a INV-15, catálogo cerrado de razones. **Si esta spec y aquella chocan, manda aquella.** |
 | Lo consume | Motor de asociación A (`spec-motor-asociacion.md`), detector de inconsistencias C, sección de cortes (R4) |
 | Ubicación propuesta | `docs/spec-extraccion-pdf.md` |
@@ -20,6 +20,20 @@
 4. **Bandera `PROCESAMIENTO_EXTERNO=permitir`:** confirmada como el nombre vigente (el Estado del proyecto decía `PERMITIR_DATOS_REALES`, que queda en desuso).
 5. **Lista sintética (propuesta):** los PDF del fixture sintético, identificados por el sha256 de su manifiesto, no exigen lista blanca real (§8, ver `spec-fixture-sintetico.md` §6; pendiente de aprobación).
 6. **§13:** se agrega `hoja-incompleta` a las razones de lectura no ok y se transcribe el texto de §8.3 de la spec del esquema.
+
+### Cambios de la v0.3.2 (10/11)
+
+Origen: la primera corrida real de `ocr:real` (`docs/spec-revision-ocr-real.md`, aprobado por equipo y profesor, informado por Santiago el 10/11/2026; evidencia: a archivar).
+
+1. **C1, §5 paso 3:** las palabras del OCR ya no alimentan el parser "sin cambios". Alimentan **el mismo parser** que `TextoPdf`, con las reglas de spec-esquema §8.2 ("Datos que comparten renglón"). Sigue habiendo un solo parser para las dos fuentes.
+2. **C2, §13:** el `PdfReading` no ok suma `rule` (id de un catálogo cerrado) y `page` (número o `null`), sin texto del documento.
+
+### Cambios de la v0.3.3 (aprobada, 11/11; informado por Santiago el 11/11/2026)
+
+Origen: `docs/spec-revision-ocr-real.md` v0.7 (aprobada como v0.8), §4.5 y §4.6 (R-12 y R-13) y la contradicción C6, aprobada por Santiago el 10/11/2026.
+
+1. **§3, H-02:** el **código** sigue sin autocorregirse. El parser conserva el guion `-` (U+002D) del código, que el OCR entrega como palabra aparte (R-12), pero **no convierte otros guiones**. Excepción acotada: la **letra de fila** (`.letter`) admite la normalización cerrada de 11 mayúsculas cirílicas gemelas de una latina (R-13).
+2. **§5.1, fila `.code`, `.name`, `.letter`:** `.code` y `.name` sin cambios (no se autocorrige). `.letter` llega del OCR ya normalizada por el parser (R-13); la reconciliación compara esa letra y no agrega ninguna corrección.
 
 ---
 
@@ -54,7 +68,7 @@ Fuente: Casa Mueble (20/10) y relevamiento del 3/11 sobre los PDF del primer fix
 | ID | Hecho |
 |---|---|
 | H-01 | Los PDF **no tienen texto seleccionable** (Microsoft: Print To PDF, solo trazados). La única forma de leerlos es rasterizar y hacer OCR o visión. |
-| H-02 | La celda de Designación se parte en 2 o 3 renglones, con íconos intercalados; el código se reconstruye uniéndolos. El OCR puede leer un ícono como letra o símbolo: el parser lo descarta (spec-esquema §7.1) y **nunca se autocorrige** un código. |
+| H-02 | La celda de Designación se parte en 2 o 3 renglones, con íconos intercalados; el código se reconstruye uniéndolos. El OCR puede leer un ícono como letra o símbolo: el parser lo descarta (spec-esquema §7.1) y **nunca se autocorrige** un código. *(v0.3.3, C6, aprobada el 11/11/2026: el guion `-` suelto del código se conserva (R-12) y no se convierte ningún otro guion; la **letra de fila** es la única excepción, con una tabla cerrada de 11 gemelas cirílicas (R-13).)* |
 | H-03 | Cada celda de canto marcada trae su propio punto de color y el texto "Canto <material> ~0 mm x 22 mm" en 4 renglones. El rótulo "Tiras de cantos" es más angosto que la banda: la posición de las subcolumnas sale de la regla del paso de canto (spec-esquema §8.2, provisoria). La posición de una marca es el centro de la palabra "Canto". |
 | H-04 | El color del punto no siempre es rojo (en Blanco es azul). Sirve como **fuente independiente de presencia de marca**, no como dato del esquema (spec-esquema §4 lo deja fuera). |
 | H-05 | Las columnas "Ajustadas" y "Tiras de cantos" aparecen solo si el modelo tiene canto definido. Su ausencia significa "no exportado", no "sin canto" (PDF-2 sigue abierto). |
@@ -102,7 +116,7 @@ PDF ─► 1. Ingesta (sha256 = pdfId, caché)
 
 1. **Ingesta.** `pdfId = "sha256:" + hash`. El mismo PDF con la misma configuración (adaptadores, modelo, versión de prompt y de esquema) devuelve el resultado guardado: reenviar no genera duplicados. La caché y todo archivo intermedio van solo a `.ocr-data/` (§8.2).
 2. **Rasterizado.** Imagen por página, en una resolución fija y registrada en `readerVersion`. Herramienta a decidir (P-12).
-3. **OCR (3a).** El `OcrAdapter` devuelve palabras con página, x, y, ancho y alto (el mismo tipo que usa `TextoPdf`: `PdfTextElement`, más `pageWidths` en `PdfTextInput`, tal como quedó en la rama `pdf-esquema-sesion-1`). Eso alimenta `parseCutListText` sin cambios. El parser decide qué es fila, columna y marca; el OCR solo aporta palabras.
+3. **OCR (3a).** El `OcrAdapter` devuelve palabras con página, x, y, ancho y alto (el mismo tipo que usa `TextoPdf`: `PdfTextElement`, más `pageWidths` en `PdfTextInput`, tal como quedó en la rama `pdf-esquema-sesion-1`). Eso alimenta `parseCutListText`, **el mismo parser que `TextoPdf`** (enmienda C1, 10/11; antes decía "sin cambios"). Los datos que en un PDF real comparten renglón con otros (unidad, fecha, banda de título de la hoja, pie) se localizan con las reglas de spec-esquema §8.2, "Datos que comparten renglón", que valen igual para las dos fuentes. El parser decide qué es fila, columna y marca; el OCR solo aporta palabras.
 4. **LLM (3b).** Recibe el PDF o las imágenes y un esquema de respuesta equivalente a `CutListPdf`. Se le indica que **transcriba y no corrija**. La respuesta se valida con el mismo validador de INV-0; si falla, se reintenta una vez y después se toma la pasada como fallida (§7). Es transcripción, no decisión: **No-Wrapper LLM** (motor §1), el LLM no puntúa ni asocia.
 5. **Detector de marcas (3c).** Para cada celda de las subcolumnas 1 a 4 (coordenadas del parser) decide si hay un punto de color saturado en la imagen. Los umbrales se calibran con los PDF del segundo fixture (P-01).
 6. **Reconciliación (4).** Ver §5.1.
@@ -113,7 +127,7 @@ Las rutas siguen la forma del esquema (`boards[].pieces[].campo`, `header.*`, `s
 
 | Campo (ruta en `CutListPdf`) | Fuentes | Regla |
 |---|---|---|
-| `boards[].pieces[].code`, `.name`, `.letter` | OCR, LLM | Iguales tras normalizar espacios y guiones tipográficos → valor, `acuerdo`. Distintos → `null` + `pending`, `discrepancia`. Solo uno → `null` + `pending`, `fuente-unica`. **No se autocorrige** (el `__` final o un `_` inicial llegan tal cual y los trata spec-esquema §7.1). |
+| `boards[].pieces[].code`, `.name`, `.letter` | OCR, LLM | Iguales tras normalizar espacios y guiones tipográficos → valor, `acuerdo`. Distintos → `null` + `pending`, `discrepancia`. Solo uno → `null` + `pending`, `fuente-unica`. **No se autocorrige** (el `__` final o un `_` inicial llegan tal cual y los trata spec-esquema §7.1). *(v0.3.3, C6, aprobada el 11/11/2026: vale para `.code` y `.name`. `.letter` llega del OCR ya normalizada por R-13, tabla cerrada de 11 gemelas cirílicas; la reconciliación compara esa letra y no corrige nada.)* |
 | `boards[].pieces[].quantity`, `.finalL`, `.finalA`; `header.thicknessMm`; `boards[].lengthMm`, `.widthMm`; pie del tablero (cantidad de piezas, longitud de cortes, eficiencia); `summary.cutCount`, `summary.cutLengthM`, `summary.fillRatePct` | OCR, LLM | Valores iguales → valor. Cualquier diferencia → `null` + `pending`. **Sin tolerancia.** |
 | `boards[].pieces[].edges.s1..s4` (presencia de marca) | OCR (palabra "Canto" en la celda), píxeles, LLM | Las tres fuentes que opinan coinciden → marca o `null`. Cualquier desacuerdo, o una sola fuente → `null` + `pending`, **no** se asume "sin marca". |
 | `boards[].pieces[].edges.sK.material` | OCR (texto "Canto <material>"), LLM | Igualdad sin distinguir mayúsculas ni tildes; si no, `null`. El color del punto **no** decide el material. |
@@ -240,9 +254,11 @@ type PdfReading =
   | { ok: false;
       reason: "sin-capa-de-texto" | "estructura-no-reconocida" | "unidad-no-soportada"
             | "hoja-incompleta" | "lectura-fallida";
-      detail: string };
+      detail: string;
+      rule: PdfRejectRule;   // C2 (10/11): id del sitio de rechazo, catálogo cerrado (spec-esquema §8)
+      page: number | null }; // C2: página donde se rechazó; null si no es de una página
 ```
-   (verificar contra `src/pdf/types.ts`). `lectura-fallida` es razón de lectura, como `sin-capa-de-texto`, no de fila.
+   (verificar contra `src/pdf/types.ts`). `lectura-fallida` es razón de lectura, como `sin-capa-de-texto`, no de fila. **`rule` y `page` (enmienda C2, 10/11)** no llevan texto del documento: son lo único del rechazo que se puede mostrar por consola (SPEC-B2 §7). El `detail` sigue siendo solo para archivos locales. Pendiente de implementar en `src/pdf/types.ts`.
 3. §8.3: reemplazar el párrafo "Privacidad (PENDIENTE)" por el siguiente texto y borrar la línea "con el segundo fixture no se usa" (**aplicado el 5/11**):
    > **Privacidad.** Usarlo manda el PDF a un servicio externo. Casa Mueble autorizó el 3/11 (informado por el equipo; falta la captura escrita, P-04) el envío de los PDF de OpenCutList, incluidos los del segundo fixture, a Cloud Vision y Gemini, con la aclaración de que en la capa gratis de Gemini Google puede usar el contenido. Un adaptador de red solo corre con `PROCESAMIENTO_EXTERNO=permitir` y el sha256 del PDF en la lista blanca. Detalle, proveedores, reconciliación y evidencia: `docs/spec-extraccion-pdf.md`.
 4. Si se adopta la alternativa de §5.3, modificar §7.3 (hoy "siempre `dudosa`").

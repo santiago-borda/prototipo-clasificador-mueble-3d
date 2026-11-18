@@ -1,4 +1,4 @@
-// Lógica de `npm run ocr:real` (docs/spec-ocr-prueba-real.md §4): una corrida manual, un único PDF real, con las
+// Lógica de `npm run ocr:real` (docs/spec-ocr-prueba-real.md §4): una corrida manual, un PDF real por vez, con las
 // dependencias INYECTADAS (`OcrRealIo`) para probarla con datos sintéticos y sin red. Aquí no hay `process`, `fs` ni
 // el cliente de Vision: los pone `scripts/ocr-real.ts`. No se agrega nada en `src/`.
 //
@@ -14,8 +14,8 @@ import { compareReading, isTranscription, type Comparison } from "./compare";
 import { formatSummary, rejectionLine, type Rejection } from "./summary";
 import { parseWhitelist } from "./whitelist";
 
-/** Páginas que se piden de forma explícita (§6). */
-export const REQUESTED_PAGES: readonly number[] = [1, 2, 3, 4, 5];
+/** Tope de páginas por corrida (§6). `--paginas <n>` (E-1, enmienda D) declara cuántas tiene el PDF: 1 a este valor. */
+export const MAX_PAGES = 5;
 export const READER_VERSION = "vision-files-annotate/real";
 
 export interface VisionRequest {
@@ -57,37 +57,56 @@ interface Args {
   pdfPath: string;
   transcriptionPath: string | null;
   resend: boolean;
+  /** Páginas que tiene el PDF, declaradas por la persona (E-1): el pedido lleva `pages: [1..pages]`. */
+  pages: number;
 }
 
-/** Una sola ruta de PDF; `--transcripcion <ruta>` y `--reenviar` son las únicas banderas. */
-function parseArgs(argv: readonly string[]): Args | null {
+/**
+ * Una sola ruta de PDF, `--paginas <n>` obligatorio (entero de 1 a 5, una sola vez; E-1, enmienda D) y, aparte,
+ * `--transcripcion <ruta>` y `--reenviar`: no hay otras banderas. Cualquier forma mal armada es `entrada-invalida`; un
+ * entero mayor que 5 es `paginas-excedidas`. Ambos se rechazan antes de la red.
+ */
+function parseArgs(argv: readonly string[]): { ok: true; args: Args } | { ok: false; reason: "entrada-invalida" | "paginas-excedidas" } {
+  const invalid = { ok: false, reason: "entrada-invalida" } as const;
   const positional: string[] = [];
   let transcriptionPath: string | null = null;
   let resend = false;
+  let pagesText: string | null = null;
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--reenviar") resend = true;
     else if (arg === "--transcripcion") {
       const value = argv[i + 1];
-      if (value === undefined || value.startsWith("--") || transcriptionPath !== null) return null;
+      if (value === undefined || value.startsWith("--") || transcriptionPath !== null) return invalid;
       transcriptionPath = value;
       i += 1;
-    } else if (arg.startsWith("--")) return null;
+    } else if (arg === "--paginas") {
+      const value = argv[i + 1];
+      if (value === undefined || value.startsWith("--") || pagesText !== null) return invalid;
+      pagesText = value;
+      i += 1;
+    } else if (arg.startsWith("--")) return invalid;
     else positional.push(arg);
   }
-  if (positional.length !== 1) return null;
-  return { pdfPath: positional[0], transcriptionPath, resend };
+  if (positional.length !== 1 || pagesText === null || !/^[1-9]\d*$/.test(pagesText)) return invalid;
+  const pages = Number(pagesText);
+  if (pages > MAX_PAGES) return { ok: false, reason: "paginas-excedidas" };
+  return { ok: true, args: { pdfPath: positional[0], transcriptionPath, resend, pages } };
 }
 
 type PageCheck = { ok: true; totalPages: number; file: VisionFileResponse } | { ok: false; reason: "paginas-excedidas" | "paginas-no-confirmadas" };
 
-/** §6: "no puedo confirmar que son 5 o menos" equivale a negarse. */
-function checkPages(files: readonly VisionFileResponse[]): PageCheck {
+/**
+ * §6: "no puedo confirmar que son n" equivale a negarse. `declared` es el `--paginas` de la persona: Vision tiene que
+ * confirmarlo. Un `totalPages` mayor que 5 es `paginas-excedidas` aunque no coincida con n.
+ */
+function checkPages(files: readonly VisionFileResponse[], declared: number): PageCheck {
   if (files.length !== 1) return { ok: false, reason: "paginas-no-confirmadas" };
   const file = files[0];
   const total = file.totalPages;
   if (typeof total !== "number" || !Number.isInteger(total) || total < 1) return { ok: false, reason: "paginas-no-confirmadas" };
-  if (total > REQUESTED_PAGES.length) return { ok: false, reason: "paginas-excedidas" };
+  if (total > MAX_PAGES) return { ok: false, reason: "paginas-excedidas" };
+  if (total !== declared) return { ok: false, reason: "paginas-no-confirmadas" };
   if ((file.responses ?? []).length !== total) return { ok: false, reason: "paginas-no-confirmadas" };
   return { ok: true, totalPages: total, file };
 }
@@ -118,9 +137,10 @@ export async function runOcrReal(argv: readonly string[], io: OcrRealIo, options
   const whitelist = parseWhitelist(listPath ? io.readText(listPath) : null);
   if (!whitelist.ok) return reject(whitelist.reason);
 
-  // Paso 3: una sola ruta, que existe y empieza con %PDF-.
-  const args = parseArgs(argv);
-  if (!args) return reject("entrada-invalida");
+  // Paso 3: una sola ruta, `--paginas <n>` válido, y el PDF existe y empieza con %PDF-.
+  const parsed = parseArgs(argv);
+  if (!parsed.ok) return reject(parsed.reason);
+  const { args } = parsed;
   const pdf = io.readBytes(args.pdfPath);
   if (!pdf || new TextDecoder("latin1").decode(pdf.subarray(0, 5)) !== "%PDF-") return reject("entrada-invalida");
 
@@ -144,10 +164,10 @@ export async function runOcrReal(argv: readonly string[], io: OcrRealIo, options
     if (!cached) return reject("conversion-fallida");
     files = cached;
   } else {
-    // Paso 6: un único pedido, PDF inline, páginas explícitas. Del error del proveedor no se imprime nada.
+    // Paso 6: un único pedido, PDF inline, páginas 1 a n explícitas. Del error del proveedor no se imprime nada.
     try {
       const [response] = await io.vision.batchAnnotateFiles({
-        requests: [{ inputConfig: { content: pdf, mimeType: "application/pdf" }, features: [{ type: "DOCUMENT_TEXT_DETECTION" }], pages: [...REQUESTED_PAGES] }],
+        requests: [{ inputConfig: { content: pdf, mimeType: "application/pdf" }, features: [{ type: "DOCUMENT_TEXT_DETECTION" }], pages: Array.from({ length: args.pages }, (_, i) => i + 1) }],
       });
       files = [...(response.responses ?? [])];
     } catch {
@@ -157,7 +177,7 @@ export async function runOcrReal(argv: readonly string[], io: OcrRealIo, options
   }
 
   // Paso 7: total de páginas, antes de guardar o leer nada.
-  const pages = checkPages(files);
+  const pages = checkPages(files, args.pages);
   if (!pages.ok) return reject(pages.reason);
 
   // Paso 8: guardar la respuesta cruda, convertir y leer.

@@ -1,6 +1,6 @@
 # Plan de pruebas — Esquema de la salida del PDF de OpenCutList
 
-Estado: **en implementación** (3/11/2026). Spec: `docs/spec-esquema-pdf.md` (las referencias INV-, RP- y § son de ahí).
+Estado: **en implementación** (3/11/2026). El 11/11/2026 el equipo y el profesor aprobaron, informado por Santiago el 11/11/2026, la actualización de TP-99, TP-108 a TP-133 y la línea base nueva de TP-106 (evidencia: respuestas al mensaje de aprobación, a archivar). Spec: `docs/spec-esquema-pdf.md` (las referencias INV-, RP- y § son de ahí).
 
 **Sesión 1:** todo salvo lo que necesita código de otra sesión, que queda como `it.todo` en `tests/pdf.todo.test.ts`: TP-11 y TP-40 a TP-46 (cruce con el .dae) y TP-60 (conversión de §6), **sesión 2b**; TP-61 (necesita la función de `listadoId` del motor; `src/engine/` no existe); TP-70 (casillas de R4, spec aparte); TP-23 (pendiente de PDF-2) y TP-55 (pendiente de la consulta 58). Alcance reducido: TP-52 se prueba con entrada vacía (la lectura de bytes es de la extracción); TP-50 compara sin `source`; TP-62 y TP-63 prueban el estado del listado (`bloqueado`, `borrador`, `publicable`), no la conversión; TP-10 y TP-20 a TP-22 prueban INV-7 y el mapeo a `EdgeId`, sin `PieceType`.
 
@@ -122,6 +122,105 @@ Por criterio, no por porcentaje de líneas:
 | TP-88 | Canto: columnas desiguales y sin fila adyacente en la página | hoja con columnas desiguales (como en §8.2): una página con marcas contiguas y otra solo con marcas en s1 y s4 | todas las marcas en su subcolumna; con la regla por página fallaría |
 | TP-89 | Canto: constante | hoja sin ninguna fila con 2 marcas; distancia entre marcas mayor que el tope | usa 0,066 × ancho de página; subcolumnas correctas |
 | TP-90 | Canto: conservador | marca fuera de la banda; dos marcas en una subcolumna; sin ancho de página | `pending` en `edges`, fila `dudosa` por `campo-pendiente` |
+
+### Datos que comparten renglón (§8.2, 10/11)
+
+Aprobados con `docs/spec-revision-ocr-real.md` v0.2. **Implementados** (10/11, rama `ocr-revision-real`; TP-99 se actualizó el 11/11 con R-14). Los elementos se arman en memoria (por ejemplo, `tests/helpers/ocrRealLike.ts`) con la estructura medida en la primera corrida real: renglón corrido, separaciones relativas al alto, separadores `-` y `|`. Usan datos ficticios: código `9999-`, material inventado y medidas que no repiten ninguna real (TS-12b extiende TS-12 a ese helper).
+
+| Id | Caso | Entrada | Resultado esperado |
+|---|---|---|---|
+| TP-95 | Unidad y fecha en un renglón (R-4, R-5) | título, hueco grande, fecha, hora, "pm", `\|`, unidad; separaciones de 0,1 a 0,7 × alto | unidad leída; `generatedAt` = fecha + hora con "pm", sin la unidad, comparado ignorando espacios (N-1; hora y "pm" pueden llegar como dos palabras); si no se interpreta, `pending` |
+| TP-96 | Otra unidad (R-4) | TP-95 con otra unidad | `unidad-no-soportada` |
+| TP-97 | Sin unidad (R-4) | TP-95 sin la unidad | `estructura-no-reconocida`, con la `rule` de "resumen sin unidad" |
+| TP-98 | Banda de hoja en un renglón (R-6, R-8) | `<material> <e> mm - <L> mm x <A> mm - Tablero estándar`, hueco, `i / N`; con y sin `/` | medida, tipo, material y espesor leídos (/-b) |
+| TP-99 | Letra suelta antes de la medida (R-8; *R-14: actualizada el 11/11/2026, aprobada por el equipo y el profesor, informado por Santiago el 11/11/2026*) | TP-98 con una letra entre el `-` y la medida y la fila del Resumen de la misma medida | **medida leída**, igual a la del Resumen *(antes, aprobada en la v0.2: medida sin leer y rechazo en la primera página de la hoja; ese rechazo pasa a TP-129 y TP-130)* |
+| TP-100 | Número partido (R-8) | número de la medida en dos palabras, separación 0,5 | no se toma el número parcial; `pending` o rechazo |
+| TP-101 | Variante /-b (R-6) | material de hoja sin `/` igual al resumen; distinto; con `/` | leído; `hoja-incompleta`; leído |
+| TP-102 | Pie en un renglón (R-9) | fibra + signo + `<n> piezas`, hueco, longitud de cortes + signo + eficiencia | `pieceCount` leído; longitud y eficiencia leídas o en `pending`; nunca otro valor |
+| TP-103 | Unicidad (R-3) | dos medidas distintas en el renglón de `i / N` | no se elige; rechazo |
+| TP-104 | Título del resumen (R-7, P-R4 cerrada) | título ficticio de tres palabras a la izquierda del material: (a) separado por `\|`; (b) sin separador y el final coincide con una fila de la tabla; (c) sin separador y no coincide | (a) solo el material, sin el título ni la barra; (b) material de la fila; (c) rechazo |
+| TP-105 | Zonas (R-2) | `<n> mm x <n> mm` en la tabla o en el diagrama | no cuenta como medida del tablero |
+| TP-106 | Sin regresión | TP-50, TS-04 y el replay sintético de Vision | idénticos a antes del cambio |
+| TP-107 | Código partido con palabra suelta (RL-1) | código `9999-` en dos renglones con (a) un signo, (b) una letra, (c) un dígito que deja el formato inválido | (a) código leído; (b) y (c) `formato-invalido` o `pending`; nunca otro código válido sin razón |
+
+### Fila de la tabla del Resumen (R-11, §8.2) — **aprobada por Santiago el 10/11 y por el equipo y el profesor, informado por Santiago el 11/11/2026; implementada** (`tests/pdf.ocrR11.test.ts`, con CA-8)
+
+Origen: `docs/spec-revision-ocr-real.md` §4.4 y §5.2 (v0.4, aprobada como v0.8). Se arman en memoria (`tests/helpers/ocrRealLike.ts`) con la geometría observada en la corrida 2: primer segmento de la fila con una cola `- <tipo>`, un rótulo más en el encabezado y una celda `-`. Datos ficticios (TS-12b).
+
+| ID | Qué verifica | Entrada | Esperado |
+|---|---|---|---|
+| TP-108 | Material de la fila sin la cola (R-11 a) | fila `<material> / <e> mm - <tipo de dos palabras>` en un segmento, cinco celdas numéricas | fila leída; material y espesor sin la cola; el tipo no está en ningún campo; sin `pending` nuevo |
+| TP-109 | Columna ignorada (R-11 b) | TP-108 con siete rótulos y una celda `-` bajo `Σ Costos` | celda descartada; `parts` intacto; sin `pending` ni rechazo por ella |
+| TP-110 | Formato por columna (R-11 d) | celda `-` bajo (a) `Σ Areas`, (b) `Cant.`; (c) `Cant.` = `2,5` | (a) `areaM2: null` + `pending`; (b) y (c) rechazo `resumen-tabla-sin-valor` |
+| TP-111 | Sin reemplazo silencioso (R-11 c) | dos celdas en la misma ancla: (a) `Longitud`, (b) `Σ Areas` | (a) rechazo `resumen-celda-duplicada`; (b) `areaM2: null` + `pending`; ningún valor elegido |
+| TP-112 | R-3 para el material (R-11 e) | dos `<material> / <n> mm` en el renglón: (a) distintos, (b) iguales | rechazo `resumen-fila-ambigua` en los dos |
+| TP-113 | Zona de filas (R-11, R-2) | dos filas con material, una línea sin material y otra con material; Resumen sin filas | se leen las dos primeras; sin filas, `resumen-tabla-vacia` |
+| TP-114 | Rótulo desconocido (R-11 b) | rótulo que no es ancla ni `Σ Costos` entre `Σ Areas` y `Σ Partes`, con una celda numérica | no se asigna a ninguna ancla; ningún valor cambia |
+| TP-115 | Equidistancia (R-11 b) | celda equidistante de dos rótulos | no se asigna a ninguno; se aplica R-11 d |
+| TP-116 | Respaldo de R-7 (R-11 f) | TP-104 (b) y (c) con la fila con cola | (b) material de la fila, sin la cola; (c) rechazo `resumen-titulo-sin-limite` |
+
+TP-106 (sin regresión) tiene que seguir dando las mismas salidas con la fila del Resumen sin cola y sin columna extra.
+
+### Código partido y anclas de "No." (R-12, R-13, §8.2) — **aprobadas por Santiago el 10/11 y por el equipo y el profesor, informado por Santiago el 11/11/2026; implementadas** (`tests/pdf.ocrR12.test.ts` con CA-9, `tests/pdf.ocrR13.test.ts`)
+
+Origen: `docs/spec-revision-ocr-real.md` §4.5, §4.6 y §5.2 (v0.5, aprobada como v0.8). Elementos en memoria con la geometría del lookahead (§2.5). Datos ficticios (TS-12b).
+
+| ID | Qué verifica | Entrada | Esperado |
+|---|---|---|---|
+| TP-117 | El guion se conserva (R-12 a) | renglón 2 del código como `M01`, `-`, `C04`, con huecos mayores que `glueGapRatio` | código leído, igual al esperado |
+| TP-118 | Otros guiones no se convierten (R-12 a, H-02) | TP-117 con U+2010, U+2013 o U+2212 | código en `pending` o `formato-invalido` |
+| TP-119 | Ícono en el medio (R-12 b) | palabra descartada (signo, U+2800, uso privado) entre dos palabras del código del mismo renglón | código en `pending` aunque la unión cumpla el formato |
+| TP-120 | Ícono junto al código (R-12 b) | ícono al final del renglón 1 | código leído (como TP-107 a) |
+| TP-121 | Ícono leído como letras o dígitos (R-12 c) | dos dígitos y un signo, o una letra, al final del renglón 1 | `pending` o `formato-invalido` |
+| TP-122 | Guion de más (R-12 a) | un `-` extra junto al del código | `pending`; nunca un código |
+| TP-123 | Gemela cirílica (R-13 a) | letra de fila de una continuación como cada gemela de la tabla, con marcas de canto | fila separada con letra latina; cantidad, L y A leídas; Σ = pie; cantos asignados |
+| TP-124 | Fuera de la tabla (R-13 a) | letra no latina sin gemela | no es ancla (como hoy); campos en `pending` |
+| TP-125 | Anclas superpuestas iguales (R-13 b) | dos cajas a 0,14 del alto con la misma letra; latina y su gemela | una sola fila; la segunda caja no está en ninguna celda |
+| TP-126 | Anclas superpuestas distintas (R-13 b) | cajas de 2 y 1 caracteres distintas | no se funden; fila vacía con `pending`, como hoy |
+| TP-127 | Paso de cantos sin piso (H-C) | dos marcas de una fila casi en la misma x, sin fusión | `pending` en `edges` (como TP-90) |
+
+**Línea base nueva de TP-106 (registrada el 10/11/2026; O-R12-2 aprobada por Santiago el 10/11 y por el equipo y el profesor, informado por Santiago el 11/11/2026).** La línea base vigente son los sha256 de las salidas anteriores a la revisión (TP-50, TS-04 y el replay sintético). Con R-12 y R-13, medido con la sonda local sobre las 14 entradas con lectura ok:
+
+| Entrada | Cambia | Qué cambia |
+|---|---|---|
+| TP-50 (frases, palabras y OCR del primer fixture), TS-04 e ideal-OCR (3 documentos) | **No** | Sin diferencias (12 de las 14 entradas son idénticas) |
+| Replay sintético S1 | Sí (R-12) | 3 códigos pasan de `pending` a leídos e **iguales al esperado**; 2 piezas siguen en `pending` con otro texto crudo de código; cambia el nombre de 1 pieza; la lista `pending` se acorta y se corren sus índices |
+| Replay sintético S3 | Sí (R-12) | 1 código pasa de `pending` a leído e igual al esperado; 2 piezas siguen en `pending` con otro texto crudo; la lista `pending` se acorta |
+
+R-13 no cambia ninguna de esas entradas (el replay sintético no tiene letras cirílicas ni anclas superpuestas). **Ningún código sale válido y distinto del esperado.** `BEFORE` de TP-106 (`tests/pdf.ocrRealLike.test.ts`) se reemplazó el 11/11/2026, al implementar R-12, por los sha256 de las salidas nuevas **solo de S1 y S3** (los otros valores no se tocaron; el replay S2, rechazo de la página 3, tampoco cambia). Los sha256 fijados son: replay S1 `ba7ee3c28c0a887626df4a0acbe542522a8bb58d6071c91e0cf341ca447e15d5` y replay S3 `34730ad7a1f1ebf720fb074aa2095b3c9cfdeeca120adedc6c0ee8f54b7c5971`. Medido con la implementación: S1 recupera 3 códigos iguales al esperado (31 a 28 pending), 2 piezas siguen en pending con otro texto crudo de código y cambia el nombre de 1 pieza; S3 recupera 1 código (5 a 4 pending). `tests/pdf.ocrR12.test.ts` lo comprueba además de forma semántica (CA-9).
+
+### Pictograma antes de la medida de la banda (R-14, §8.2) — **opción C elegida por Santiago el 10/11 y aprobada por el equipo y el profesor, informado por Santiago el 11/11/2026; implementada** (`tests/pdf.ocrR14.test.ts`, con CA-10)
+
+Origen: `docs/spec-revision-ocr-real.md` §4.7 y §5.2 (v0.7, aprobada como v0.8). Elementos en memoria con la geometría de la p. 4 (palabra suelta de un carácter, hueco 1,37 antes y 0,50 después). Datos ficticios (TS-12b). TP-99 se actualiza (tabla de arriba); TP-100 se mantiene.
+
+| ID | Qué verifica | Entrada | Esperado |
+|---|---|---|---|
+| TP-128 | Letra suelta y medida igual al Resumen (R-14 a, c) | letra de un carácter entre el `-` y la medida; el Resumen con una fila de ese material y la misma medida | medida y tipo leídos; la letra no está en ningún campo; toda fila `dudosa` |
+| TP-129 | Medida distinta del Resumen (R-14 c) | TP-128 con otro largo o ancho | rechazo `hoja-medida-sin-respaldo`; ningún valor de medida |
+| TP-130 | Dígito suelto (R-14 a) | un dígito en lugar de la letra | sin tolerancia: rechazo de R-8 (`hoja-sin-encabezado-completo`); ningún valor |
+| TP-131 | Dos palabras sueltas (R-14 a) | dos palabras de un carácter | rechazo de R-8 |
+| TP-132 | Sin fila única del Resumen (R-14 c) | TP-128 con (a) dos filas del mismo material y espesor; (b) ninguna | rechazo `hoja-medida-sin-respaldo` |
+| TP-133 | R-14 no actúa si R-8 ya lee (R-14 d) | (a) sin palabra suelta y con una medida distinta de la del Resumen; (b) un signo en lugar de la letra | se lee como hoy, sin comparar con el Resumen |
+
+### Material sin `/` en el Resumen (R-15, §8.2) — **R-15 aprobada por Santiago el 11/11 y por el equipo y el profesor, informado por Santiago el 12/11/2026; sin implementar**
+
+Origen: `docs/spec-revision-ocr-real.md` v0.9 §2.6, §4.8 y §5.2, y el anexo `docs/anexo-aprobacion-r15.md`. Elementos en memoria (`tests/helpers/ocrRealLike.ts`, `withSummaryTable` con la primera celda de la fila escrita a mano), con datos ficticios (TS-12b: material "Gris Sintético", sin ningún dato real).
+
+| ID | Qué verifica | Entrada | Esperado |
+|---|---|---|---|
+| TP-134 | Fila sin `/`, material de dos palabras (R-15 a) | `<material de dos palabras> <e> mm - <tipo de dos palabras>` en un segmento, igual al título; cinco celdas | fila leída; material y espesor iguales al título, sin la cola; celdas iguales a las de TP-108; sin `pending` nuevo |
+| TP-135 | Material de una palabra (R-15 a) | TP-134 con un material de una palabra y sin cola | fila leída |
+| TP-136 | Sin regresión (CA-2) | fila con `/` (TP-108) y TP-106 | mismas salidas |
+| TP-137 | Material distinto (R-15 a, e) | TP-134 con (a) otra palabra, (b) una palabra de menos, (c) una palabra de más delante | la línea no es fila; si es la primera, `resumen-tabla-vacia`; ningún valor |
+| TP-138 | Espesor distinto (R-15 a, e) | TP-134 con otro espesor | `resumen-tabla-vacia` |
+| TP-139 | Título sin `/` (R-15 g, c; O-R15-1) | (a) con `\|` a la izquierda e igual al material y al espesor de la fila **con** `/`; (b) otro material; (c) otro espesor; (d) sin `\|` y sin `/`; (e) título y fila sin `/`; (f) con `\|` y solo el espesor | (a) leído: `header.material` y espesor iguales a los de la fila; sin `pending` nuevo; toda fila `dudosa`; (b) a (f) `resumen-sin-titulo-o-tabla` |
+| TP-140 | Sin referencia no circular (R-15 c, R-7) | título sin separador (rama 2 de R-7) y fila sin `/` igual a ese material | `resumen-tabla-vacia`; nunca un material sin respaldo |
+| TP-141 | Material dos veces (R-15 d, R-3) | (a) una con `/` y una sin; (b) dos sin `/`, iguales | `resumen-fila-ambigua` en los dos |
+| TP-142 | Igualdad exacta (R-15 a) | material igual al del título pero después de otra palabra del segmento, o partido por un separador | no es fila: rechazo vigente |
+| TP-143 | Banda (R-15 b) | sin `/` igual al título; sin `/` distinta; con `/` y otro material (TP-101) | leído; `hoja-incompleta`; leído |
+| TP-144 | Combinación del Blanco (R-15 a, b) | Resumen sin `/` y bandas con `/` (hoja de dos páginas) | leído; título, fila y hoja con el mismo material y espesor; toda fila `dudosa` |
+| TP-145 | Combinación del Cedro (R-15 a, b) | Resumen con `/` y bandas sin `/` | leído (sin cambio) |
+| TP-146 | Título sin `/` y bandas (R-15 g, b) | título sin `/` aceptado (TP-139 a) y bandas con `/` y sin `/` | bandas leídas (/-b contra el título resuelto); documento leído; toda fila `dudosa` |
 
 ### Filas con campos no leídos
 

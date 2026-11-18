@@ -10,7 +10,7 @@ import { listadoId, modelId as modelIdOf } from "@/engine/hash";
 import { createImportApi } from "@/importer/api";
 import type { ImportStore } from "@/importer/store";
 import { parseOclCsv, type CsvIssue } from "./parse";
-import type { CruceCliente, TypeReason } from "./review";
+import { levelOf, type CruceCliente, type TypeReason } from "./review";
 import { MAX_BYTES, MAX_CARGAS, PROTO_ID, PROTO_PREFIX, ProtoPathError, parseProtoKey, protoDir, protoPath, scopedStore } from "./paths";
 
 export const ESTADOS = ["en-revision", "aprobado", "rechazado", "publicado-simulado"] as const;
@@ -62,6 +62,9 @@ const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest(
 const text = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
 
+/** Tope del motivo de aprobar o rechazar (spec §4.2, v0.4.1, ASUMIDO). */
+export const MAX_MOTIVO = 500;
+
 class HttpError extends Error {
   constructor(
     readonly status: number,
@@ -92,8 +95,16 @@ function parseCruce(value: unknown): CruceCliente {
     );
   if (!ok) throw new HttpError(400, "El resultado del cruce con el .dae no tiene el formato esperado.", "cuerpo");
   const cruce = value as unknown as CruceCliente;
+  // Coherencia del cruce consigo mismo (v0.4.1, §3): el nivel de cada tipo sale de sus razones y los contadores
+  // coinciden con los tipos. No verifica que las razones sean correctas: el cruce lo calcula el cliente.
+  const count = (level: string) => cruce.types.filter((t) => t.level === level).length;
+  const coherent =
+    cruce.types.every((t) => t.level === levelOf(t.reasons)) &&
+    cruce.dudosas === count("dudosa") &&
+    (cruce.advertencias === undefined || cruce.advertencias === count("advertencia"));
+  if (!coherent) throw new HttpError(400, "El resultado del cruce no es coherente: los niveles o los contadores no coinciden con las razones.", "cuerpo");
   // Cruce con el formato anterior (sin contador): se completa desde los tipos.
-  return { ...cruce, advertencias: cruce.advertencias ?? cruce.types.filter((t) => t.level === "advertencia").length };
+  return { ...cruce, advertencias: cruce.advertencias ?? count("advertencia") };
 }
 
 /**
@@ -296,13 +307,16 @@ export function createProtoApi({ store: rawStore, uploadKey, now = () => new Dat
         const to = isObject(body) ? body.estado : undefined;
         if (typeof to !== "string" || !(ESTADOS as readonly string[]).includes(to)) throw new HttpError(400, "Estado desconocido.", "cuerpo");
         const motivo = isObject(body) && typeof body.motivo === "string" ? body.motivo.trim() : "";
+        if (motivo.length > MAX_MOTIVO) throw new HttpError(400, `El motivo no puede superar los ${MAX_MOTIVO} caracteres.`, "motivo");
 
         const events = await eventsOf(s, id);
         const current = events.at(-1)?.estado ?? "en-revision";
         if (!TRANSICIONES[current].includes(to as Estado)) {
           throw new HttpError(409, `No se puede pasar de «${current}» a «${to}».`, "transicion", { estado: current });
         }
-        if (to === "aprobado" && !(informe.csv.status === "publicable" && informe.cruce.canApprove && informe.cruce.dudosas === 0)) {
+        // El 409 se decide por los tipos del informe, no por el contador (v0.4.1).
+        const dudosasPorTipo = informe.cruce.types.filter((t) => t.level === "dudosa").length;
+        if (to === "aprobado" && !(informe.csv.status === "publicable" && informe.cruce.canApprove && dudosasPorTipo === 0)) {
           throw new HttpError(409, "Con dudosas solo se puede rechazar: resolverlas queda fuera del spike.", "dudosas", { estado: current });
         }
         if (to === "rechazado" && motivo === "") throw new HttpError(400, "Rechazar exige un motivo.", "motivo");

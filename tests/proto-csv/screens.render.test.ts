@@ -19,7 +19,16 @@ import { parseOclCsv } from "@/proto-csv/parse";
 import { protoPath } from "@/proto-csv/paths";
 import { reviewListing, summarizeReview } from "@/proto-csv/review";
 
-vi.mock("next/dynamic", () => ({ default: () => () => createElement("div", { "data-testid": "visor" }, "[visor 3D]") }));
+// El visor se reemplaza por un marcador que expone los conjuntos de tipos que recibe (WebGL no corre en jsdom).
+type VisorProps = { selected: string | null; dudosas: ReadonlySet<string>; advertencias: ReadonlySet<string> };
+vi.mock("next/dynamic", () => ({
+  default: () => (props: VisorProps) =>
+    createElement(
+      "div",
+      { "data-testid": "visor", "data-dudosas": [...props.dudosas].sort().join(","), "data-advertencias": [...props.advertencias].sort().join(",") },
+      "[visor 3D]",
+    ),
+}));
 vi.mock("next/link", () => ({ default: ({ href, children }: { href: string; children: ReactNode }) => createElement("a", { href }, children) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -161,6 +170,20 @@ describe("Pantallas del spike (React DOM + API en memoria)", () => {
     await act(async () => button("Aprobar")?.click());
     await vi.waitFor(() => expect(text()).toContain("Ir a publicar (simulado)"), { timeout: 15000 });
     expect(text()).toContain("«C04 va en otra placa»");
+    await unmount();
+  }, 30000);
+
+  it("visor: los tipos dudosos y los de advertencia van en conjuntos separados, y la leyenda dice los colores", async () => {
+    const visor = () => container.querySelector('[data-testid="visor"]');
+    await mount(createElement(CsvReviewScreen, { id: "a7a7a7a7a7a7a7a7" }), "Decisión");
+    expect([visor()?.getAttribute("data-dudosas"), visor()?.getAttribute("data-advertencias")]).toEqual(["", "0001-01-M01-C04"]);
+    expect(text()).toContain("Verde: pieza elegida · rojo: tipos dudosos · ámbar: tipos con advertencia · gris: el resto.");
+    await unmount();
+    await mount(createElement(CsvReviewScreen, { id: "b2b2b2b2b2b2b2b2" }), "Decisión");
+    expect([visor()?.getAttribute("data-dudosas"), visor()?.getAttribute("data-advertencias")]).toEqual(["0001-01-M01-C03", ""]);
+    await unmount();
+    await mount(createElement(CsvReviewScreen, { id: "a1a1a1a1a1a1a1a1" }), "Decisión");
+    expect([visor()?.getAttribute("data-dudosas"), visor()?.getAttribute("data-advertencias")]).toEqual(["", ""]);
     await unmount();
   }, 30000);
 

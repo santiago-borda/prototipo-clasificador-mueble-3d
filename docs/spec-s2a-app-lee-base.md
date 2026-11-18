@@ -1,6 +1,6 @@
 # Spec S2 — Enmienda A: la ficha y el visor leen de la base
 
-Versión 0.1 · 18/11/2026 · Estado: **propuesta, a aprobar por el equipo**
+Versión 0.1 · 18/11/2026 · Estado: **Aprobada por Santiago el 18/11/2026**
 Enmienda a: `docs/spec-s2-base-de-datos.md` v0.2 (aprobada el 17/11).
 Motivo: decisión del 18/11 (`claude/decisiones-18-11-integracion-erp.md`, decisiones 2 a 4).
 Rama sugerida: `s2a-app-lee-base`, desde `fable/s2-base-de-datos`.

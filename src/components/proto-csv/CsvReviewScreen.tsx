@@ -344,6 +344,7 @@ export function CsvReviewScreen({ id }: { id: string }) {
                 <span className="font-medium text-slate-700">Motivo de la aprobación (obligatorio)</span>
                 <input
                   value={approveMotivo}
+                  maxLength={500}
                   onChange={(e) => setApproveMotivo(e.target.value)}
                   placeholder="Ej.: vi las advertencias; C04 se corta de otra placa"
                   className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2"
@@ -353,7 +354,7 @@ export function CsvReviewScreen({ id }: { id: string }) {
             <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
               <label className="block text-sm">
                 <span className="font-medium text-slate-700">Motivo del rechazo (obligatorio)</span>
-                <input value={motivo} onChange={(e) => setMotivo(e.target.value)} className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2" />
+                <input value={motivo} maxLength={500} onChange={(e) => setMotivo(e.target.value)} className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2" />
               </label>
               <button
                 type="button"

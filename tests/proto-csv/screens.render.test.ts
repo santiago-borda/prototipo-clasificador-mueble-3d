@@ -165,6 +165,9 @@ describe("Pantallas del spike (React DOM + API en memoria)", () => {
     expect(text()).toContain("Motivo de la aprobación (obligatorio)");
     expect(button("Aprobar")?.disabled).toBe(true);
     const input = [...container.querySelectorAll("input")].find((i) => i.closest("label")?.textContent?.includes("Motivo de la aprobación")) as HTMLInputElement;
+    // Mismo tope que el servidor (spec §4.2, 500 caracteres), en los dos campos de motivo.
+    const rechazo = [...container.querySelectorAll("input")].find((i) => i.closest("label")?.textContent?.includes("Motivo del rechazo")) as HTMLInputElement;
+    expect([input.maxLength, rechazo.maxLength]).toEqual([500, 500]);
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "C04 va en otra placa");
       input.dispatchEvent(new Event("input", { bubbles: true }));

@@ -161,7 +161,7 @@ describe("C9b: mezcla de razones (levelOf, lista cerrada en review.ts)", () => {
   const cruce = (reason: string) => ({ source: "cruce" as const, reason });
 
   it("SOFT_REASONS y DERIVED_REASONS son las listas cerradas de la spec §3", () => {
-    expect([...SOFT_REASONS].sort()).toEqual(["cantidad-no-coincide", "canteado-no-coincide", "cupo-excedido", "faltante", "medida-fuera-de-tolerancia", "medida-no-coincide"]);
+    expect([...SOFT_REASONS].sort()).toEqual(["cantidad-no-coincide", "canteado-no-coincide", "cupo-excedido", "faltante", "medida-fuera-de-tolerancia", "medida-no-coincide"].sort());
     expect([...DERIVED_REASONS].sort()).toEqual(["instancia-no-segura", "sin-confirmar"]);
   });
 

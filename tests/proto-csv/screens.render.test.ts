@@ -178,7 +178,9 @@ describe("Pantallas del spike (React DOM + API en memoria)", () => {
     expect(container.querySelectorAll("tbody tr").length).toBeGreaterThanOrEqual(4);
     expect(text()).toContain("CSV contra .dae");
     expect(text()).toContain("Esquema de canteado");
-    expect(container.querySelector('svg[aria-label^="Esquema de la pieza"]')?.getAttribute("aria-label")).toMatch(/Esquema de la pieza/);
+    const esquema = container.querySelector('svg[role="img"][aria-label^="Esquema de la pieza"]');
+    expect(esquema, "falta el esquema de canteado de la pieza elegida").not.toBeNull();
+    expect(esquema?.getAttribute("aria-label")).toMatch(/Esquema de la pieza/);
     // Placa: dibujada desde los datos (no el SVG crudo), con los cortes rotulados como lectura no confirmada.
     await vi.waitFor(() => expect(text()).toContain("4 piezas · 10 líneas de corte"), { timeout: 15000 });
     expect(text()).toContain("Líneas de corte: lectura geométrica, no confirmada con Casa Mueble. No es un orden de corte.");

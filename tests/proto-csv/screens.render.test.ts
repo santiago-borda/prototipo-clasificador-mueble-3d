@@ -178,7 +178,7 @@ describe("Pantallas del spike (React DOM + API en memoria)", () => {
     expect(container.querySelectorAll("tbody tr").length).toBeGreaterThanOrEqual(4);
     expect(text()).toContain("CSV contra .dae");
     expect(text()).toContain("Esquema de canteado");
-    expect(container.querySelector('svg[role="img"]')?.getAttribute("aria-label")).toMatch(/Esquema de la pieza/);
+    expect(container.querySelector('svg[aria-label^="Esquema de la pieza"]')?.getAttribute("aria-label")).toMatch(/Esquema de la pieza/);
     // Placa: dibujada desde los datos (no el SVG crudo), con los cortes rotulados como lectura no confirmada.
     await vi.waitFor(() => expect(text()).toContain("4 piezas · 10 líneas de corte"), { timeout: 15000 });
     expect(text()).toContain("Líneas de corte: lectura geométrica, no confirmada con Casa Mueble. No es un orden de corte.");
@@ -285,7 +285,7 @@ describe("Pantallas del spike (React DOM + API en memoria)", () => {
     await act(async () => button("Ver cargas")?.click());
     await vi.waitFor(() => expect(text()).toContain("incompleta (sin registrar)"), { timeout: 15000 });
     if (process.env.DUMP_SCREENS) console.log(`\n===== lista\n${text()}`);
-    expect(text()).toContain("6 de 20");
+    expect(text()).toContain("7 de 20");
     expect([...container.querySelectorAll("li")].filter((li) => li.textContent?.includes("f6f6f6f6f6f6f6f6") && li.querySelector("button")?.textContent === "Borrar")).toHaveLength(1);
     await unmount();
   }, 30000);

@@ -30,8 +30,10 @@ const api = createProtoApi({ store, uploadKey: KEY });
 const post = (url: string, body: unknown) =>
   new Request(`http://localhost${url}`, { method: "POST", headers: { "x-import-key": KEY, "content-type": "application/json" }, body: JSON.stringify(body) });
 
-/** Variante sintética del CSV real: C04 con Cantidad 2 (el .dae tiene 1). */
-const CSV_DUDOSA = CSV.replace(/^(A;0001-01-M01-C04;)1;/m, "$12;");
+/** Variante sintética del CSV real: C04 con Cantidad 2 (el .dae tiene 1): advertencia, se acepta con motivo. */
+const CSV_ADVERTENCIA = CSV.replace(/^(A;0001-01-M01-C04;)1;/m, "$12;");
+/** Variante sintética: C03 con nombre anómalo (excluido del listado): dudosa, solo se puede rechazar. */
+const CSV_DUDOSA = CSV.replace(/^A;0001-01-M01-C03;/m, "A;_0001-01-M01-C03__;");
 
 async function seed(id: string, csv: string, steps: { estado: string; motivo?: string }[]) {
   await store.delete(await store.list(protoDir(id)));
@@ -47,14 +49,15 @@ async function seed(id: string, csv: string, steps: { estado: string; motivo?: s
     const r = await api.changeState(post(`/api/proto-csv/${id}/estado`, step), id);
     if (!r.ok) throw new Error(`${id}: ${step.estado} ${r.status} ${await r.text()}`);
   }
-  console.log(`${id}: ${["en-revision", ...steps.map((s) => s.estado)].join(" → ")} (dudosas: ${cruce.dudosas})`);
+  console.log(`${id}: ${["en-revision", ...steps.map((s) => s.estado)].join(" → ")} (dudosas: ${cruce.dudosas}, advertencias: ${cruce.advertencias})`);
 }
 
 await seed("a1a1a1a1a1a1a1a1", CSV, []);
 await seed("b2b2b2b2b2b2b2b2", CSV_DUDOSA, []);
+await seed("a7a7a7a7a7a7a7a7", CSV_ADVERTENCIA, []); // en revisión con advertencias (capturas HITL v0.4)
 await seed("c3c3c3c3c3c3c3c3", CSV, [{ estado: "aprobado" }]);
 await seed("d4d4d4d4d4d4d4d4", CSV, [{ estado: "aprobado" }, { estado: "publicado-simulado" }]);
-await seed("e5e5e5e5e5e5e5e5", CSV_DUDOSA, [{ estado: "rechazado", motivo: "C04 figura dos veces en el CSV y una en el modelo: reexportar" }]);
+await seed("e5e5e5e5e5e5e5e5", CSV_DUDOSA, [{ estado: "rechazado", motivo: "C03 con nombre anómalo en el CSV: reexportar" }]);
 const incomplete = "f6f6f6f6f6f6f6f6";
 await store.delete(await store.list(protoDir(incomplete)));
 await store.put(protoPath(incomplete, "listado.csv"), enc(CSV), "text/csv");

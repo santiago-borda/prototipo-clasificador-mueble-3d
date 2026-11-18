@@ -12,7 +12,7 @@ import { EdgeBandingDiagram } from "@/components/EdgeBandingDiagram";
 import type { EdgeId } from "@/data/types";
 import { loadCarga, type LoadedCarga } from "@/proto-csv/browser";
 import { useUploadKey } from "@/proto-csv/keyStore";
-import { approveBlockers, type TypeReview } from "@/proto-csv/review";
+import { DERIVED_REASONS, approveBlockers, type TypeLevel, type TypeReview } from "@/proto-csv/review";
 import { ESTADO_TEXT, SOURCE_TEXT, formatFecha, reasonText } from "@/proto-csv/texts";
 import { KeyField } from "./KeyField";
 import { PlacaView } from "./PlacaView";
@@ -22,12 +22,17 @@ const ReviewViewer = dynamic(() => import("./ReviewViewer"), { ssr: false, loadi
 const mm = (n: number) => (Math.round(n * 10) / 10).toString().replace(".", ",");
 const SIDE: Record<string, string> = { s1: "inferior", s2: "superior", s3: "izquierdo", s4: "derecho" };
 
-export function Badge({ level }: { level: "segura" | "dudosa" }) {
-  return level === "segura" ? (
-    <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-semibold text-teal-800">segura</span>
-  ) : (
-    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">dudosa</span>
-  );
+/** Insignia por nivel: siempre con texto (y el ícono ⚠ en advertencia), no solo color. */
+export function Badge({ level }: { level: TypeLevel }) {
+  if (level === "segura") return <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-semibold text-teal-800">segura</span>;
+  if (level === "advertencia") {
+    return (
+      <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-semibold text-yellow-900 ring-1 ring-yellow-400">
+        <span aria-hidden="true">⚠ </span>advertencia
+      </span>
+    );
+  }
+  return <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800">dudosa</span>;
 }
 
 export function EstadoBadge({ estado }: { estado: string }) {
@@ -35,31 +40,11 @@ export function EstadoBadge({ estado }: { estado: string }) {
   return <span className={`rounded-md px-2 py-1 text-xs font-semibold text-white ${color}`}>{ESTADO_TEXT[estado] ?? estado}</span>;
 }
 
-function PieceDetail({ type }: { type: TypeReview }) {
+/** CSV contra .dae de un tipo: medidas ordenadas y caras de canto de cada instancia. Sirve en el detalle y en la lista de advertencias. */
+function CsvVsDae({ type }: { type: TypeReview }) {
   const piece = type.piece;
   const csvSorted = piece ? [piece.thicknessMm, piece.widthMm, piece.lengthMm].sort((a, b) => a - b) : null;
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <h3 className="font-mono text-sm font-semibold text-slate-900">{type.code}</h3>
-        <Badge level={type.level} />
-      </div>
-
-      <div>
-        <h4 className="text-xs font-semibold uppercase text-slate-500">Razones</h4>
-        {type.reasons.length === 0 ? (
-          <p className="text-sm text-teal-800">Ninguna: código exacto, cantidad y medidas coinciden con el .dae.</p>
-        ) : (
-          <ul className="mt-1 list-disc pl-5 text-sm text-amber-900">
-            {type.reasons.map((r) => (
-              <li key={`${r.source}-${r.reason}`}>
-                {reasonText(r.reason)} <span className="text-xs text-slate-500">({SOURCE_TEXT[r.source]}: {r.reason})</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
       <div>
         <h4 className="text-xs font-semibold uppercase text-slate-500">CSV contra .dae</h4>
         <table className="mt-1 w-full text-left text-xs">
@@ -101,6 +86,34 @@ function PieceDetail({ type }: { type: TypeReview }) {
           detecta (limitación conocida).
         </p>
       </div>
+  );
+}
+
+function PieceDetail({ type }: { type: TypeReview }) {
+  const piece = type.piece;
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <h3 className="font-mono text-sm font-semibold text-slate-900">{type.code}</h3>
+        <Badge level={type.level} />
+      </div>
+
+      <div>
+        <h4 className="text-xs font-semibold uppercase text-slate-500">Razones</h4>
+        {type.reasons.length === 0 ? (
+          <p className="text-sm text-teal-800">Ninguna: código exacto, cantidad y medidas coinciden con el .dae.</p>
+        ) : (
+          <ul className="mt-1 list-disc pl-5 text-sm text-amber-900">
+            {type.reasons.map((r) => (
+              <li key={`${r.source}-${r.reason}`}>
+                {reasonText(r.reason)} <span className="text-xs text-slate-500">({SOURCE_TEXT[r.source]}: {r.reason})</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <CsvVsDae type={type} />
 
       <div>
         <h4 className="text-xs font-semibold uppercase text-slate-500">Esquema de canteado</h4>
@@ -120,6 +133,8 @@ export function CsvReviewScreen({ id }: { id: string }) {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [motivo, setMotivo] = useState("");
+  /** Motivo de la aprobación: obligatorio solo si hay advertencias (v0.4). */
+  const [approveMotivo, setApproveMotivo] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -133,7 +148,11 @@ export function CsvReviewScreen({ id }: { id: string }) {
         const loaded = await loadCarga(id);
         if (cancelled) return;
         setCarga(loaded);
-        setSelected((s) => s ?? (loaded.analysis.ok ? (loaded.analysis.review.types.find((t) => t.level === "dudosa") ?? loaded.analysis.review.types[0])?.code ?? null : null));
+        setSelected((s) => {
+          if (s || !loaded.analysis.ok) return s;
+          const types = loaded.analysis.review.types;
+          return (types.find((t) => t.level === "dudosa") ?? types.find((t) => t.level === "advertencia") ?? types[0])?.code ?? null;
+        });
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
       }
@@ -143,7 +162,8 @@ export function CsvReviewScreen({ id }: { id: string }) {
     };
   }, [id, version]);
 
-  const dudosas = useMemo(() => new Set(carga?.analysis.ok ? carga.analysis.review.types.filter((t) => t.level === "dudosa").map((t) => t.code) : []), [carga]);
+  /** Para el visor: en ámbar lo que pide atención (dudosas y advertencias). */
+  const dudosas = useMemo(() => new Set(carga?.analysis.ok ? carga.analysis.review.types.filter((t) => t.level !== "segura").map((t) => t.code) : []), [carga]);
 
   if (error) {
     return (
@@ -162,6 +182,8 @@ export function CsvReviewScreen({ id }: { id: string }) {
   const { review, parse } = analysis;
   const blockers = [...approveBlockers(review, parse.listing.status), ...(carga.mismatch ? [carga.mismatch] : [])];
   const type = review.types.find((t) => t.code === selected) ?? null;
+  const warned = review.types.filter((t) => t.level === "advertencia");
+  const needsMotivo = warned.length > 0;
   const rejected = eventos.find((e) => e.estado === "rechazado");
   const svgFile = informe.archivos.find((a) => a.path.startsWith("diagrama-") && a.path.endsWith(".svg"));
 
@@ -171,7 +193,7 @@ export function CsvReviewScreen({ id }: { id: string }) {
     const res = await fetch(`/api/proto-csv/${id}/estado`, {
       method: "POST",
       headers: { "x-import-key": key, "content-type": "application/json" },
-      body: JSON.stringify({ estado: to, motivo: to === "rechazado" ? motivo : undefined }),
+      body: JSON.stringify({ estado: to, motivo: to === "rechazado" ? motivo : needsMotivo ? approveMotivo : undefined }),
     });
     setBusy(false);
     if (!res.ok) return setActionError(((await res.json()) as { error?: string }).error ?? `Error ${res.status}`);
@@ -243,7 +265,7 @@ export function CsvReviewScreen({ id }: { id: string }) {
 
           <div className="mt-6">
             <ReviewViewer url={`/api/proto-csv/${id}/archivo/modelo.dae`} selected={selected} dudosas={dudosas} />
-            <p className="mt-1 text-xs text-slate-500">Verde: pieza elegida · ámbar: dudosas · gris: el resto. Arrastrá para girar.</p>
+            <p className="mt-1 text-xs text-slate-500">Verde: pieza elegida · ámbar: dudosas o con advertencia · gris: el resto. Arrastrá para girar.</p>
           </div>
 
           {svgFile && informe.svgMaterial && (
@@ -261,13 +283,45 @@ export function CsvReviewScreen({ id }: { id: string }) {
         <h2 className="text-base font-semibold text-slate-900">Decisión</h2>
         {estado === "en-revision" && (
           <>
-            <p className="mt-1 text-xs text-slate-500">La revisión humana se limita a aprobar o rechazar: no se editan datos ni se resuelven dudosas en el spike.</p>
+            <p className="mt-1 text-xs text-slate-500">
+              La revisión humana se limita a aprobar o rechazar: no se editan datos ni se resuelven dudosas en el spike. Las advertencias se pueden aceptar con un motivo.
+            </p>
+            {needsMotivo && blockers.length === 0 && (
+              <div data-testid="advertencias" className="mt-3 rounded-md border border-yellow-400 bg-yellow-50 p-3">
+                <h3 className="text-sm font-semibold text-yellow-900">
+                  <span aria-hidden="true">⚠ </span>
+                  {warned.length === 1 ? "1 tipo con advertencia" : `${warned.length} tipos con advertencia`}: no bloquean, pero al aprobar declarás que las viste y las aceptás
+                </h3>
+                <div className="mt-3 space-y-4">
+                  {warned.map((t) => (
+                    <div key={t.code} className="rounded-md bg-white p-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm font-semibold text-slate-900">{t.code}</span>
+                        <Badge level={t.level} />
+                      </div>
+                      <ul className="mt-1 list-disc pl-5 text-sm text-yellow-900">
+                        {t.reasons
+                          .filter((r) => !DERIVED_REASONS.includes(r.reason))
+                          .map((r) => (
+                            <li key={`${r.source}-${r.reason}`}>
+                              {reasonText(r.reason)} <span className="text-xs text-slate-500">({SOURCE_TEXT[r.source]}: {r.reason})</span>
+                            </li>
+                          ))}
+                      </ul>
+                      <div className="mt-2">
+                        <CsvVsDae type={t} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               <KeyField />
               <div>
                 <button
                   type="button"
-                  disabled={blockers.length > 0 || !key || busy}
+                  disabled={blockers.length > 0 || !key || busy || (needsMotivo && approveMotivo.trim() === "")}
                   onClick={() => change("aprobado")}
                   className="w-full rounded-md bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
                 >
@@ -278,9 +332,23 @@ export function CsvReviewScreen({ id }: { id: string }) {
                     <span className="font-semibold">No se puede aprobar:</span> {blockers.join(" ")} Con dudosas solo se puede rechazar.
                   </p>
                 )}
+                {blockers.length === 0 && needsMotivo && approveMotivo.trim() === "" && (
+                  <p className="mt-2 text-xs text-yellow-900">Para aprobar con advertencias, escribí el motivo de abajo.</p>
+                )}
                 {blockers.length === 0 && !key && <p className="mt-2 text-xs text-slate-500">Ingresá la clave para aprobar o rechazar.</p>}
               </div>
             </div>
+            {needsMotivo && blockers.length === 0 && (
+              <label className="mt-4 block text-sm">
+                <span className="font-medium text-slate-700">Motivo de la aprobación (obligatorio)</span>
+                <input
+                  value={approveMotivo}
+                  onChange={(e) => setApproveMotivo(e.target.value)}
+                  placeholder="Ej.: vi las advertencias; C04 se corta de otra placa"
+                  className="mt-1 block w-full rounded-md border border-slate-300 px-3 py-2"
+                />
+              </label>
+            )}
             <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
               <label className="block text-sm">
                 <span className="font-medium text-slate-700">Motivo del rechazo (obligatorio)</span>
@@ -314,6 +382,7 @@ export function CsvReviewScreen({ id }: { id: string }) {
             <li key={e.n}>
               {e.n}. {ESTADO_TEXT[e.estado]} · {formatFecha(e.fecha)}
               {e.motivo ? ` · «${e.motivo}»` : ""}
+              {e.advertenciasAceptadas?.length ? ` · advertencias aceptadas: ${e.advertenciasAceptadas.map((a) => a.code).join(", ")}` : ""}
             </li>
           ))}
         </ol>

@@ -8,8 +8,8 @@ import { observeDae } from "@/model/observe";
 import { CSV_REJECTIONS } from "@/proto-csv/reasons";
 import { parseOclCsv } from "@/proto-csv/parse";
 import { PREVIEW_MARK, QR_TEST_BASE, qrPreview } from "@/proto-csv/labels";
-import { approveBlockers, reviewListing } from "@/proto-csv/review";
-import { REJECTION_TEXT, formatFecha } from "@/proto-csv/texts";
+import { DERIVED_REASONS, SOFT_REASONS, approveBlockers, reviewListing } from "@/proto-csv/review";
+import { REJECTION_TEXT, formatFecha, reasonText } from "@/proto-csv/texts";
 
 const ROOT = path.resolve(__dirname, "..", "..");
 const DIR = path.join(ROOT, "tests", "fixtures", "csv-ocl", "gabinete");
@@ -119,5 +119,15 @@ describe("Fechas: 24 horas y con zona horaria", () => {
 
   it("ninguna pantalla del spike usa toLocaleString/toLocaleDateString/toLocaleTimeString", () => {
     for (const file of SCREEN_FILES) expect(codeOnly(file), file).not.toMatch(/toLocale(Date|Time)?String/);
+  });
+});
+
+describe("v0.4: textos de las razones blandas", () => {
+  it.each(SOFT_REASONS)("%s tiene texto en lenguaje claro (no el código)", (reason) => {
+    expect(reasonText(reason)).not.toBe(reason);
+    expect(reasonText(reason).length).toBeGreaterThan(15);
+  });
+  it.each(DERIVED_REASONS)("la derivada %s tiene texto", (reason) => {
+    expect(reasonText(reason)).not.toBe(reason);
   });
 });

@@ -48,13 +48,15 @@ function AnalysisBox({ analysis }: { analysis: Analysis }) {
     <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3 text-sm">
       <p className="font-semibold text-slate-900">Análisis antes de subir</p>
       <p className="mt-1 text-slate-700">
-        {review.types.length} tipos de pieza · {segura} seguras · {review.dudosas} dudosas · {review.orphanInstances.length} instancias del .dae sin fila ·{" "}
+        {review.types.length} tipos de pieza · {segura} seguras · {review.advertencias} con advertencia · {review.dudosas} dudosas · {review.orphanInstances.length} instancias del .dae sin fila ·{" "}
         {parse.edgeTotalMm} mm de canto
       </p>
       {blockers.length > 0 ? (
         <p className="mt-2 text-amber-800">Se puede subir, pero en la revisión solo se podrá rechazar: {blockers.join(" ")}</p>
       ) : (
-        <p className="mt-2 text-teal-800">Sin dudosas: en la revisión se podrá aprobar.</p>
+        <p className="mt-2 text-teal-800">
+          {review.advertencias > 0 ? "Sin dudosas: en la revisión se podrá aprobar, aceptando las advertencias con un motivo." : "Sin dudosas: en la revisión se podrá aprobar."}
+        </p>
       )}
     </div>
   );

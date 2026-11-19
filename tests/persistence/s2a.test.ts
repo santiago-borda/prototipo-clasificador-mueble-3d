@@ -1,5 +1,6 @@
 // S2A: la ficha y el visor de /p/<qrId> leen de la base (docs/spec-s2a-app-lee-base.md v0.2, §4).
-// S2A PB-14 (la ficha no cambió, contra la captura previa), S2A PB-15 (mismo destino y misma respuesta de la página),
+// S2A PB-14 (la ficha no cambió, contra la captura previa), S2A PB-15 (mismo destino y misma respuesta de la página;
+// inexistente y no publicado: 404),
 // S2A PB-16 (base caída: error con nombre, nunca datos estáticos) y S2A PB-17 (`OLMO_MODEL_ID`).
 // Memoria siempre; PostgreSQL solo con TEST_DATABASE_URL (esquema propio por prueba, que se borra), como sql.test.ts.
 
@@ -13,19 +14,31 @@ import FichaError from "@/app/p/error";
 import { QrSheets } from "@/components/QrSheets";
 import { LoadBaseFurniture } from "@/components/viewer/LoadBaseFurniture";
 import { olmoDef } from "@/data/furniture.mock";
+import type { FurnitureDef } from "@/data/types";
 import { OLMO_MODEL_ID } from "@/data/olmoModelId";
 import { modelId } from "@/engine/hash";
 import { listQrEntriesOf, resolveQr, type QrTarget } from "@/lib/lookup";
 import { createMemoryPersistence } from "@/persistence/memory";
 import { PersistenciaNoDisponibleError, type Persistence } from "@/persistence/ports";
 import { createSqlPersistence } from "@/persistence/sql";
-import { closePersistence, resolveQrTargetWith } from "@/server/datos";
+import { closePersistence, getPersistence, resolveQrTargetWith } from "@/server/datos";
 import { seedOlmo } from "../../db/seed";
 import captura from "../fixtures/s2a/ficha-olmo.json";
 import { AVISO_SIN_BASE, createTestSchema, TEST_DATABASE_URL, type TestSchema } from "./postgres";
 
 const OLMO_QR = listQrEntriesOf(olmoDef).map((entry) => entry.qrId);
 const INEXISTENTE = "no-existe-c99";
+
+/** Copia del primer fixture como otro mueble, con ids y qrId propios: se guarda sin publicar (S2A-4). */
+function sinPublicar(): FurnitureDef {
+  const qr = (id: string) => `s2a-borrador-${id}`;
+  return {
+    ...olmoDef,
+    furniture: { ...olmoDef.furniture, id: "s2a-borrador", qrId: qr("mueble") },
+    modules: olmoDef.modules.map((m) => ({ ...m, id: qr(m.id), furnitureId: "s2a-borrador", qrId: qr(m.qrId) })),
+    pieceTypes: olmoDef.pieceTypes.map((piece) => ({ ...piece, moduleId: qr(piece.moduleId), qrId: qr(piece.qrId) })),
+  };
+}
 
 /** Lo que devuelve la página: el elemento de `QrSheets` (con el `target`) y el de `LoadBaseFurniture` (con el `def`). */
 async function renderPage(qrId: string): Promise<{ target: QrTarget; loadedDef: unknown }> {
@@ -112,6 +125,28 @@ function bateria(nombre: string, abrir: () => Promise<Caso & { cerrar(): Promise
         expect(resolveQr(INEXISTENTE)).toBeUndefined();
         expect(await resolveQrTargetWith(caso.persistence, INEXISTENTE)).toBeUndefined();
         expect(await pageStatus(INEXISTENTE)).toBe(404);
+      });
+
+      describe("S2A-4: un QR de una versión no publicada responde 404", () => {
+        // Mueble sintético con qrId propios, guardado como `borrador` (sin publicar) en la persistencia que usa la
+        // página: en memoria, la de la raíz de composición; en PostgreSQL, el mismo esquema de la prueba.
+        const borrador = sinPublicar();
+        const qrIds = [borrador.furniture.qrId, borrador.modules[0].qrId, borrador.pieceTypes[3].qrId];
+
+        beforeAll(async () => {
+          const raiz = await getPersistence();
+          await raiz.furniture.saveDesignVersion("desarrollo", { def: borrador, modelId: null, createdBy: "prueba" });
+        });
+
+        it.each(qrIds)("%s: undefined y la página responde 404 (notFound)", async (qrId) => {
+          const raiz = await getPersistence();
+          const resolution = await raiz.qr.resolve(qrId);
+          // Existe en la base (módulo y pieza, como borrador); el qrId de mueble sin versión publicada no resuelve.
+          if (qrId === borrador.furniture.qrId) expect(resolution).toBeNull();
+          else expect(resolution?.status).toBe("borrador");
+          expect(await resolveQrTargetWith(raiz, qrId)).toBeUndefined();
+          expect(await pageStatus(qrId)).toBe(404);
+        });
       });
     });
   });

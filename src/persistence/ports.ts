@@ -77,11 +77,60 @@ export type QrResolution =
       revoked: boolean;
     };
 
+/**
+ * IE-4: sesión propia del embebido (docs/spec-integracion-erp-minima.md). `id` es el sha256 (hex) del token de sesión
+ * que lleva la cookie: la base nunca ve la cookie. El token del ERP se guarda cifrado (AES-256-GCM, src/server/embebido).
+ */
+export interface EmbeddedSession {
+  id: string;
+  tenantId: string;
+  erpUserId: string;
+  erpTenantId: string;
+  erpTokenEncrypted: string;
+  createdAt: Date;
+  expiresAt: Date;
+  revokedAt: Date | null;
+}
+
+/** IE-8: un zip del ERP que se abrió en el visor. Se registra su sha256; el archivo no se guarda. */
+export interface ErpDocumentSeen {
+  erpDocumentId: string;
+  sha256: string;
+  bytes: number;
+}
+
 // --- Repositorios ------------------------------------------------------------------------------
 
 export interface TenantRepository {
   create(input: { id?: string; name: string; erpTenantId?: string | null }): Promise<Tenant>;
   get(tenantId: string): Promise<Tenant | null>;
+  /**
+   * IE-6: la carpintería de un tenant del ERP; si no existe, se crea con ese `erpTenantId` (único en la base).
+   * Es una puerta de entrada (como `qr.resolve`): no lleva tenantId porque es lo que se busca.
+   */
+  ensureErpTenant(input: { erpTenantId: string; name: string }): Promise<Tenant>;
+}
+
+/** IE-9: vínculo con los proyectos del ERP. */
+export interface ProjectRepository {
+  /** Id de fila del proyecto vinculado a `erpProjectId` en la carpintería; si no hay, se crea. Único por carpintería. */
+  linkErpProject(tenantId: string, input: { erpProjectId: string; name: string }): Promise<string>;
+}
+
+export interface SessionRepository {
+  create(session: Omit<EmbeddedSession, "revokedAt">): Promise<void>;
+  /** Puerta de entrada: la sesión por su id (sha256 de la cookie), o null. No filtra vencidas ni revocadas. */
+  get(id: string): Promise<EmbeddedSession | null>;
+  /** IE-5: reemplaza el token cifrado de una sesión no revocada. false si no existe o está revocada. */
+  replaceToken(tenantId: string, id: string, erpTokenEncrypted: string): Promise<boolean>;
+  /** Revocar dos veces no hace nada. */
+  revoke(id: string, at: Date): Promise<void>;
+}
+
+export interface ErpDocumentRepository {
+  /** IE-8: registra el sha256 de un zip abierto. Registrar dos veces el mismo no hace nada. */
+  record(tenantId: string, projectId: string, seen: ErpDocumentSeen): Promise<void>;
+  list(tenantId: string, projectId: string): Promise<ErpDocumentSeen[]>;
 }
 
 export interface FurnitureRepository {
@@ -118,6 +167,9 @@ export interface Persistence {
   furniture: FurnitureRepository;
   qr: QrRepository;
   runs: RunRepository;
+  projects: ProjectRepository;
+  sessions: SessionRepository;
+  erpDocuments: ErpDocumentRepository;
   /** Libera las conexiones (la implementación en memoria no hace nada). */
   close(): Promise<void>;
 }

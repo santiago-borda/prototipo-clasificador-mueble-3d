@@ -19,7 +19,8 @@
     "db:up": "docker compose up -d --wait db",
     "db:down": "docker compose down",
     "db:migrate": "vite-node --config vitest.config.ts db/scripts/migrate.ts",
-    "db:seed": "vite-node --config vitest.config.ts db/scripts/seed.ts"
+    "db:seed": "vite-node --config vitest.config.ts db/scripts/seed.ts",
+    "erp:simulado": "vite-node --config vitest.config.ts erp-simulado/servidor.ts"
   },
   "dependencies": {
     "@google-cloud/vision": "^6.2.0",

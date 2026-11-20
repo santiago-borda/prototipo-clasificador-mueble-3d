@@ -142,3 +142,27 @@ export interface EngineRunRow {
   document: string;
   created_at: Date;
 }
+
+/** IE-4 (migración 0002_sesion). `id` = sha256 hex del token de sesión. */
+export interface SessionRow {
+  tenant_id: string;
+  id: string;
+  erp_user_id: string;
+  erp_tenant_id: string;
+  /** Token del ERP cifrado (AES-256-GCM): `v1.<iv>.<tag>.<cifrado>` en base64url. Nunca en claro. */
+  erp_token_encrypted: string;
+  created_at: Date;
+  expires_at: Date;
+  revoked_at: Date | null;
+}
+
+/** IE-8 (migración 0002_sesion): sha256 de un zip del ERP abierto en el visor. */
+export interface ErpDocumentRow {
+  tenant_id: string;
+  id: string;
+  project_id: string;
+  erp_document_id: string;
+  sha256: string;
+  bytes: number;
+  first_seen_at: Date;
+}

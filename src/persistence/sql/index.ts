@@ -14,15 +14,19 @@ import {
   ReferenciaDeOtroTenantError,
   TenantInexistenteError,
   VersionInmutableError,
+  type EmbeddedSession,
+  type ErpDocumentRepository,
   type FurnitureRepository,
   type Persistence,
   type PersistenceDeps,
+  type ProjectRepository,
   type QrRepository,
   type RunRepository,
+  type SessionRepository,
   type Tenant,
   type TenantRepository,
 } from "../ports";
-import type { DesignVersionRow, FurnitureRow, ProjectRow, TenantRow } from "../rows";
+import type { DesignVersionRow, FurnitureRow, ProjectRow, SessionRow, TenantRow } from "../rows";
 import type { Database } from "./connection";
 
 /** Una conexión o una transacción: las consultas de lectura sirven para las dos. */
@@ -92,6 +96,138 @@ export function createSqlPersistence(db: Kysely<Database>, overrides: Partial<Pe
       assertTenant(tenantId);
       const row = await db.selectFrom("tenant").selectAll().where("id", "=", tenantId).executeTakeFirst();
       return row ? toTenant(row) : null;
+    },
+    async ensureErpTenant(input) {
+      assertTenant(input.erpTenantId);
+      const buscar = () => db.selectFrom("tenant").selectAll().where("erp_tenant_id", "=", input.erpTenantId).executeTakeFirst();
+      const existing = await buscar();
+      if (existing) return toTenant(existing);
+      const row: TenantRow = { id: deps.newId(), erp_tenant_id: input.erpTenantId, name: input.name, enabled: true, created_at: deps.now() };
+      try {
+        await db.insertInto("tenant").values(row).execute();
+        return toTenant(row);
+      } catch (error) {
+        // Dos primeras sesiones a la vez: la otra ya la creó (tenant_erp_uq).
+        const creada = await buscar();
+        if (creada) return toTenant(creada);
+        throw error;
+      }
+    },
+  };
+
+  const projects: ProjectRepository = {
+    async linkErpProject(tenantId, input) {
+      assertTenant(tenantId);
+      await requireTenant(db, tenantId);
+      const buscar = () =>
+        db.selectFrom("project").select("id").where("tenant_id", "=", tenantId).where("erp_project_id", "=", input.erpProjectId).executeTakeFirst();
+      const existing = await buscar();
+      if (existing) return existing.id;
+      const row: ProjectRow = { tenant_id: tenantId, id: deps.newId(), erp_project_id: input.erpProjectId, name: input.name, created_at: deps.now() };
+      try {
+        await db.insertInto("project").values(row).execute();
+        return row.id;
+      } catch (error) {
+        const creado = await buscar(); // project_erp_uq
+        if (creado) return creado.id;
+        throw error;
+      }
+    },
+  };
+
+  const toSession = (row: SessionRow): EmbeddedSession => ({
+    id: row.id,
+    tenantId: row.tenant_id,
+    erpUserId: row.erp_user_id,
+    erpTenantId: row.erp_tenant_id,
+    erpTokenEncrypted: row.erp_token_encrypted,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+    revokedAt: row.revoked_at,
+  });
+
+  const sessions: SessionRepository = {
+    async create(session) {
+      assertTenant(session.tenantId);
+      await db.transaction().execute(async (trx) => {
+        await requireTenant(trx, session.tenantId);
+        await trx
+          .insertInto("session")
+          .values({
+            tenant_id: session.tenantId,
+            id: session.id,
+            erp_user_id: session.erpUserId,
+            erp_tenant_id: session.erpTenantId,
+            erp_token_encrypted: session.erpTokenEncrypted,
+            created_at: session.createdAt,
+            expires_at: session.expiresAt,
+            revoked_at: null,
+          })
+          .execute();
+      });
+    },
+    async get(id) {
+      // Puerta de entrada (como qr.resolve): sin tenant_id, es lo que se busca.
+      const row = await db.selectFrom("session").selectAll().where("id", "=", id).executeTakeFirst();
+      return row ? toSession(row) : null;
+    },
+    async replaceToken(tenantId, id, erpTokenEncrypted) {
+      assertTenant(tenantId);
+      const result = await db
+        .updateTable("session")
+        .set({ erp_token_encrypted: erpTokenEncrypted })
+        .where("tenant_id", "=", tenantId)
+        .where("id", "=", id)
+        .where("revoked_at", "is", null)
+        .executeTakeFirst();
+      return Number(result.numUpdatedRows) === 1;
+    },
+    async revoke(id, at) {
+      await db.updateTable("session").set({ revoked_at: at }).where("id", "=", id).where("revoked_at", "is", null).execute();
+    },
+  };
+
+  const erpDocuments: ErpDocumentRepository = {
+    async record(tenantId, projectId, seen) {
+      assertTenant(tenantId);
+      await db.transaction().execute(async (trx) => {
+        await requireTenant(trx, tenantId);
+        const project = await trx.selectFrom("project").select("id").where("tenant_id", "=", tenantId).where("id", "=", projectId).executeTakeFirst();
+        if (!project) throw new ReferenciaDeOtroTenantError("el proyecto");
+        const exists = await trx
+          .selectFrom("erp_document")
+          .select("id")
+          .where("tenant_id", "=", tenantId)
+          .where("project_id", "=", projectId)
+          .where("erp_document_id", "=", seen.erpDocumentId)
+          .where("sha256", "=", seen.sha256)
+          .executeTakeFirst();
+        if (exists) return;
+        await trx
+          .insertInto("erp_document")
+          .values({
+            tenant_id: tenantId,
+            id: deps.newId(),
+            project_id: projectId,
+            erp_document_id: seen.erpDocumentId,
+            sha256: seen.sha256,
+            bytes: seen.bytes,
+            first_seen_at: deps.now(),
+          })
+          .execute();
+      });
+    },
+    async list(tenantId, projectId) {
+      assertTenant(tenantId);
+      const rows = await db
+        .selectFrom("erp_document")
+        .select(["erp_document_id", "sha256", "bytes", "first_seen_at", "id"])
+        .where("tenant_id", "=", tenantId)
+        .where("project_id", "=", projectId)
+        .orderBy("first_seen_at")
+        .orderBy("id")
+        .execute();
+      return rows.map((d) => ({ erpDocumentId: d.erp_document_id, sha256: d.sha256, bytes: d.bytes }));
     },
   };
 
@@ -380,5 +516,5 @@ export function createSqlPersistence(db: Kysely<Database>, overrides: Partial<Pe
     },
   };
 
-  return { tenants, furniture, qr, runs, close: () => db.destroy() };
+  return { tenants, furniture, qr, runs, projects, sessions, erpDocuments, close: () => db.destroy() };
 }

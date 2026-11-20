@@ -2,5 +2,7 @@
 
 import { createMemoryPersistence } from "@/persistence/memory";
 import { persistenceContract } from "./contract";
+import { embebidoContract } from "./contractEmbebido";
 
 persistenceContract("memoria", async (overrides) => createMemoryPersistence(overrides));
+embebidoContract("memoria", async (overrides) => createMemoryPersistence(overrides));

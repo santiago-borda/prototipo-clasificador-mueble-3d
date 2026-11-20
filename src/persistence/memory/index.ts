@@ -11,18 +11,33 @@ import {
   TenantInexistenteError,
   VersionInmutableError,
   type DesignVersionRef,
+  type EmbeddedSession,
+  type ErpDocumentRepository,
   type FurnitureRepository,
   type Persistence,
   type PersistenceDeps,
+  type ProjectRepository,
   type QrRepository,
   type QrResolution,
   type RunRepository,
+  type SessionRepository,
   type Tenant,
   type TenantRepository,
 } from "../ports";
 import { assertDefValido, parseRunDocument, parseStatus, qrIdsOf, toEngineRunRow, toFurnitureDef, toPieceRows, toVersionRows } from "../mappers";
 import { defaultDeps } from "../deps";
-import type { DesignVersionRow, EngineRunRow, FurnitureRow, ModuleRow, PieceTypeRow, ProjectRow, QrCodeRow, TenantRow } from "../rows";
+import type {
+  DesignVersionRow,
+  EngineRunRow,
+  ErpDocumentRow,
+  FurnitureRow,
+  ModuleRow,
+  PieceTypeRow,
+  ProjectRow,
+  QrCodeRow,
+  SessionRow,
+  TenantRow,
+} from "../rows";
 
 interface Db {
   tenant: TenantRow[];
@@ -33,11 +48,13 @@ interface Db {
   piece_type: PieceTypeRow[];
   qr_code: QrCodeRow[];
   engine_run: EngineRunRow[];
+  session: SessionRow[];
+  erp_document: ErpDocumentRow[];
 }
 
 export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}): Persistence {
   const deps: PersistenceDeps = { ...defaultDeps, ...overrides };
-  const db: Db = { tenant: [], project: [], furniture: [], design_version: [], module: [], piece_type: [], qr_code: [], engine_run: [] };
+  const db: Db = { tenant: [], project: [], furniture: [], design_version: [], module: [], piece_type: [], qr_code: [], engine_run: [], session: [], erp_document: [] };
 
   const toTenant = (row: TenantRow): Tenant => ({ id: row.id, name: row.name, erpTenantId: row.erp_tenant_id, enabled: row.enabled });
 
@@ -79,6 +96,92 @@ export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}
       assertTenant(tenantId);
       const row = db.tenant.find((t) => t.id === tenantId);
       return row ? toTenant(row) : null;
+    },
+    async ensureErpTenant(input) {
+      assertTenant(input.erpTenantId);
+      const existing = db.tenant.find((t) => t.erp_tenant_id === input.erpTenantId);
+      if (existing) return toTenant(existing);
+      return tenants.create({ name: input.name, erpTenantId: input.erpTenantId });
+    },
+  };
+
+  const projects: ProjectRepository = {
+    async linkErpProject(tenantId, input) {
+      requireTenant(tenantId);
+      const existing = db.project.find((p) => p.tenant_id === tenantId && p.erp_project_id === input.erpProjectId);
+      if (existing) return existing.id;
+      const row: ProjectRow = { tenant_id: tenantId, id: deps.newId(), erp_project_id: input.erpProjectId, name: input.name, created_at: deps.now() };
+      db.project.push(row);
+      return row.id;
+    },
+  };
+
+  const toSession = (row: SessionRow): EmbeddedSession => ({
+    id: row.id,
+    tenantId: row.tenant_id,
+    erpUserId: row.erp_user_id,
+    erpTenantId: row.erp_tenant_id,
+    erpTokenEncrypted: row.erp_token_encrypted,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+    revokedAt: row.revoked_at,
+  });
+
+  const sessions: SessionRepository = {
+    async create(session) {
+      requireTenant(session.tenantId);
+      if (db.session.some((row) => row.id === session.id)) throw new Error("La sesión ya existe.");
+      db.session.push({
+        tenant_id: session.tenantId,
+        id: session.id,
+        erp_user_id: session.erpUserId,
+        erp_tenant_id: session.erpTenantId,
+        erp_token_encrypted: session.erpTokenEncrypted,
+        created_at: session.createdAt,
+        expires_at: session.expiresAt,
+        revoked_at: null,
+      });
+    },
+    async get(id) {
+      const row = db.session.find((r) => r.id === id);
+      return row ? toSession({ ...row }) : null;
+    },
+    async replaceToken(tenantId, id, erpTokenEncrypted) {
+      assertTenant(tenantId);
+      const row = db.session.find((r) => r.tenant_id === tenantId && r.id === id && r.revoked_at === null);
+      if (!row) return false;
+      row.erp_token_encrypted = erpTokenEncrypted;
+      return true;
+    },
+    async revoke(id, at) {
+      const row = db.session.find((r) => r.id === id);
+      if (row && row.revoked_at === null) row.revoked_at = at;
+    },
+  };
+
+  const erpDocuments: ErpDocumentRepository = {
+    async record(tenantId, projectId, seen) {
+      requireTenant(tenantId);
+      if (!db.project.some((p) => p.tenant_id === tenantId && p.id === projectId)) throw new ReferenciaDeOtroTenantError("el proyecto");
+      const exists = db.erp_document.some(
+        (d) => d.tenant_id === tenantId && d.project_id === projectId && d.erp_document_id === seen.erpDocumentId && d.sha256 === seen.sha256,
+      );
+      if (exists) return;
+      db.erp_document.push({
+        tenant_id: tenantId,
+        id: deps.newId(),
+        project_id: projectId,
+        erp_document_id: seen.erpDocumentId,
+        sha256: seen.sha256,
+        bytes: seen.bytes,
+        first_seen_at: deps.now(),
+      });
+    },
+    async list(tenantId, projectId) {
+      assertTenant(tenantId);
+      return db.erp_document
+        .filter((d) => d.tenant_id === tenantId && d.project_id === projectId)
+        .map((d) => ({ erpDocumentId: d.erp_document_id, sha256: d.sha256, bytes: d.bytes }));
     },
   };
 
@@ -285,5 +388,5 @@ export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}
     },
   };
 
-  return { tenants, furniture, qr, runs, close: async () => {} };
+  return { tenants, furniture, qr, runs, projects, sessions, erpDocuments, close: async () => {} };
 }

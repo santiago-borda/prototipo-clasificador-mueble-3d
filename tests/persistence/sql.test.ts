@@ -3,7 +3,8 @@
 
 import { afterAll, describe, it } from "vitest";
 import { createSqlPersistence } from "@/persistence/sql";
-import { persistenceContract } from "./contract";
+import { persistenceContract, type PersistenceFactory } from "./contract";
+import { embebidoContract } from "./contractEmbebido";
 import { AVISO_SIN_BASE, createTestSchema, TEST_DATABASE_URL, type TestSchema } from "./postgres";
 
 if (!TEST_DATABASE_URL) {
@@ -13,7 +14,7 @@ if (!TEST_DATABASE_URL) {
 } else {
   const abiertos = new Set<TestSchema>();
 
-  persistenceContract("PostgreSQL", async (overrides) => {
+  const fabrica: PersistenceFactory = async (overrides) => {
     const schema = await createTestSchema({ migrate: true });
     abiertos.add(schema);
     return {
@@ -23,7 +24,9 @@ if (!TEST_DATABASE_URL) {
         await schema.drop();
       },
     };
-  });
+  };
+  persistenceContract("PostgreSQL", fabrica);
+  embebidoContract("PostgreSQL", fabrica);
 
   // Si una prueba falló antes de cerrar, su esquema se borra acá.
   afterAll(async () => {

@@ -30,7 +30,9 @@ export function PieceMenu() {
   const rootRef = useRef<HTMLDivElement>(null);
   const selectedQrId = useViewStore((s) => s.selectedQrId);
   const def = useActiveFurniture();
-  const onBase = isBaseRoute(usePathname());
+  const pathname = usePathname();
+  // En /embebido/* tampoco se listan otros muebles: sus fichas (/p/*) no se pueden abrir dentro del iframe.
+  const onBase = isBaseRoute(pathname) || pathname.startsWith("/embebido/");
 
   // Cierra con Escape o al tocar fuera del menú.
   useEffect(() => {

@@ -3,9 +3,11 @@
 
 import type { Migration } from "kysely";
 import * as inicial from "./0001_inicial";
+import * as sesion from "./0002_sesion";
 
 export const migrations: Record<string, Migration> = {
   "0001_inicial": inicial,
+  "0002_sesion": sesion,
 };
 
 /** Tablas que crea S2 (docs/modelo-de-datos.md §2, columna «Sesión»). */
@@ -21,3 +23,9 @@ export const S2_TABLES = [
   "listing",
   "engine_run",
 ] as const;
+
+/** Tablas que agrega la integración con el ERP (0002_sesion, docs/spec-integracion-erp-minima.md IE-4 e IE-8). */
+export const IE_TABLES = ["session", "erp_document"] as const;
+
+/** Todas las tablas después de la última migración. */
+export const ALL_TABLES = [...S2_TABLES, ...IE_TABLES] as const;

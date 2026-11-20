@@ -14,7 +14,10 @@ const baseDefs: readonly FurnitureDef[] = [olmoDef, ...loadOptionalFurniture()];
 // Fuente adicional: muebles importados (/importar), registrados solo en el navegador al abrir /prueba/<id>.
 // En el servidor queda vacía, así que la generación estática de /p/<qrId> no cambia.
 const importedDefs = new Map<string, FurnitureDef>(); // importId -> mueble
-const importIdByFurniture = new Map<string, string>(); // furniture.id -> importId
+// Fuente adicional del embebido (docs/spec-integracion-erp-minima.md IE-7): modelos del ERP abiertos en el iframe.
+const erpDefs = new Map<string, FurnitureDef>(); // claveErp -> mueble
+// Ruta base de las fichas de un mueble que no está en /p: /prueba/<importId> o /embebido/proyectos/<erpId>/visor/<doc>.
+const hrefBaseByFurniture = new Map<string, string>(); // furniture.id -> ruta base
 let registry = createRegistry(baseDefs);
 
 /**
@@ -27,8 +30,25 @@ export function registerImportedFurniture(importId: string, imported: Omit<Furni
   const def: FurnitureDef = { ...imported, modelUrl: `/api/importaciones/${importId}/modelo` };
   registry = createRegistry([...registry.defs, def]); // si lanza, `registry` no se toca
   importedDefs.set(importId, def);
-  importIdByFurniture.set(def.furniture.id, importId);
+  hrefBaseByFurniture.set(def.furniture.id, `/prueba/${importId}`);
   return def;
+}
+
+/**
+ * IE-7: registra en el navegador el mueble armado con el .dae de un Documento del ERP (`defDesdeModeloErp`), con su
+ * `modelUrl` (un blob: local) y la ruta base de sus fichas dentro del iframe. Inocuo si ya estaba registrado.
+ */
+export function registerErpFurniture(clave: string, def: FurnitureDef, hrefBase: string): FurnitureDef {
+  const existing = erpDefs.get(clave);
+  if (existing) return existing;
+  registry = createRegistry([...registry.defs, def]); // si lanza, `registry` no se toca
+  erpDefs.set(clave, def);
+  hrefBaseByFurniture.set(def.furniture.id, hrefBase);
+  return def;
+}
+
+export function getErpFurnitureDef(clave: string): FurnitureDef | undefined {
+  return erpDefs.get(clave);
 }
 
 export function getImportedFurnitureDef(importId: string): FurnitureDef | undefined {
@@ -45,12 +65,15 @@ export function listBaseFurniture(): readonly FurnitureDef[] {
   return baseDefs;
 }
 
-/** Link a la ficha de un qrId: /p/<qrId>, o /prueba/<importId>[/<qrId>] si el mueble es una importación. */
+/**
+ * Link a la ficha de un qrId: /p/<qrId>; /prueba/<importId>[/<qrId>] si el mueble es una importación;
+ * /embebido/proyectos/<erpId>/visor/<doc>[/<qrId>] si es un modelo del ERP abierto en el iframe.
+ */
 export function qrHref(qrId: string): string {
   const def = registry.findDefByQrId(qrId);
-  const importId = def ? importIdByFurniture.get(def.furniture.id) : undefined;
-  if (!def || !importId) return `/p/${qrId}`;
-  return qrId === def.furniture.qrId ? `/prueba/${importId}` : `/prueba/${importId}/${qrId}`;
+  const base = def ? hrefBaseByFurniture.get(def.furniture.id) : undefined;
+  if (!def || !base) return `/p/${qrId}`;
+  return qrId === def.furniture.qrId ? base : `${base}/${qrId}`;
 }
 
 /** Mueble que se muestra cuando no hay un QR seleccionado. */

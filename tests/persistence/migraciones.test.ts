@@ -5,7 +5,8 @@ import { sql, type Kysely } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { migrateToLatest } from "../../db/migrate";
 import { down } from "../../db/migrations/0001_inicial";
-import { S2_TABLES } from "../../db/migrations";
+import { down as down0002 } from "../../db/migrations/0002_sesion";
+import { ALL_TABLES } from "../../db/migrations";
 import { AVISO_SIN_BASE, createTestSchema, TEST_DATABASE_URL, type TestSchema } from "./postgres";
 
 describe.skipIf(TEST_DATABASE_URL)("migraciones sin base", () => {
@@ -30,18 +31,26 @@ describe.skipIf(!TEST_DATABASE_URL)("migraciones (PostgreSQL)", () => {
     return rows.map((r) => r.table_name).filter((name) => !name.startsWith("kysely_"));
   };
 
-  it("PB-1 (B1): una base vacía queda con las diez tablas, y migrar de nuevo no aplica nada", async () => {
-    expect(aplicadas).toEqual(["0001_inicial"]);
-    expect(await tablas()).toEqual([...S2_TABLES].sort());
+  // Enmendada por la integración con el ERP (0002_sesion): diez tablas de S2 más session y erp_document.
+  it("PB-1 (B1): una base vacía queda con todas las tablas, y migrar de nuevo no aplica nada", async () => {
+    expect(aplicadas).toEqual(["0001_inicial", "0002_sesion"]);
+    expect(await tablas()).toEqual([...ALL_TABLES].sort());
     expect(await migrateToLatest(t.db as Kysely<unknown>, { schema: t.schema })).toEqual([]);
-    expect(await tablas()).toEqual([...S2_TABLES].sort());
+    expect(await tablas()).toEqual([...ALL_TABLES].sort());
+  });
+
+  it("IE-9: (tenant_id, erp_project_id) es único en project", async () => {
+    const { rows } = await sql<{ conname: string }>`
+      select c.conname from pg_constraint c join pg_namespace n on n.oid = c.connamespace
+      where c.contype = 'u' and n.nspname = ${t.schema} and c.conname = 'project_erp_uq'`.execute(t.db);
+    expect(rows).toHaveLength(1);
   });
 
   it("PB-2 (B2): toda tabla salvo tenant tiene tenant_id NOT NULL", async () => {
     const { rows } = await sql<{ table_name: string; is_nullable: string }>`
       select table_name, is_nullable from information_schema.columns
       where table_schema = ${t.schema} and column_name = 'tenant_id' order by table_name`.execute(t.db);
-    expect(rows.map((r) => r.table_name)).toEqual(S2_TABLES.filter((name) => name !== "tenant").sort());
+    expect(rows.map((r) => r.table_name)).toEqual(ALL_TABLES.filter((name) => name !== "tenant").sort());
     expect(rows.filter((r) => r.is_nullable !== "NO")).toEqual([]);
   });
 
@@ -55,7 +64,7 @@ describe.skipIf(!TEST_DATABASE_URL)("migraciones (PostgreSQL)", () => {
       from pg_constraint c join pg_namespace n on n.oid = c.connamespace
       where c.contype = 'f' and n.nspname = ${t.schema} order by 1, 2`.execute(t.db);
 
-    expect(rows.length).toBeGreaterThanOrEqual(S2_TABLES.length - 1);
+    expect(rows.length).toBeGreaterThanOrEqual(ALL_TABLES.length - 1);
     for (const fk of rows) {
       expect(fk.columnas[0], fk.nombre).toBe("tenant_id");
       if (fk.destino === "tenant") expect(fk.columnas_destino, fk.nombre).toEqual(["id"]);
@@ -63,12 +72,13 @@ describe.skipIf(!TEST_DATABASE_URL)("migraciones (PostgreSQL)", () => {
     }
     // Cada tabla con tenant_id lo ata a `tenant`.
     const aTenant = rows.filter((fk) => fk.destino === "tenant").map((fk) => fk.tabla).sort();
-    expect(aTenant).toEqual(S2_TABLES.filter((name) => name !== "tenant").sort());
+    expect(aTenant).toEqual(ALL_TABLES.filter((name) => name !== "tenant").sort());
   });
 
-  it("la migración se puede deshacer en una base sin datos", async () => {
+  it("las migraciones se pueden deshacer (0002 y después 0001) en una base sin datos", async () => {
     const otro = await createTestSchema({ migrate: true });
     try {
+      await down0002(otro.db as Kysely<unknown>);
       await down(otro.db as Kysely<unknown>);
       const { rows } = await sql<{ n: string }>`
         select count(*)::text as n from information_schema.tables

@@ -14,9 +14,9 @@ const baseDefs: readonly FurnitureDef[] = [olmoDef, ...loadOptionalFurniture()];
 // Fuente adicional: muebles importados (/importar), registrados solo en el navegador al abrir /prueba/<id>.
 // En el servidor queda vacía, así que la generación estática de /p/<qrId> no cambia.
 const importedDefs = new Map<string, FurnitureDef>(); // importId -> mueble
-// Fuente adicional del embebido (docs/spec-integracion-erp-minima.md IE-7): modelos del ERP abiertos en el iframe.
+// Fuente adicional de la integración con el ERP (docs/spec-integracion-erp-minima.md v0.3 IE-5): modelos guardados que se abren en el iframe.
 const erpDefs = new Map<string, FurnitureDef>(); // claveErp -> mueble
-// Ruta base de las fichas de un mueble que no está en /p: /prueba/<importId> o /embebido/proyectos/<erpId>/visor/<doc>.
+// Ruta base de las fichas de un mueble que no está en /p: /prueba/<importId> o /erp/proyectos/<uuid>/visor.
 const hrefBaseByFurniture = new Map<string, string>(); // furniture.id -> ruta base
 let registry = createRegistry(baseDefs);
 
@@ -67,7 +67,7 @@ export function listBaseFurniture(): readonly FurnitureDef[] {
 
 /**
  * Link a la ficha de un qrId: /p/<qrId>; /prueba/<importId>[/<qrId>] si el mueble es una importación;
- * /embebido/proyectos/<erpId>/visor/<doc>[/<qrId>] si es un modelo del ERP abierto en el iframe.
+ * /erp/proyectos/<uuid>/visor[/<qrId>] si es un modelo del ERP abierto en el iframe.
  */
 export function qrHref(qrId: string): string {
   const def = registry.findDefByQrId(qrId);

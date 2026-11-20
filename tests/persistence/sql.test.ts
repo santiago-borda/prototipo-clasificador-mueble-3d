@@ -4,7 +4,7 @@
 import { afterAll, describe, it } from "vitest";
 import { createSqlPersistence } from "@/persistence/sql";
 import { persistenceContract, type PersistenceFactory } from "./contract";
-import { embebidoContract } from "./contractEmbebido";
+import { erpContract } from "./contractErp";
 import { AVISO_SIN_BASE, createTestSchema, TEST_DATABASE_URL, type TestSchema } from "./postgres";
 
 if (!TEST_DATABASE_URL) {
@@ -26,7 +26,7 @@ if (!TEST_DATABASE_URL) {
     };
   };
   persistenceContract("PostgreSQL", fabrica);
-  embebidoContract("PostgreSQL", fabrica);
+  erpContract("PostgreSQL", fabrica);
 
   // Si una prueba falló antes de cerrar, su esquema se borra acá.
   afterAll(async () => {

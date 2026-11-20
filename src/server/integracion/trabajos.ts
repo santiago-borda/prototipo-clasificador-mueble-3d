@@ -1,0 +1,195 @@
+// IE-7 e IE-8: POST /api/trabajos y GET /api/trabajos/{trabajoUuid} (contrato UCP v1 §3). Funciones de Request a
+// Response con las dependencias inyectadas. Los llama el servidor del ERP con `Authorization: Bearer <token del
+// usuario>`; el tenant sale del token, nunca del cuerpo ni de la URL (TIE-16).
+//
+// Códigos (spec v0.3 IE-7; estados según las respuestas del 20/11):
+//   201 trabajo nuevo `success` · 200 mismo envioUuid ya recibido (sin descargar de nuevo) · 400 esquema o URL
+//   rechazada (sin descargar) · 401 token · 422 sha256 que no coincide, zip inválido o URL que respondió 4xx (queda un
+//   trabajo `failed` con la causa) · 503 descarga o JWKS no disponibles (reintentable; no queda trabajo).
+// Todo error lleva `mensaje`, legible para el usuario del ERP. Ninguna respuesta ni registro lleva las URLs.
+
+import type { Job, JobFile } from "@/persistence/ports";
+import { DescargaFallida, JwksNoDisponible, TokenErpInvalido, TokenErpVencido } from "@/server/erp/errores";
+import { descargar, motivoUrlRechazada, sha256Hex, type MotivoUrlRechazada } from "@/server/erp/descarga";
+import type { IdentidadErp } from "@/server/erp/token";
+import { extraerDae, ZipInvalidoError, type MotivoZipInvalido } from "@/server/erp/zip";
+import { normalizarUuid, UUID } from "@/lib/erp/protocolo";
+import { parsearEnvio, type ArchivoDelEnvio, type Envio } from "./envio";
+import { bearer, cuerpoJson, respuestaJson } from "./http";
+import { nombreDeCarpinteria, type DepsIntegracion } from "./sesion";
+
+export const CUERPO_TRABAJO_MAX_BYTES = 64 * 1024;
+export const MENSAJE_SUCCESS = "Modelo y CSV recibidos y verificados.";
+
+const error = (status: number, codigo: string, mensaje: string) => respuestaJson({ error: codigo, mensaje }, status);
+
+type Autenticado = { ok: true; identidad: IdentidadErp } | { ok: false; respuesta: Response };
+
+async function autenticar(request: Request, deps: DepsIntegracion): Promise<Autenticado> {
+  const token = bearer(request);
+  if (!token) return { ok: false, respuesta: error(401, "no-autenticado", "Falta el token del usuario (Authorization: Bearer).") };
+  try {
+    return { ok: true, identidad: await deps.validarToken(token) };
+  } catch (e) {
+    if (e instanceof JwksNoDisponible) {
+      deps.registrar("trabajo-rechazado", { motivo: "jwks-no-disponible" });
+      return { ok: false, respuesta: error(503, "jwks-no-disponible", "No se pudo validar el token en este momento. Reintentá en unos minutos.") };
+    }
+    if (e instanceof TokenErpVencido || e instanceof TokenErpInvalido) {
+      deps.registrar("trabajo-rechazado", { motivo: "token", error: e.name });
+      const mensaje = e instanceof TokenErpVencido ? "El token del usuario venció." : "El token del usuario no es válido.";
+      return { ok: false, respuesta: error(401, "token-invalido", mensaje) };
+    }
+    throw e;
+  }
+}
+
+const TEXTO_URL: Record<MotivoUrlRechazada, string> = {
+  "no-es-url": "no es una URL",
+  "no-es-https": "tiene que ser https",
+  "con-credenciales": "no puede llevar usuario ni clave",
+  "sin-origenes-configurados": "este sistema todavía no tiene configurado el origen de las URLs firmadas",
+  "origen-no-permitido": "no es de un origen permitido",
+};
+
+const TEXTO_ZIP: Record<MotivoZipInvalido, string> = {
+  "demasiado-grande": "El zip del modelo es demasiado grande.",
+  formato: "El modelo no es un zip válido o está dañado.",
+  "sin-dae": "El zip del modelo no trae ningún archivo .dae.",
+  "ruta-insegura": "El zip del modelo tiene rutas no permitidas (por ejemplo con «..»).",
+  "metodo-no-soportado": "El zip del modelo usa una compresión no soportada.",
+  cifrado: "El zip del modelo está cifrado.",
+  "demasiadas-entradas": "El zip del modelo tiene demasiados archivos.",
+};
+
+const nombreArchivo = (cual: "modelo" | "csv") => (cual === "modelo" ? "el modelo" : "el CSV");
+
+function textoDescarga(e: DescargaFallida): string {
+  if (e.detalle === "demasiado-grande") return `${e.archivo === "modelo" ? "El modelo" : "El CSV"} supera el tamaño máximo permitido.`;
+  if (e.reintentable) return `No se pudo descargar ${nombreArchivo(e.archivo)}. Reintentá el envío.`;
+  return `No se pudo descargar ${nombreArchivo(e.archivo)}: la URL respondió ${e.detalle.replace("http-", "HTTP ")} (¿venció?). Volvé a enviar el proyecto.`;
+}
+
+const aJobFile = (a: ArchivoDelEnvio): JobFile => ({ sha256: a.sha256, version: a.version, name: a.nombre });
+
+function respuestaDeTrabajo(job: Job, status: number): Response {
+  if (job.status === "failed") return respuestaJson({ trabajoUuid: job.id, estado: job.status, error: "envio-invalido", mensaje: job.message }, 422);
+  return respuestaJson({ trabajoUuid: job.id, estado: job.status }, status);
+}
+
+/** Descarga y verifica los dos archivos. Devuelve los bytes o la causa del fallo (sin guardar nada). */
+async function descargarYVerificar(
+  deps: DepsIntegracion,
+  envio: Envio,
+): Promise<{ ok: true; modelo: Uint8Array; csv: Uint8Array } | { ok: false; reintentable: boolean; mensaje: string; motivo: string }> {
+  const { config } = deps;
+  const bajar = (cual: "modelo" | "csv") =>
+    descargar(envio[cual].url, {
+      archivo: cual,
+      maxBytes: cual === "modelo" ? config.zipMaxBytes : config.csvMaxBytes,
+      timeoutMs: config.timeoutMs,
+      fetchImpl: deps.fetchImpl,
+    });
+  let modelo: Uint8Array;
+  let csv: Uint8Array;
+  try {
+    [modelo, csv] = await Promise.all([bajar("modelo"), bajar("csv")]);
+  } catch (e) {
+    if (!(e instanceof DescargaFallida)) throw e;
+    return { ok: false, reintentable: e.reintentable, mensaje: textoDescarga(e), motivo: `descarga-${e.archivo}-${e.detalle}` };
+  }
+  for (const [cual, datos] of [["modelo", modelo], ["csv", csv]] as const) {
+    if (sha256Hex(datos) !== envio[cual].sha256) {
+      return {
+        ok: false,
+        reintentable: false,
+        mensaje: `${cual === "modelo" ? "El modelo" : "El CSV"} descargado no coincide con su sha256: el archivo cambió o se dañó. Volvé a enviar el proyecto.`,
+        motivo: `sha256-${cual}`,
+      };
+    }
+  }
+  try {
+    extraerDae(modelo, { maxBytes: config.zipMaxBytes });
+  } catch (e) {
+    if (!(e instanceof ZipInvalidoError)) throw e;
+    return { ok: false, reintentable: false, mensaje: TEXTO_ZIP[e.motivo], motivo: `zip-${e.motivo}` };
+  }
+  return { ok: true, modelo, csv };
+}
+
+/** IE-7: POST /api/trabajos. */
+export async function postTrabajo(request: Request, deps: DepsIntegracion): Promise<Response> {
+  const auth = await autenticar(request, deps);
+  if (!auth.ok) return auth.respuesta;
+  const cuerpo = await cuerpoJson(request, CUERPO_TRABAJO_MAX_BYTES);
+  if (!cuerpo) return error(400, "esquema-invalido", "El cuerpo tiene que ser un JSON (application/json) de hasta 64 KB.");
+  const parseado = parsearEnvio(cuerpo);
+  if (!parseado.ok) {
+    deps.registrar("trabajo-rechazado", { motivo: "esquema" });
+    return error(400, "esquema-invalido", parseado.mensaje);
+  }
+  const { envio } = parseado;
+  // TIE-15: antes de cualquier descarga.
+  for (const cual of ["modelo", "csv"] as const) {
+    const motivo = motivoUrlRechazada(envio[cual].url, deps.config.blobOrigenes, { permitirHttp: deps.config.modo === "simulado" });
+    if (motivo) {
+      deps.registrar("trabajo-rechazado", { motivo: `url-${motivo}`, archivo: cual });
+      return error(400, "url-rechazada", `La URL ${cual === "modelo" ? "del modelo" : "del CSV"} ${TEXTO_URL[motivo]}.`);
+    }
+  }
+
+  const { persistence } = deps;
+  const tenant = await persistence.tenants.ensureErpTenant({ erpTenantId: auth.identidad.erpTenant, name: nombreDeCarpinteria(auth.identidad.erpTenant) });
+  // TIE-13: mismo envioUuid en la carpintería → el mismo trabajo, sin volver a descargar.
+  const previo = await persistence.jobs.findByEnvio(tenant.id, envio.envioUuid);
+  if (previo) {
+    deps.registrar("trabajo-repetido", { estado: previo.status });
+    return respuestaDeTrabajo(previo, 200);
+  }
+
+  const verificado = await descargarYVerificar(deps, envio);
+  if (!verificado.ok && verificado.reintentable) {
+    deps.registrar("trabajo-no-disponible", { motivo: verificado.motivo });
+    return error(503, "descarga-no-disponible", verificado.mensaje);
+  }
+  if (verificado.ok) {
+    await persistence.almacen.guardar(tenant.id, envio.modelo.sha256, verificado.modelo);
+    await persistence.almacen.guardar(tenant.id, envio.csv.sha256, verificado.csv);
+  }
+  const projectId = await persistence.projects.upsertErpProject(tenant.id, {
+    erpProjectId: envio.proyecto.uuid,
+    code: envio.proyecto.codigo,
+    name: envio.proyecto.nombre,
+    deliveryDate: envio.proyecto.fechaEntrega,
+  });
+  const { job, created } = await persistence.jobs.create(tenant.id, {
+    id: deps.nuevoUuid(),
+    envioUuid: envio.envioUuid,
+    projectId,
+    status: verificado.ok ? "success" : "failed",
+    message: verificado.ok ? MENSAJE_SUCCESS : verificado.mensaje,
+    model: aJobFile(envio.modelo),
+    csv: aJobFile(envio.csv),
+  });
+  deps.registrar(created ? "trabajo-creado" : "trabajo-repetido", { estado: job.status, ...(verificado.ok ? {} : { motivo: verificado.motivo }) });
+  return respuestaDeTrabajo(job, created ? 201 : 200);
+}
+
+/** IE-8: GET /api/trabajos/{trabajoUuid}. Un trabajo de otra carpintería (o inexistente) da 404 (TIE-17). */
+export async function getTrabajo(request: Request, deps: DepsIntegracion, trabajoUuid: string): Promise<Response> {
+  const auth = await autenticar(request, deps);
+  if (!auth.ok) return auth.respuesta;
+  const noEncontrado = () => error(404, "no-encontrado", "No existe ese trabajo.");
+  if (!UUID.test(trabajoUuid)) return noEncontrado();
+  const tenant = await deps.persistence.tenants.findErpTenant(auth.identidad.erpTenant);
+  if (!tenant) return noEncontrado();
+  const job = await deps.persistence.jobs.get(tenant.id, normalizarUuid(trabajoUuid));
+  if (!job) return noEncontrado();
+  return respuestaJson({
+    trabajoUuid: job.id,
+    envioUuid: job.envioUuid,
+    estado: job.status,
+    mensaje: job.message,
+    actualizadoEn: job.updatedAt.toISOString(),
+  });
+}

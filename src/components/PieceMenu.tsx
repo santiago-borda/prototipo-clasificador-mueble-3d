@@ -31,8 +31,8 @@ export function PieceMenu() {
   const selectedQrId = useViewStore((s) => s.selectedQrId);
   const def = useActiveFurniture();
   const pathname = usePathname();
-  // En /embebido/* tampoco se listan otros muebles: sus fichas (/p/*) no se pueden abrir dentro del iframe.
-  const onBase = isBaseRoute(pathname) || pathname.startsWith("/embebido/");
+  // En /erp/* tampoco se listan otros muebles: sus fichas (/p/*) no se pueden abrir dentro del iframe.
+  const onBase = isBaseRoute(pathname) || pathname.startsWith("/erp/");
 
   // Cierra con Escape o al tocar fuera del menú.
   useEffect(() => {

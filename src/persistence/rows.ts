@@ -13,8 +13,13 @@ export interface TenantRow {
 export interface ProjectRow {
   tenant_id: string;
   id: string;
+  /** IE-9: `proyecto.uuid` del ERP (en minúsculas); null en los proyectos propios. */
   erp_project_id: string | null;
   name: string;
+  /** IE-9 (migración 0002): `proyecto.codigo` del ERP (p. ej. "P-0142"). */
+  erp_code: string | null;
+  /** IE-9 (migración 0002): `proyecto.fechaEntrega`, texto AAAA-MM-DD (subconjunto común de SQL, sin tipo date). */
+  delivery_date: string | null;
   created_at: Date;
 }
 
@@ -143,26 +148,41 @@ export interface EngineRunRow {
   created_at: Date;
 }
 
-/** IE-4 (migración 0002_sesion). `id` = sha256 hex del token de sesión. */
+/** IE-2 (migración 0002_integracion_erp). `id` = sha256 hex del token de sesión. Sin el token del ERP (contrato §1). */
 export interface SessionRow {
   tenant_id: string;
   id: string;
   erp_user_id: string;
   erp_tenant_id: string;
-  /** Token del ERP cifrado (AES-256-GCM): `v1.<iv>.<tag>.<cifrado>` en base64url. Nunca en claro. */
-  erp_token_encrypted: string;
   created_at: Date;
   expires_at: Date;
   revoked_at: Date | null;
 }
 
-/** IE-8 (migración 0002_sesion): sha256 de un zip del ERP abierto en el visor. */
-export interface ErpDocumentRow {
+/** IE-9 (migración 0002_integracion_erp): un envío del ERP. `id` = `trabajoUuid`. */
+export interface JobRow {
   tenant_id: string;
   id: string;
+  envio_uuid: string;
   project_id: string;
-  erp_document_id: string;
+  /** `pending | inProgress | success | failed` (src/lib/erp/estados.ts). */
+  status: string;
+  message: string | null;
+  model_sha256: string;
+  model_version: number;
+  model_name: string;
+  csv_sha256: string;
+  csv_version: number;
+  csv_name: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+/** IE-10 (migración 0002_integracion_erp): contenido de un archivo, por carpintería y sha256. */
+export interface FileContentRow {
+  tenant_id: string;
   sha256: string;
   bytes: number;
-  first_seen_at: Date;
+  content: Uint8Array;
+  created_at: Date;
 }

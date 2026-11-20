@@ -6,6 +6,7 @@
 import type { Kysely } from "kysely";
 import { defaultDeps } from "../deps";
 import { assertDefValido, parseRunDocument, parseStatus, qrIdsOf, toEngineRunRow, toFurnitureDef, toPieceRows, toVersionRows } from "../mappers";
+import { porCodigo, toErpProject, toErpSession, toJob, toJobRow } from "../mappersErp";
 import {
   assertTenant,
   CodigoRepetidoEnVersionError,
@@ -13,10 +14,11 @@ import {
   QrDuplicadoError,
   ReferenciaDeOtroTenantError,
   TenantInexistenteError,
+  TrabajoSinCausaError,
   VersionInmutableError,
-  type EmbeddedSession,
-  type ErpDocumentRepository,
+  type Almacen,
   type FurnitureRepository,
+  type JobRepository,
   type Persistence,
   type PersistenceDeps,
   type ProjectRepository,
@@ -26,7 +28,7 @@ import {
   type Tenant,
   type TenantRepository,
 } from "../ports";
-import type { DesignVersionRow, FurnitureRow, ProjectRow, SessionRow, TenantRow } from "../rows";
+import type { DesignVersionRow, FurnitureRow, ProjectRow, TenantRow } from "../rows";
 import type { Database } from "./connection";
 
 /** Una conexión o una transacción: las consultas de lectura sirven para las dos. */
@@ -107,44 +109,67 @@ export function createSqlPersistence(db: Kysely<Database>, overrides: Partial<Pe
         await db.insertInto("tenant").values(row).execute();
         return toTenant(row);
       } catch (error) {
-        // Dos primeras sesiones a la vez: la otra ya la creó (tenant_erp_uq).
+        // Dos primeros pedidos a la vez: el otro ya la creó (tenant_erp_uq).
         const creada = await buscar();
         if (creada) return toTenant(creada);
         throw error;
       }
     },
+    async findErpTenant(erpTenantId) {
+      assertTenant(erpTenantId);
+      const row = await db.selectFrom("tenant").selectAll().where("erp_tenant_id", "=", erpTenantId).executeTakeFirst();
+      return row ? toTenant(row) : null;
+    },
   };
 
   const projects: ProjectRepository = {
-    async linkErpProject(tenantId, input) {
+    async upsertErpProject(tenantId, input) {
       assertTenant(tenantId);
       await requireTenant(db, tenantId);
       const buscar = () =>
         db.selectFrom("project").select("id").where("tenant_id", "=", tenantId).where("erp_project_id", "=", input.erpProjectId).executeTakeFirst();
+      const actualizar = (id: string) =>
+        db
+          .updateTable("project")
+          .set({ erp_code: input.code, name: input.name, delivery_date: input.deliveryDate })
+          .where("tenant_id", "=", tenantId)
+          .where("id", "=", id)
+          .execute();
       const existing = await buscar();
-      if (existing) return existing.id;
-      const row: ProjectRow = { tenant_id: tenantId, id: deps.newId(), erp_project_id: input.erpProjectId, name: input.name, created_at: deps.now() };
+      if (existing) {
+        await actualizar(existing.id);
+        return existing.id;
+      }
+      const row: ProjectRow = {
+        tenant_id: tenantId,
+        id: deps.newId(),
+        erp_project_id: input.erpProjectId,
+        name: input.name,
+        erp_code: input.code,
+        delivery_date: input.deliveryDate,
+        created_at: deps.now(),
+      };
       try {
         await db.insertInto("project").values(row).execute();
         return row.id;
       } catch (error) {
         const creado = await buscar(); // project_erp_uq
-        if (creado) return creado.id;
-        throw error;
+        if (!creado) throw error;
+        await actualizar(creado.id);
+        return creado.id;
       }
     },
+    async getErpProject(tenantId, erpProjectId) {
+      assertTenant(tenantId);
+      const row = await db.selectFrom("project").selectAll().where("tenant_id", "=", tenantId).where("erp_project_id", "=", erpProjectId).executeTakeFirst();
+      return row ? toErpProject(row) : null;
+    },
+    async listErpProjects(tenantId) {
+      assertTenant(tenantId);
+      const rows = await db.selectFrom("project").selectAll().where("tenant_id", "=", tenantId).where("erp_project_id", "is not", null).execute();
+      return rows.map(toErpProject).sort(porCodigo);
+    },
   };
-
-  const toSession = (row: SessionRow): EmbeddedSession => ({
-    id: row.id,
-    tenantId: row.tenant_id,
-    erpUserId: row.erp_user_id,
-    erpTenantId: row.erp_tenant_id,
-    erpTokenEncrypted: row.erp_token_encrypted,
-    createdAt: row.created_at,
-    expiresAt: row.expires_at,
-    revokedAt: row.revoked_at,
-  });
 
   const sessions: SessionRepository = {
     async create(session) {
@@ -158,7 +183,6 @@ export function createSqlPersistence(db: Kysely<Database>, overrides: Partial<Pe
             id: session.id,
             erp_user_id: session.erpUserId,
             erp_tenant_id: session.erpTenantId,
-            erp_token_encrypted: session.erpTokenEncrypted,
             created_at: session.createdAt,
             expires_at: session.expiresAt,
             revoked_at: null,
@@ -169,13 +193,13 @@ export function createSqlPersistence(db: Kysely<Database>, overrides: Partial<Pe
     async get(id) {
       // Puerta de entrada (como qr.resolve): sin tenant_id, es lo que se busca.
       const row = await db.selectFrom("session").selectAll().where("id", "=", id).executeTakeFirst();
-      return row ? toSession(row) : null;
+      return row ? toErpSession(row) : null;
     },
-    async replaceToken(tenantId, id, erpTokenEncrypted) {
+    async extend(tenantId, id, expiresAt) {
       assertTenant(tenantId);
       const result = await db
         .updateTable("session")
-        .set({ erp_token_encrypted: erpTokenEncrypted })
+        .set({ expires_at: expiresAt })
         .where("tenant_id", "=", tenantId)
         .where("id", "=", id)
         .where("revoked_at", "is", null)
@@ -187,47 +211,68 @@ export function createSqlPersistence(db: Kysely<Database>, overrides: Partial<Pe
     },
   };
 
-  const erpDocuments: ErpDocumentRepository = {
-    async record(tenantId, projectId, seen) {
+  const buscarPorEnvio = (tenantId: string, envioUuid: string) =>
+    db.selectFrom("job").selectAll().where("tenant_id", "=", tenantId).where("envio_uuid", "=", envioUuid).executeTakeFirst();
+
+  const jobs: JobRepository = {
+    async create(tenantId, input) {
+      assertTenant(tenantId);
+      if (input.status === "failed" && !input.message?.trim()) throw new TrabajoSinCausaError();
+      const previo = await buscarPorEnvio(tenantId, input.envioUuid);
+      if (previo) return { job: toJob(previo), created: false };
+      const now = deps.now();
+      const row = toJobRow(tenantId, { ...input, id: input.id ?? deps.newId(), createdAt: now, updatedAt: now });
+      try {
+        await db.transaction().execute(async (trx) => {
+          await requireTenant(trx, tenantId);
+          const project = await trx.selectFrom("project").select("id").where("tenant_id", "=", tenantId).where("id", "=", input.projectId).executeTakeFirst();
+          if (!project) throw new ReferenciaDeOtroTenantError("el proyecto");
+          await trx.insertInto("job").values(row).execute();
+        });
+      } catch (error) {
+        // Dos envíos iguales a la vez: el otro ya lo creó (job_envio_uq).
+        const creado = await buscarPorEnvio(tenantId, input.envioUuid);
+        if (creado) return { job: toJob(creado), created: false };
+        throw error;
+      }
+      return { job: toJob(row), created: true };
+    },
+    async get(tenantId, jobId) {
+      assertTenant(tenantId);
+      const row = await db.selectFrom("job").selectAll().where("tenant_id", "=", tenantId).where("id", "=", jobId).executeTakeFirst();
+      return row ? toJob(row) : null;
+    },
+    async findByEnvio(tenantId, envioUuid) {
+      assertTenant(tenantId);
+      const row = await buscarPorEnvio(tenantId, envioUuid);
+      return row ? toJob(row) : null;
+    },
+    async latestForProject(tenantId, projectId, status) {
+      assertTenant(tenantId);
+      let query = db.selectFrom("job").selectAll().where("tenant_id", "=", tenantId).where("project_id", "=", projectId);
+      if (status) query = query.where("status", "=", status);
+      const row = await query.orderBy("created_at", "desc").orderBy("id", "desc").limit(1).executeTakeFirst();
+      return row ? toJob(row) : null;
+    },
+  };
+
+  const almacen: Almacen = {
+    async guardar(tenantId, sha256, datos) {
       assertTenant(tenantId);
       await db.transaction().execute(async (trx) => {
         await requireTenant(trx, tenantId);
-        const project = await trx.selectFrom("project").select("id").where("tenant_id", "=", tenantId).where("id", "=", projectId).executeTakeFirst();
-        if (!project) throw new ReferenciaDeOtroTenantError("el proyecto");
-        const exists = await trx
-          .selectFrom("erp_document")
-          .select("id")
-          .where("tenant_id", "=", tenantId)
-          .where("project_id", "=", projectId)
-          .where("erp_document_id", "=", seen.erpDocumentId)
-          .where("sha256", "=", seen.sha256)
-          .executeTakeFirst();
-        if (exists) return;
+        const existe = await trx.selectFrom("file_content").select("sha256").where("tenant_id", "=", tenantId).where("sha256", "=", sha256).executeTakeFirst();
+        if (existe) return;
         await trx
-          .insertInto("erp_document")
-          .values({
-            tenant_id: tenantId,
-            id: deps.newId(),
-            project_id: projectId,
-            erp_document_id: seen.erpDocumentId,
-            sha256: seen.sha256,
-            bytes: seen.bytes,
-            first_seen_at: deps.now(),
-          })
+          .insertInto("file_content")
+          .values({ tenant_id: tenantId, sha256, bytes: datos.length, content: Buffer.from(datos), created_at: deps.now() })
           .execute();
       });
     },
-    async list(tenantId, projectId) {
+    async leer(tenantId, sha256) {
       assertTenant(tenantId);
-      const rows = await db
-        .selectFrom("erp_document")
-        .select(["erp_document_id", "sha256", "bytes", "first_seen_at", "id"])
-        .where("tenant_id", "=", tenantId)
-        .where("project_id", "=", projectId)
-        .orderBy("first_seen_at")
-        .orderBy("id")
-        .execute();
-      return rows.map((d) => ({ erpDocumentId: d.erp_document_id, sha256: d.sha256, bytes: d.bytes }));
+      const row = await db.selectFrom("file_content").select("content").where("tenant_id", "=", tenantId).where("sha256", "=", sha256).executeTakeFirst();
+      return row ? new Uint8Array(row.content) : null;
     },
   };
 
@@ -259,6 +304,8 @@ export function createSqlPersistence(db: Kysely<Database>, overrides: Partial<Pe
             id: deps.newId(),
             erp_project_id: null,
             name: input.projectName ?? def.furniture.name,
+            erp_code: null,
+            delivery_date: null,
             created_at: now,
           };
           furnitureRow = {
@@ -516,5 +563,5 @@ export function createSqlPersistence(db: Kysely<Database>, overrides: Partial<Pe
     },
   };
 
-  return { tenants, furniture, qr, runs, projects, sessions, erpDocuments, close: () => db.destroy() };
+  return { tenants, furniture, qr, runs, projects, sessions, jobs, almacen, close: () => db.destroy() };
 }

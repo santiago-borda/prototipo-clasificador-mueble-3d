@@ -4,6 +4,7 @@
 
 import type { FurnitureDef, PieceType } from "@/data/types";
 import type { AssociationRun } from "@/engine/types";
+import type { EstadoTrabajo } from "@/lib/erp/estados";
 
 // --- Tipos ------------------------------------------------------------------------------------
 
@@ -78,26 +79,52 @@ export type QrResolution =
     };
 
 /**
- * IE-4: sesión propia del embebido (docs/spec-integracion-erp-minima.md). `id` es el sha256 (hex) del token de sesión
- * que lleva la cookie: la base nunca ve la cookie. El token del ERP se guarda cifrado (AES-256-GCM, src/server/embebido).
+ * IE-2: sesión propia de la integración con el ERP (docs/spec-integracion-erp-minima.md v0.3). `id` es el sha256
+ * (hex) del token de sesión que lleva la cookie: la base nunca ve la cookie. **No se guarda el token del ERP**
+ * (contrato UCP v1 §1): solo `sub` y `tenant_id`. `expiresAt` es el `exp` del último token aceptado.
  */
-export interface EmbeddedSession {
+export interface ErpSession {
   id: string;
   tenantId: string;
   erpUserId: string;
   erpTenantId: string;
-  erpTokenEncrypted: string;
   createdAt: Date;
   expiresAt: Date;
   revokedAt: Date | null;
 }
 
-/** IE-8: un zip del ERP que se abrió en el visor. Se registra su sha256; el archivo no se guarda. */
-export interface ErpDocumentSeen {
-  erpDocumentId: string;
-  sha256: string;
-  bytes: number;
+/** IE-9: proyecto que el ERP envió (`proyecto` de POST /api/trabajos). No se guarda `cliente` (minimización). */
+export interface ErpProject {
+  id: string;
+  /** `proyecto.uuid` del ERP, en minúsculas. Único por carpintería. */
+  erpProjectId: string;
+  code: string;
+  name: string;
+  /** `proyecto.fechaEntrega` (AAAA-MM-DD) o null. */
+  deliveryDate: string | null;
 }
+
+export interface JobFile {
+  sha256: string;
+  version: number;
+  name: string;
+}
+
+/** IE-9: un envío del ERP (POST /api/trabajos). `id` es el `trabajoUuid` que se le devuelve al ERP. */
+export interface Job {
+  id: string;
+  envioUuid: string;
+  projectId: string;
+  status: EstadoTrabajo;
+  /** Obligatorio con `failed`: la causa, legible para el usuario del ERP. */
+  message: string | null;
+  model: JobFile;
+  csv: JobFile;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type NewJob = Omit<Job, "id" | "createdAt" | "updatedAt"> & { id?: string };
 
 // --- Repositorios ------------------------------------------------------------------------------
 
@@ -109,28 +136,52 @@ export interface TenantRepository {
    * Es una puerta de entrada (como `qr.resolve`): no lleva tenantId porque es lo que se busca.
    */
   ensureErpTenant(input: { erpTenantId: string; name: string }): Promise<Tenant>;
+  /** La carpintería de un tenant del ERP, o null (para leer sin crear). Puerta de entrada, como `ensureErpTenant`. */
+  findErpTenant(erpTenantId: string): Promise<Tenant | null>;
 }
 
-/** IE-9: vínculo con los proyectos del ERP. */
+/** IE-9: proyectos que envió el ERP. */
 export interface ProjectRepository {
-  /** Id de fila del proyecto vinculado a `erpProjectId` en la carpintería; si no hay, se crea. Único por carpintería. */
-  linkErpProject(tenantId: string, input: { erpProjectId: string; name: string }): Promise<string>;
+  /**
+   * Id de fila del proyecto del ERP en la carpintería. Si no existe se crea; si existe se actualizan código, nombre y
+   * fecha de entrega (el ERP manda los vigentes en cada envío). Único por carpintería.
+   */
+  upsertErpProject(tenantId: string, input: Omit<ErpProject, "id">): Promise<string>;
+  getErpProject(tenantId: string, erpProjectId: string): Promise<ErpProject | null>;
+  /** Por código y uuid (orden binario). */
+  listErpProjects(tenantId: string): Promise<ErpProject[]>;
 }
 
 export interface SessionRepository {
-  create(session: Omit<EmbeddedSession, "revokedAt">): Promise<void>;
+  create(session: Omit<ErpSession, "revokedAt">): Promise<void>;
   /** Puerta de entrada: la sesión por su id (sha256 de la cookie), o null. No filtra vencidas ni revocadas. */
-  get(id: string): Promise<EmbeddedSession | null>;
-  /** IE-5: reemplaza el token cifrado de una sesión no revocada. false si no existe o está revocada. */
-  replaceToken(tenantId: string, id: string, erpTokenEncrypted: string): Promise<boolean>;
+  get(id: string): Promise<ErpSession | null>;
+  /** IE-2: un token renovado corre el vencimiento. false si la sesión no existe o está revocada. */
+  extend(tenantId: string, id: string, expiresAt: Date): Promise<boolean>;
   /** Revocar dos veces no hace nada. */
   revoke(id: string, at: Date): Promise<void>;
 }
 
-export interface ErpDocumentRepository {
-  /** IE-8: registra el sha256 de un zip abierto. Registrar dos veces el mismo no hace nada. */
-  record(tenantId: string, projectId: string, seen: ErpDocumentSeen): Promise<void>;
-  list(tenantId: string, projectId: string): Promise<ErpDocumentSeen[]>;
+export interface JobRepository {
+  /**
+   * IE-7: crea el trabajo; si ya hay uno con el mismo `envioUuid` en la carpintería, devuelve ese (`created: false`)
+   * sin tocarlo (idempotencia, también entre dos pedidos a la vez). Con `failed` sin `message`: `TrabajoSinCausaError`.
+   */
+  create(tenantId: string, input: NewJob): Promise<{ job: Job; created: boolean }>;
+  get(tenantId: string, jobId: string): Promise<Job | null>;
+  findByEnvio(tenantId: string, envioUuid: string): Promise<Job | null>;
+  /** El último trabajo del proyecto (por creación), opcionalmente solo con un estado. */
+  latestForProject(tenantId: string, projectId: string, status?: EstadoTrabajo): Promise<Job | null>;
+}
+
+/**
+ * IE-10: almacenamiento de archivos por sha256, dentro de la carpintería. Implementación inicial en la base; ASUMIDO y
+ * reversible hasta decidir dónde van los archivos (S3, docs/spec-s3-almacenamiento-archivos.md). Quien guarda ya
+ * verificó el sha256 y el tamaño. Guardar dos veces el mismo no hace nada.
+ */
+export interface Almacen {
+  guardar(tenantId: string, sha256: string, datos: Uint8Array): Promise<void>;
+  leer(tenantId: string, sha256: string): Promise<Uint8Array | null>;
 }
 
 export interface FurnitureRepository {
@@ -169,7 +220,8 @@ export interface Persistence {
   runs: RunRepository;
   projects: ProjectRepository;
   sessions: SessionRepository;
-  erpDocuments: ErpDocumentRepository;
+  jobs: JobRepository;
+  almacen: Almacen;
   /** Libera las conexiones (la implementación en memoria no hace nada). */
   close(): Promise<void>;
 }
@@ -234,6 +286,14 @@ export class MuebleInvalidoError extends Error {
   constructor(readonly motivo: string) {
     super(`El mueble no se puede guardar: ${motivo}.`);
     this.name = "MuebleInvalidoError";
+  }
+}
+
+/** IE-7 (respuestas del 20/11): un trabajo `failed` tiene que decir la causa. */
+export class TrabajoSinCausaError extends Error {
+  constructor() {
+    super("Un trabajo con estado failed necesita un mensaje con la causa.");
+    this.name = "TrabajoSinCausaError";
   }
 }
 

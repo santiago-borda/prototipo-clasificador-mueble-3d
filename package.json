@@ -27,6 +27,7 @@
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.1",
     "@vercel/blob": "^2.8.2",
+    "jose": "6.2.14",
     "jsqr": "^1.4.0",
     "kysely": "^0.28.20",
     "next": "16.4.3",

@@ -7,19 +7,20 @@ import { Pool } from "pg";
 import type {
   DesignVersionRow,
   EngineRunRow,
-  ErpDocumentRow,
+  FileContentRow,
   FurnitureRow,
   ListingRow,
   ModuleRow,
   PieceTypeRow,
   ProjectRow,
   QrCodeRow,
+  JobRow,
   SessionRow,
   StoredFileRow,
   TenantRow,
 } from "../rows";
 
-/** Las tablas de S2 y de 0002_sesion, con las filas de `rows.ts`. */
+/** Las tablas de S2 y de 0002_integracion_erp, con las filas de `rows.ts`. */
 export interface Database {
   tenant: TenantRow;
   project: ProjectRow;
@@ -32,7 +33,8 @@ export interface Database {
   listing: ListingRow;
   engine_run: EngineRunRow;
   session: SessionRow;
-  erp_document: ErpDocumentRow;
+  job: JobRow;
+  file_content: FileContentRow;
 }
 
 export interface ConnectionOptions {

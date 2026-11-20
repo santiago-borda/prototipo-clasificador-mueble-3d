@@ -5,7 +5,7 @@ import { sql, type Kysely } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { migrateToLatest } from "../../db/migrate";
 import { down } from "../../db/migrations/0001_inicial";
-import { down as down0002 } from "../../db/migrations/0002_sesion";
+import { down as down0002 } from "../../db/migrations/0002_integracion_erp";
 import { ALL_TABLES } from "../../db/migrations";
 import { AVISO_SIN_BASE, createTestSchema, TEST_DATABASE_URL, type TestSchema } from "./postgres";
 
@@ -31,19 +31,27 @@ describe.skipIf(!TEST_DATABASE_URL)("migraciones (PostgreSQL)", () => {
     return rows.map((r) => r.table_name).filter((name) => !name.startsWith("kysely_"));
   };
 
-  // Enmendada por la integración con el ERP (0002_sesion): diez tablas de S2 más session y erp_document.
+  // Enmendada por la integración con el ERP (0002_integracion_erp, spec v0.3): diez tablas de S2 más session,
+  // file_content y job.
   it("PB-1 (B1): una base vacía queda con todas las tablas, y migrar de nuevo no aplica nada", async () => {
-    expect(aplicadas).toEqual(["0001_inicial", "0002_sesion"]);
+    expect(aplicadas).toEqual(["0001_inicial", "0002_integracion_erp"]);
     expect(await tablas()).toEqual([...ALL_TABLES].sort());
     expect(await migrateToLatest(t.db as Kysely<unknown>, { schema: t.schema })).toEqual([]);
     expect(await tablas()).toEqual([...ALL_TABLES].sort());
   });
 
-  it("IE-9: (tenant_id, erp_project_id) es único en project", async () => {
+  it("IE-9: únicos project_erp_uq (tenant_id, erp_project_id) y job_envio_uq (tenant_id, envio_uuid)", async () => {
     const { rows } = await sql<{ conname: string }>`
       select c.conname from pg_constraint c join pg_namespace n on n.oid = c.connamespace
-      where c.contype = 'u' and n.nspname = ${t.schema} and c.conname = 'project_erp_uq'`.execute(t.db);
-    expect(rows).toHaveLength(1);
+      where c.contype = 'u' and n.nspname = ${t.schema} and c.conname in ('project_erp_uq', 'job_envio_uq') order by 1`.execute(t.db);
+    expect(rows.map((r) => r.conname)).toEqual(["job_envio_uq", "project_erp_uq"]);
+  });
+
+  it("IE-2 / TIE-7: la tabla session no tiene ninguna columna para el token del ERP", async () => {
+    const { rows } = await sql<{ column_name: string }>`
+      select column_name from information_schema.columns
+      where table_schema = ${t.schema} and table_name = 'session' order by column_name`.execute(t.db);
+    expect(rows.map((r) => r.column_name)).toEqual(["created_at", "erp_tenant_id", "erp_user_id", "expires_at", "id", "revoked_at", "tenant_id"]);
   });
 
   it("PB-2 (B2): toda tabla salvo tenant tiene tenant_id NOT NULL", async () => {

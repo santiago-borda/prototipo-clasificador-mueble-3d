@@ -9,11 +9,12 @@ import {
   QrDuplicadoError,
   ReferenciaDeOtroTenantError,
   TenantInexistenteError,
+  TrabajoSinCausaError,
   VersionInmutableError,
+  type Almacen,
   type DesignVersionRef,
-  type EmbeddedSession,
-  type ErpDocumentRepository,
   type FurnitureRepository,
+  type JobRepository,
   type Persistence,
   type PersistenceDeps,
   type ProjectRepository,
@@ -25,12 +26,14 @@ import {
   type TenantRepository,
 } from "../ports";
 import { assertDefValido, parseRunDocument, parseStatus, qrIdsOf, toEngineRunRow, toFurnitureDef, toPieceRows, toVersionRows } from "../mappers";
+import { porCodigo, toErpProject, toErpSession, toJob, toJobRow } from "../mappersErp";
 import { defaultDeps } from "../deps";
 import type {
   DesignVersionRow,
   EngineRunRow,
-  ErpDocumentRow,
+  FileContentRow,
   FurnitureRow,
+  JobRow,
   ModuleRow,
   PieceTypeRow,
   ProjectRow,
@@ -49,12 +52,25 @@ interface Db {
   qr_code: QrCodeRow[];
   engine_run: EngineRunRow[];
   session: SessionRow[];
-  erp_document: ErpDocumentRow[];
+  job: JobRow[];
+  file_content: FileContentRow[];
 }
 
 export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}): Persistence {
   const deps: PersistenceDeps = { ...defaultDeps, ...overrides };
-  const db: Db = { tenant: [], project: [], furniture: [], design_version: [], module: [], piece_type: [], qr_code: [], engine_run: [], session: [], erp_document: [] };
+  const db: Db = {
+    tenant: [],
+    project: [],
+    furniture: [],
+    design_version: [],
+    module: [],
+    piece_type: [],
+    qr_code: [],
+    engine_run: [],
+    session: [],
+    job: [],
+    file_content: [],
+  };
 
   const toTenant = (row: TenantRow): Tenant => ({ id: row.id, name: row.name, erpTenantId: row.erp_tenant_id, enabled: row.enabled });
 
@@ -103,29 +119,48 @@ export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}
       if (existing) return toTenant(existing);
       return tenants.create({ name: input.name, erpTenantId: input.erpTenantId });
     },
-  };
-
-  const projects: ProjectRepository = {
-    async linkErpProject(tenantId, input) {
-      requireTenant(tenantId);
-      const existing = db.project.find((p) => p.tenant_id === tenantId && p.erp_project_id === input.erpProjectId);
-      if (existing) return existing.id;
-      const row: ProjectRow = { tenant_id: tenantId, id: deps.newId(), erp_project_id: input.erpProjectId, name: input.name, created_at: deps.now() };
-      db.project.push(row);
-      return row.id;
+    async findErpTenant(erpTenantId) {
+      assertTenant(erpTenantId);
+      const row = db.tenant.find((t) => t.erp_tenant_id === erpTenantId);
+      return row ? toTenant(row) : null;
     },
   };
 
-  const toSession = (row: SessionRow): EmbeddedSession => ({
-    id: row.id,
-    tenantId: row.tenant_id,
-    erpUserId: row.erp_user_id,
-    erpTenantId: row.erp_tenant_id,
-    erpTokenEncrypted: row.erp_token_encrypted,
-    createdAt: row.created_at,
-    expiresAt: row.expires_at,
-    revokedAt: row.revoked_at,
-  });
+  const projects: ProjectRepository = {
+    async upsertErpProject(tenantId, input) {
+      requireTenant(tenantId);
+      const existing = db.project.find((p) => p.tenant_id === tenantId && p.erp_project_id === input.erpProjectId);
+      if (existing) {
+        existing.erp_code = input.code;
+        existing.name = input.name;
+        existing.delivery_date = input.deliveryDate;
+        return existing.id;
+      }
+      const row: ProjectRow = {
+        tenant_id: tenantId,
+        id: deps.newId(),
+        erp_project_id: input.erpProjectId,
+        name: input.name,
+        erp_code: input.code,
+        delivery_date: input.deliveryDate,
+        created_at: deps.now(),
+      };
+      db.project.push(row);
+      return row.id;
+    },
+    async getErpProject(tenantId, erpProjectId) {
+      assertTenant(tenantId);
+      const row = db.project.find((p) => p.tenant_id === tenantId && p.erp_project_id === erpProjectId);
+      return row ? toErpProject({ ...row }) : null;
+    },
+    async listErpProjects(tenantId) {
+      assertTenant(tenantId);
+      return db.project
+        .filter((p) => p.tenant_id === tenantId && p.erp_project_id !== null)
+        .map((p) => toErpProject({ ...p }))
+        .sort(porCodigo);
+    },
+  };
 
   const sessions: SessionRepository = {
     async create(session) {
@@ -136,7 +171,6 @@ export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}
         id: session.id,
         erp_user_id: session.erpUserId,
         erp_tenant_id: session.erpTenantId,
-        erp_token_encrypted: session.erpTokenEncrypted,
         created_at: session.createdAt,
         expires_at: session.expiresAt,
         revoked_at: null,
@@ -144,13 +178,13 @@ export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}
     },
     async get(id) {
       const row = db.session.find((r) => r.id === id);
-      return row ? toSession({ ...row }) : null;
+      return row ? toErpSession({ ...row }) : null;
     },
-    async replaceToken(tenantId, id, erpTokenEncrypted) {
+    async extend(tenantId, id, expiresAt) {
       assertTenant(tenantId);
       const row = db.session.find((r) => r.tenant_id === tenantId && r.id === id && r.revoked_at === null);
       if (!row) return false;
-      row.erp_token_encrypted = erpTokenEncrypted;
+      row.expires_at = expiresAt;
       return true;
     },
     async revoke(id, at) {
@@ -159,29 +193,52 @@ export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}
     },
   };
 
-  const erpDocuments: ErpDocumentRepository = {
-    async record(tenantId, projectId, seen) {
+  const jobs: JobRepository = {
+    async create(tenantId, input) {
       requireTenant(tenantId);
-      if (!db.project.some((p) => p.tenant_id === tenantId && p.id === projectId)) throw new ReferenciaDeOtroTenantError("el proyecto");
-      const exists = db.erp_document.some(
-        (d) => d.tenant_id === tenantId && d.project_id === projectId && d.erp_document_id === seen.erpDocumentId && d.sha256 === seen.sha256,
-      );
-      if (exists) return;
-      db.erp_document.push({
-        tenant_id: tenantId,
-        id: deps.newId(),
-        project_id: projectId,
-        erp_document_id: seen.erpDocumentId,
-        sha256: seen.sha256,
-        bytes: seen.bytes,
-        first_seen_at: deps.now(),
-      });
+      if (input.status === "failed" && !input.message?.trim()) throw new TrabajoSinCausaError();
+      if (!db.project.some((p) => p.tenant_id === tenantId && p.id === input.projectId)) throw new ReferenciaDeOtroTenantError("el proyecto");
+      const existing = db.job.find((j) => j.tenant_id === tenantId && j.envio_uuid === input.envioUuid);
+      if (existing) return { job: toJob({ ...existing }), created: false };
+      const id = input.id ?? deps.newId();
+      if (db.job.some((j) => j.id === id)) throw new Error("El trabajo ya existe.");
+      const now = deps.now();
+      const row = toJobRow(tenantId, { ...input, id, createdAt: now, updatedAt: now });
+      db.job.push(row);
+      return { job: toJob({ ...row }), created: true };
     },
-    async list(tenantId, projectId) {
+    async get(tenantId, jobId) {
       assertTenant(tenantId);
-      return db.erp_document
-        .filter((d) => d.tenant_id === tenantId && d.project_id === projectId)
-        .map((d) => ({ erpDocumentId: d.erp_document_id, sha256: d.sha256, bytes: d.bytes }));
+      const row = db.job.find((j) => j.tenant_id === tenantId && j.id === jobId);
+      return row ? toJob({ ...row }) : null;
+    },
+    async findByEnvio(tenantId, envioUuid) {
+      assertTenant(tenantId);
+      const row = db.job.find((j) => j.tenant_id === tenantId && j.envio_uuid === envioUuid);
+      return row ? toJob({ ...row }) : null;
+    },
+    async latestForProject(tenantId, projectId, status) {
+      assertTenant(tenantId);
+      // El último agregado gana a igual fecha: el orden de inserción es el de creación.
+      let ultimo: JobRow | undefined;
+      for (const j of db.job) {
+        if (j.tenant_id !== tenantId || j.project_id !== projectId || (status && j.status !== status)) continue;
+        if (!ultimo || j.created_at.getTime() >= ultimo.created_at.getTime()) ultimo = j;
+      }
+      return ultimo ? toJob({ ...ultimo }) : null;
+    },
+  };
+
+  const almacen: Almacen = {
+    async guardar(tenantId, sha256, datos) {
+      requireTenant(tenantId);
+      if (db.file_content.some((f) => f.tenant_id === tenantId && f.sha256 === sha256)) return;
+      db.file_content.push({ tenant_id: tenantId, sha256, bytes: datos.length, content: datos.slice(), created_at: deps.now() });
+    },
+    async leer(tenantId, sha256) {
+      assertTenant(tenantId);
+      const row = db.file_content.find((f) => f.tenant_id === tenantId && f.sha256 === sha256);
+      return row ? row.content.slice() : null;
     },
   };
 
@@ -206,7 +263,15 @@ export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}
       const now = deps.now();
       const project: ProjectRow | undefined = existing
         ? undefined
-        : { tenant_id: tenantId, id: deps.newId(), erp_project_id: null, name: input.projectName ?? def.furniture.name, created_at: now };
+        : {
+            tenant_id: tenantId,
+            id: deps.newId(),
+            erp_project_id: null,
+            name: input.projectName ?? def.furniture.name,
+            erp_code: null,
+            delivery_date: null,
+            created_at: now,
+          };
       const furnitureRow: FurnitureRow = existing ?? {
         tenant_id: tenantId,
         id: deps.newId(),
@@ -388,5 +453,5 @@ export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}
     },
   };
 
-  return { tenants, furniture, qr, runs, projects, sessions, erpDocuments, close: async () => {} };
+  return { tenants, furniture, qr, runs, projects, sessions, jobs, almacen, close: async () => {} };
 }

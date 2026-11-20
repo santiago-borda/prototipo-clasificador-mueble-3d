@@ -44,9 +44,9 @@
   - **Pendiente de decisión del equipo: QR de una versión reemplazada.** Hoy `resolveQrTarget` solo resuelve versiones `publicada`: un QR de pieza o de módulo de una versión `reemplazada` da 404, igual que uno no publicado (ASUMIDO en S2A). Pero el QR ya estaba impreso y pegado en la pieza, y «un QR nunca cambia de destino» (modelo de datos §4.2): quizás tenga que seguir resolviendo a su versión, con un aviso de que es una versión anterior (como `newerVersionAvailable`). Cambiarlo pide una spec.
   - **Siguiente:** prueba manual de S2A; decidir qué pasa con el QR de una versión reemplazada; S3.
 - **Integración con el ERP según el contrato UCP v1 (20/11, rama `erp-integracion-minima`, sin push).**
-  - **Spec:** `docs/spec-integracion-erp-minima.md` v0.3. Reemplaza a la v0.2, que estaba implementada en esta rama y se rehízo. Precisiones IE-I1 a IE-I17 (**a revisar**; IE-I15 a IE-I17 salen de la revisión del 20/11) en su §11.
+  - **Spec:** `docs/spec-integracion-erp-minima.md` v0.3. Reemplaza a la v0.2, que estaba implementada en esta rama y se rehízo. Precisiones IE-I1 a IE-I18 (**a revisar**; IE-I15 a IE-I18 salen de la revisión del 20/11) en su §11.
   - **Fuentes de Casa Mueble** (en `docs/casa-mueble/`): `contrato-ucp-v1.md`, `guia-autenticacion-qa.md` y `respuestas-20-11-contrato-ucp.md`. Las respuestas mandan sobre la spec donde difieren (estados, `ERP_BLOB_ORIGENES`).
-  - **El contrato lo generó una IA:** todo lo que afirma del ERP real es ASUMIDO hasta U-erp-real.
+  - **El contrato lo generó una IA:** todo lo que afirma del ERP real es ASUMIDO hasta U-erp-real. **Verificado por Santiago el 20/11 en el ERP de QA: no existen todavía el botón «Enviar a UCP» ni el iframe de UCP en la página del proyecto; el contrato describe lo que Casa Mueble va a hacer, no algo implementado.** Por eso U-erp-front no se puede probar hoy y toda la integración se prueba contra el ERP simulado, declarado como simulado.
   - **Dependencia:** `jose` 6.2.14, aprobada por Santiago el 20/11 (parada U-dependencias; versión exacta). R5 la lista.
   - **Nunca se llamó al ERP real.** Las pruebas y la demo corren contra el ERP simulado.
   - **Flujo del iframe (§5 del contrato):**
@@ -106,8 +106,8 @@
     - **Suite con PostgreSQL corrida el 20/11** (PostgreSQL 17 descartable en un contenedor, ya borrado; `db:migrate` y `db:seed` bien): 972 pasan, 21 salteadas, 4 `todo`, 0 fallas.
   - **Siguiente:**
     - Repetir TIE-22 (`npm run erp:simulado` y `ERP_MODO=simulado ERP_WEB_ORIGEN=http://localhost:4010 npm run dev`, anfitrión por **localhost**) cuando cambie el protocolo, o contra el anfitrión de Casa Mueble si lo mandan.
-    - Revisar IE-I1 a IE-I17.
-    - Consultar a Casa Mueble el host del blob y si el lado del ERP está implementado.
+    - Revisar IE-I1 a IE-I18.
+    - Consultar a Casa Mueble el host del blob y **cuándo van a implementar su lado** (botón «Enviar a UCP», iframe, URLs firmadas): hoy no existe (verificado el 20/11).
     - U-erp-real: validar un token real contra el JWKS de QA, con aprobación.
     - U-erp-front: requiere despliegue https; dominio `taller-qa` o `taller-test`, a confirmar.
     - IE-14, el webhook (P2).

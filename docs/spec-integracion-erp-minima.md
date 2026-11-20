@@ -1,165 +1,131 @@
-# Spec — Integración con el ERP de Casa Mueble por embebido (pre-entrega 25/11)
+# Spec — Integración con el ERP de Casa Mueble según el contrato UCP v1 (pre-entrega 25/11)
 
-Versión 0.2 · 19/11/2026 · Estado: **propuesta, a aprobar por el equipo**
-Reemplaza a `claude/spec-integracion-erp-minima-v0.1.md` (opción a, aprobada el 18/11). Origen: decisión del 19/11 (`claude/decisiones-19-11-embebido-erp.md`).
+Versión 0.3 · 20/11/2026 · Estado: **propuesta, a aprobar por el equipo**
+Reemplaza a `claude/spec-integracion-erp-minima-v0.2.md`. Fuente: contrato y guía que mandó Casa Mueble el 20/11 (`casa-mueble/contrato-ucp-v1.md` y `casa-mueble/guia-autenticacion-qa.md`). En esos documentos, "UCP" es este sistema.
 Rama: `erp-integracion-minima`, desde `fable/s2-base-de-datos`. **Primero `git merge fable/s2-base-de-datos`.**
 
-> Escrita sin acceso al repositorio ni a la API real. Lo que no está relevado se marca **ASUMIDO** y se verifica en las paradas U-erp-front y U-erp-real.
+> El contrato manda: es la interfaz que define el ERP como anfitrión. Lo que no define se marca **ASUMIDO**.
 
-## 0. Cambios respecto de la v0.1
-| v0.1 (opción a) | v0.2 (opción b) |
+## 0. Cambios respecto de la v0.2
+| v0.2 | v0.3 (contrato) |
 |---|---|
-| Login propio `/ingresar` con usuario y contraseña del ERP | **Se elimina.** El usuario ya inició sesión en el ERP; el ERP le pasa su token al iframe (intercambio de token). Este sistema nunca ve contraseñas |
-| Refresh servidor a servidor con CSRF (IE-4) | **Se elimina.** Cuando el token vence, el iframe le pide uno nuevo al ERP por `postMessage` |
-| `/proyectos` como pantalla de entrada | La entrada es `/embebido?proyecto=<erpId>`, abierta desde la página del proyecto en el ERP. `/proyectos` queda fuera |
-| Embebido fuera de alcance | Embebido por **iframe** es el alcance |
-| Se mantienen | Cliente tipado (IE-1, sin `login` ni `refresh`), sesión propia cifrada, tenant, zip del modelo, vínculo de proyecto, secretos, modo simulado, ERP simulado |
+| El token se valida llamando a `whoami` | Se valida **localmente** con el JWKS del Auth del ERP (RS256, `iss`, `exp`, sin audiencia) |
+| Se guarda el token del ERP cifrado en la sesión | **Prohibido** por el contrato (§1). La sesión guarda solo `sub` y `tenant_id` |
+| Este sistema lee proyectos y Documentos de la API del ERP | **Se invierte:** el ERP **envía** el trabajo a `POST /api/trabajos` con URLs firmadas del zip y del CSV. No hay rutas de lectura que relevar |
+| Mensajes `pfg:*`, renovación pedida por el iframe | Mensajes `ucp:listo`, `erp:sesion`, `erp:token` (el ERP empuja cada renovación), `ucp:alto`, `ucp:navegar` |
+| Ruta `/embebido?proyecto=<erpId>` | Ruta `/erp/proyectos/{proyectoUuid}` |
+| Sin login con contraseña | Login directo desde el servidor **solo para desarrollo** (lo propone la guía) |
+| — | Nuevo: `GET /api/trabajos/{uuid}`, tema claro/oscuro, alto del iframe, webhook firmado con HMAC |
 
-Si Sonnet ya implementó en la rama el login, el refresh o el cierre de la v0.1, se quitan. El resto se reutiliza.
+Se mantienen la sesión propia con cookie, el tenant tomado del token, la política de framing, el zip validado, el modo simulado y la guía de seguridad de logs.
 
 ## 1. Objetivo
-Desde la página de un proyecto en el ERP, el usuario ve este sistema embebido, ya ubicado en ese proyecto, sin volver a iniciar sesión: ve los muebles, los Documentos y el visor 3D con el modelo del ERP.
+1. El ERP envía un proyecto a este sistema (modelo 3D y CSV de piezas), que lo descarga, lo verifica y lo guarda.
+2. Desde la página de ese proyecto en el ERP, el usuario ve este sistema embebido, sin iniciar sesión de nuevo, con el estado del trabajo y el visor del modelo.
 
-## 2. Decisión técnica: iframe, no microfrontend (decisión del equipo, se informa)
-- El frontend del ERP es React 19 + Vite (relevado el 16/11). Un microfrontend (Module Federation o un web component) exige integrar nuestro bundle en su build, alinear versiones de React y cambiar nuestro Next.js App Router, que no expone módulos federados de forma estable. No entra en seis días y ata nuestros despliegues a los suyos.
-- El iframe aísla los dos sistemas, Casa Mueble lo agrega con un componente de pocas líneas (§10) y cada uno despliega por separado.
-- Reversible: el microfrontend queda como evolución en S5, si Casa Mueble lo pide.
+## 2. Alcance por prioridad
+- **P1 (pre-entrega 25/11):** validación del token (IE-1), sesión (IE-2), protocolo del iframe (IE-3, IE-4), pantalla embebida (IE-5), framing (IE-6), `POST` y `GET /api/trabajos` (IE-7, IE-8), modelo de datos y almacenamiento (IE-9, IE-10), login de desarrollo (IE-11), variables (IE-12), simulado (IE-13), logs (IE-15).
+- **P2 (después del 25/11, ASUMIDO):** webhook (IE-14). El contrato define `GET /api/trabajos/{uuid}` como respaldo cuando no llega el webhook, así que el ERP funciona sin él. Se confirma en la consulta 8.
+- **Fuera:** procesar el CSV (lo hace el importador CSV, con spec propia pendiente); microfrontend por Module Federation; escribir en el ERP salvo el webhook; permisos propios (el ERP solo muestra la integración a quien tiene `tenant.ucp.usar`).
 
-## 3. Fuera de alcance
-- Microfrontend.
-- Login con contraseña en este sistema.
-- Escribir en el ERP.
-- Roles: todo usuario autenticado tiene el mismo acceso. ASUMIDO, consulta 6.
-- Persistir los archivos del ERP (va a S3; se leen al vuelo, IE-8).
-- Contrato OpenAPI propio.
-- La ficha `/p/<qrId>` no cambia: sigue pública y fuera del iframe (la usan los operarios desde el QR).
+## 3. Datos de QA (guía del 20/11)
+| Qué | Valor |
+|---|---|
+| Login (solo desarrollo) | `POST {ERP_API_URL}/api/session/login`, cuerpo `{email | nombreUsuario, password}`, token en `data.accessToken` |
+| Issuer | `https://erp-auth-api-qa.casamueble.com.ar/` (con barra final) |
+| JWKS | `{ERP_ISSUER}.well-known/jwks` |
+| Token | JWT RS256, 15 min, sin refresh token |
+| Claims | `sub` (usuario), `tenant_id` (carpintería). No trae nombre ni permisos |
+| Carpintería de pruebas | `A1C0E001-0000-4000-8000-000000000002` |
+| CORS | La API del ERP solo acepta navegadores del dominio del ERP: toda llamada al ERP sale de nuestro servidor |
 
-## 4. Hechos relevados y supuestos
-| Tema | Relevado (QA, 16/11) | ASUMIDO hasta U-erp-front / U-erp-real |
-|---|---|---|
-| Frontend del ERP | React 19 + Vite | Origen de QA: a relevar (por ejemplo `https://erp-qa.casamueble.com.ar`) |
-| API | `https://erp-api-qa.casamueble.com.ar`, JWT Bearer | El token de acceso está disponible en JavaScript del frontend (en memoria) y se puede enviar por `postMessage` |
-| Identidad | `GET /api/session/whoami` | Con el Bearer del usuario devuelve id, nombre y tenant activo. Sirve para validar el token desde nuestro servidor |
-| Datos | Proyecto → Mueble → Piezas; Documentos por proyecto (zip con .dae) | Rutas de lectura: **desconocidas** |
-| Sitio | Este sistema en `taller-test.casamueble.com.ar` | Mismo sitio registrable que el ERP (`casamueble.com.ar`): la cookie `SameSite=Lax` viaja dentro del iframe |
+## 4. Requisitos
+- **IE-1. Validación del token** (`src/server/erp/token.ts`): firma RS256 con el JWKS de `ERP_ISSUER` (claves en caché; se vuelven a pedir solo ante un `kid` desconocido, como máximo una vez cada 30 s); `iss` exacto; `exp` y `nbf` con 30 s de tolerancia; **sin** validar audiencia; solo `RS256` (rechaza `none` y HS*). Devuelve `{erpUsuario: sub, erpTenant: tenant_id}`; si falta alguno, lanza `TokenErpInvalido`. Errores con nombre: `TokenErpInvalido`, `TokenErpVencido`, `JwksNoDisponible`.
+- **IE-2. Sesión propia:** migración `0002` con la tabla `sesion`: `id` (sha256 del token de sesión), `tenant_id`, `erp_usuario_id`, `erp_tenant_id`, `vence` (= `exp` del token), `revocada`. **No guarda el token del ERP.** Cookie `httpOnly`, `Secure`, `SameSite=Lax`, que vence con el token. `POST /api/erp/sesion` (acepta solo `Origin` propio) recibe `{accessToken}`, lo valida con IE-1 y crea la sesión. `POST /api/erp/sesion/renovar` exige sesión vigente con el mismo `sub` y `tenant_id`; si no coinciden, revoca. Sin `DATABASE_URL`, implementación en memoria.
+- **IE-3. Protocolo de mensajes** (`src/lib/erp/protocolo.ts`, funciones puras), con campo `version: 1`:
+  | Dirección | `tipo` | Qué hace este sistema |
+  |---|---|---|
+  | UCP → ERP | `ucp:listo` | Lo envía al cargar |
+  | ERP → UCP | `erp:sesion` | `accessToken`, `vence`, `tenantId`, `proyecto {uuid, codigo, nombre}`, `tema`. Crea la sesión (IE-2). Si `tenantId` difiere del `tenant_id` del token, o `proyecto.uuid` difiere del de la ruta, rechaza y muestra el error |
+  | ERP → UCP | `erp:token` | `accessToken`, `vence`. Renueva la sesión |
+  | UCP → ERP | `ucp:alto` | Alto del contenido en px, con `ResizeObserver`, como máximo uno cada 200 ms |
+  | UCP → ERP | `ucp:navegar` | No se usa en v1 |
+  Un mensaje se acepta solo si `event.origin === ERP_WEB_ORIGEN`, `event.source === window.parent` y cumple el esquema. Los envíos usan `ERP_WEB_ORIGEN` como `targetOrigin`, nunca `"*"`. El token vive solo en memoria el tiempo de enviarlo a nuestra API: nunca en URL, `localStorage` ni logs.
+- **IE-4. Vencimiento:** si pasa `vence` + 60 s sin `erp:token`, la sesión se da por vencida y se muestra "La sesión venció. Volvé a abrir desde el ERP". No hay mensaje para pedir token: el contrato no lo define.
+- **IE-5. Pantalla embebida** `/erp/proyectos/{proyectoUuid}`: busca el último trabajo de ese proyecto en el tenant de la sesión y muestra el código y el nombre del proyecto, el estado y el visor con el modelo guardado. Si no hay trabajo: "Este proyecto todavía no se envió". Respeta `tema` (claro u oscuro). Funciona desde 360 px de ancho. Un proyecto de otro tenant da 404.
+- **IE-6. Framing:** `/erp/*` responde `Content-Security-Policy: frame-ancestors <ERP_WEB_ORIGEN>`; el resto del sitio, `frame-ancestors 'none'`.
+- **IE-7. `POST /api/trabajos`:**
+  - `Authorization: Bearer` validado con IE-1. El tenant sale del token, nunca del cuerpo.
+  - Cuerpo validado con esquema (`version: 1`, `envioUuid`, `proyecto`, `modelo`, `csv`).
+  - **Idempotencia:** `(tenant, envioUuid)` único. Si ya existe, responde 200 con el mismo `trabajoUuid` sin volver a descargar; si es nuevo, 201.
+  - **Descarga:** solo `https` y hosts de `ERP_BLOB_ORIGENES` (evita SSRF), con tamaño máximo y timeout. Descarga al recibir el pedido, porque las URLs vencen a los 15 min. Verifica el `sha256` de los dos archivos. El zip debe contener un `.dae` y no tener rutas con `..`.
+  - Guarda los archivos (IE-10), el proyecto y el trabajo con `estado: "recibido"`. Responde `{trabajoUuid, estado}`.
+  - Errores: 400 con el esquema inválido, 401 con token inválido, 422 si el sha256 no coincide o el zip es inválido (con un mensaje legible para el usuario del ERP), 503 si falla la descarga (el contrato lo trata como reintentable).
+  - **Minimización (decisión del equipo, ASUMIDO):** no se guarda `proyecto.cliente`, porque es un dato de un tercero que el sistema no usa.
+- **IE-8. `GET /api/trabajos/{trabajoUuid}`:** con el mismo Bearer; devuelve `{trabajoUuid, envioUuid, estado, mensaje, actualizadoEn}`. Un trabajo de otro tenant da 404.
+- **IE-9. Modelo de datos (migración `0002`):** `proyecto` suma `erp_proyecto_uuid` (único por tenant), `erp_codigo` y `fecha_entrega`. Tabla nueva `trabajo`: `uuid`, `tenant_id`, `envio_uuid` (único por tenant), `proyecto_id`, `estado`, `mensaje`, `modelo_sha256`, `modelo_version`, `csv_sha256`, `csv_version`, `creado`, `actualizado`. `tenant` suma `erp_tenant_id` único: si llega un `tenant_id` nuevo, se crea el tenant. Toda consulta filtra por tenant.
+- **IE-10. Almacenamiento:** interfaz `Almacen` (`guardar`, `leer`, por sha256). Implementación inicial en la base, con tamaño máximo configurable. ASUMIDO y reversible: se reemplaza cuando se decida dónde van los archivos (S3).
+- **IE-11. Login de desarrollo** (`/ingresar`, guía §1): habilitado solo con `ERP_LOGIN_DIRECTO=habilitado`; con `NODE_ENV=production`, error al arrancar. El login lo hace el servidor; después crea la sesión igual que IE-2. La contraseña no se guarda ni se registra.
+- **IE-12. Variables de entorno** (la URL de la API cambia entre QA y producción, como pidió Casa Mueble): `ERP_API_URL`, `ERP_ISSUER`, `ERP_WEB_ORIGEN`, `ERP_BLOB_ORIGENES`, `ERP_LOGIN_DIRECTO`, `ERP_MODO`. Se validan al arrancar: URLs `https` en producción, `ERP_ISSUER` con barra final, sin comodines. `.env.example` lista los nombres con los valores de QA, que no son secretos. Las credenciales de las invitaciones de QA van solo al `.env.local` de cada uno y nunca al repo ni al chat.
+- **IE-13. Simulado:** con `ERP_MODO=simulado` (prohibido en producción), un servidor `node:http` sin dependencias nuevas que: firma tokens RS256 con una clave generada en la prueba (`node:crypto`) y sirve su JWKS; sirve el zip del Olmo y un CSV con sha256 conocido; ofrece `GET /anfitrion?proyecto=<uuid>`, que hace de ERP según el §5 del contrato (envía `erp:sesion`, renueva con `erp:token`, tiene botones para vencer el token y para mandar un tenant distinto) y un botón "Enviar a UCP" que llama a `POST /api/trabajos`. Cuando llegue `host-erp.html` de Casa Mueble, también se prueba con ese.
+- **IE-14. Webhook (P2):** configuración por tenant (URL y secreto, el secreto cifrado con AES-256-GCM y `SESION_CLAVE`). Envía `trabajo.listo` o `trabajo.error` con `X-Ucp-Timestamp` y `X-Ucp-Firma = hex(HMAC-SHA256(secreto, "<timestamp>.<cuerpo crudo>"))`. Reintenta con backoff ante 5xx o timeout.
+- **IE-15. Logs:** ningún log incluye tokens, contraseñas, cookies, cuerpos de mensajes ni la **query de las URLs firmadas** (`?sig=` es una credencial).
 
-## 5. Diseño
-```
-ERP (frontend, sesión ya iniciada)
- └─ <iframe src="https://taller-test.casamueble.com.ar/embebido?proyecto=P-0002">
-       1. iframe → ERP:  {tipo:"pfg:listo", v:1}
-       2. ERP → iframe:  {tipo:"erp:token", v:1, token}
-       3. iframe → servidor propio: POST /api/embebido/sesion {token, proyecto}
-       4. servidor → ERP: GET whoami (Bearer token) → crea sesión propia, cookie httpOnly
-       5. iframe navega a /embebido/proyectos/P-0002 (render en servidor, lee del ERP con el token guardado cifrado)
- Token vencido: servidor responde "token-erp-vencido" → iframe → ERP {tipo:"pfg:token-requerido"} → vuelve al paso 2
-```
-- El token del ERP nunca va en la URL, ni en `localStorage`, ni en logs. En el navegador vive solo el tiempo de reenviarlo al servidor.
-- Nuestro servidor no decodifica el JWT para autorizar: lo valida llamando a `whoami`.
+## 5. Dependencia nueva (parada U-dependencias, la decide el equipo)
+Propuesta: **`jose`** para IE-1. Es la que usa la guía de Casa Mueble, no tiene dependencias propias y evita escribir a mano la verificación de firmas, que es código de seguridad.
+Alternativa descartada salvo que el equipo la prefiera: verificar RS256 con `node:crypto` (`createPublicKey` con formato `jwk` y `crypto.verify`) más la caché del JWKS a mano. No suma dependencias, pero hay más código propio para probar.
 
-## 6. Requisitos
-- **IE-1. Cliente tipado del ERP** (`src/server/erp/`): `whoami`, `listarProyectos`, `leerProyecto`, `descargarDocumento`. Respuestas validadas con esquema. Errores con nombre: `ErpNoDisponible`, `TokenErpInvalido`, `TokenErpVencido`, `RespuestaErpInvalida`. Timeout configurable; 1 reintento solo en lecturas. URL base en `ERP_API_URL`.
-- **IE-2. Protocolo de mensajes** (`src/lib/embebido/protocolo.ts`, funciones puras): tipos `pfg:listo`, `pfg:token-requerido`, `erp:token`, `erp:salir`, todos con `v:1`. Un mensaje se acepta solo si `event.origin` está en `ERP_FRONT_ORIGENES` (coincidencia exacta), `event.source === window.parent` y el cuerpo cumple el esquema. Lo demás se descarta sin error visible y se registra sin contenido. Los envíos usan un `targetOrigin` explícito, nunca `"*"`. El origen del padre se toma del `document.referrer` y se valida contra la lista; si no coincide, se muestra "Abrí esta pantalla desde el ERP".
-- **IE-3. Intercambio de token** (`POST /api/embebido/sesion`): acepta solo pedidos con `Origin` igual al de este sistema. Llama a `whoami`; si falla, 401 genérico. Si sale bien, crea la sesión y devuelve la cookie.
-- **IE-4. Sesión propia en la base:** migración `0002_sesion` con `id` (sha256 del token de sesión), `tenant_id`, `erp_usuario_id`, `erp_tenant_id`, token del ERP cifrado (AES-256-GCM, `node:crypto`, clave en `SESION_CLAVE`), `creada`, `vence`, `revocada`. Cookie `httpOnly`, `Secure`, `SameSite=Lax`, con vencimiento. Sin `DATABASE_URL`, implementación en memoria (como S2A-1). La cookie solo se usa bajo `/embebido` y `/api/embebido`.
-- **IE-5. Renovación por el padre:** si el ERP responde 401, la página muestra el estado "renovando", pide `pfg:token-requerido`, recibe `erp:token`, llama a `POST /api/embebido/sesion/renovar` (exige sesión vigente y mismo `erp_usuario_id`; si no coincide, revoca) y recarga una vez. Si falla o pasan 10 s sin respuesta, se revoca la sesión y se muestra "Volvé a abrir desde el ERP".
-- **IE-6. Tenant:** el tenant sale de `whoami`. Si `erp_tenant_id` no existe en la base, se crea (`tenant.erp_tenant_id` único). Toda lectura usa el tenant de la sesión, nunca uno que mande el navegador.
-- **IE-7. Pantalla embebida:** `/embebido/proyectos/<erpId>` muestra los muebles y los Documentos del proyecto y abre el visor con el modelo del ERP. Diseño adaptable al ancho del iframe (mínimo 360 px). Si el `erpId` no es del tenant de la sesión: 404.
-- **IE-8. Modelo 3D del ERP:** igual que la v0.1: `descargarDocumento` valida el zip (tamaño máximo, contiene .dae, sin rutas con `..`), registra su sha256 en la base y el visor lo abre sin persistir el archivo.
-- **IE-9. Vínculo de proyecto:** `erp_proyecto_id` opcional y único por tenant en la tabla de proyectos (migración `0002` si falta).
-- **IE-10. Política de framing:** `/embebido/*` responde `Content-Security-Policy: frame-ancestors <ERP_FRONT_ORIGENES>`; el resto del sitio, `frame-ancestors 'none'`. `ERP_FRONT_ORIGENES` se valida al arrancar: orígenes exactos, sin comodines y, con `NODE_ENV=production`, solo `https`.
-- **IE-11. Secretos y logs:** `ERP_API_URL`, `ERP_FRONT_ORIGENES` y `SESION_CLAVE` en variables de entorno; `CLAUDE.md` lista solo los nombres. Ningún log incluye tokens, cookies ni cuerpos de mensajes.
-- **IE-12. Modo simulado:** `ERP_MODO=simulado` apunta al ERP simulado; con `NODE_ENV=production` lanza un error al arrancar.
-- **IE-13. ERP simulado con anfitrión:** servidor `node:http`, sin dependencias nuevas, que imita `whoami` y las rutas de lectura (tenant y proyecto de prueba, zip del Olmo) y además sirve `GET /anfitrion?proyecto=P-0002`: una página que imita al frontend del ERP, embebe este sistema en un iframe y responde los mensajes del §5. Tiene botones para vencer el token y para mandar un token de otro usuario. Es la demo de respaldo si Casa Mueble no llega a agregar el iframe.
-- **IE-14. Guía para Casa Mueble:** `docs/guia-embebido-erp.md` con el componente de §10, los orígenes que hay que permitir (`frame-src` de su CSP, si tienen) y qué datos hay que pasar.
-
-## 7. Pruebas
+## 6. Pruebas
 | Id | Caso |
 |---|---|
-| TIE-1 | Mensaje con origen fuera de la lista, `source` distinto del padre o esquema inválido: descartado |
-| TIE-2 | Los envíos nunca usan `"*"` como `targetOrigin` |
-| TIE-3 | Intercambio válido: crea la sesión, cookie `httpOnly` y la respuesta no contiene el token del ERP |
-| TIE-4 | Token rechazado por `whoami`: 401 genérico, sin sesión |
-| TIE-5 | `POST /api/embebido/sesion` con `Origin` ajeno: rechazado |
-| TIE-6 | Token vencido: renovación por el padre y reintento, una sola vez |
-| TIE-7 | Renovación con token de otro usuario: sesión revocada |
-| TIE-8 | Padre que no responde en 10 s: sesión revocada y mensaje para volver a abrir |
-| TIE-9 | Cookie adulterada o sesión inexistente: no autenticada |
-| TIE-10 | Usuario del tenant A no ve proyectos del tenant B aunque mande el id (con PB-6 a PB-8) |
-| TIE-11 | Cabeceras: `/embebido/*` con `frame-ancestors` de la lista; `/p/<qrId>` y el resto con `'none'` |
-| TIE-12 | `ERP_FRONT_ORIGENES` con comodín, o con `http` en producción: error al arrancar |
-| TIE-13 | Respuesta del ERP con formato inesperado: `RespuestaErpInvalida`, sin romper la página |
-| TIE-14 | Zip inválido (sin .dae, con `..`, demasiado grande): rechazado con error con nombre |
-| TIE-15 | Los logs de un flujo completo no contienen tokens ni cookies |
-| TIE-16 | `ERP_MODO=simulado` con `NODE_ENV=production`: error |
-| TIE-17 | `/p/<qrId>` sigue accesible sin sesión, igual que PB-15 |
-| TIE-18 | Flujo completo con el anfitrión simulado: abrir, ver P-0002, ver el visor, vencer el token y seguir. Con Playwright si el repo ya lo tiene; si no, prueba manual con captura, sin agregar dependencias |
+| TIE-1 | Token válido: devuelve `sub` y `tenant_id` |
+| TIE-2 | Rechazados: vencido, firma alterada, otro issuer, `alg: none`, HS256, sin `tenant_id` |
+| TIE-3 | `kid` desconocido: vuelve a pedir el JWKS una vez y valida |
+| TIE-4 | Mensaje con origen ajeno, `source` distinto del padre o esquema inválido: descartado |
+| TIE-5 | Los envíos nunca usan `"*"` |
+| TIE-6 | `erp:sesion` con `tenantId` distinto del token, o con `proyecto.uuid` distinto de la ruta: rechazado |
+| TIE-7 | `erp:sesion` válido: crea la sesión, cookie `httpOnly`, el token del ERP no queda guardado |
+| TIE-8 | `erp:token` de otro usuario: sesión revocada |
+| TIE-9 | Sin `erp:token` después del vencimiento: mensaje de sesión vencida |
+| TIE-10 | `ucp:alto` se emite al cambiar el contenido, con límite de frecuencia |
+| TIE-11 | Cabeceras: `/erp/*` con `frame-ancestors` del ERP; `/p/<qrId>` y el resto con `'none'` |
+| TIE-12 | `POST /api/trabajos` válido: 201, archivos guardados, `estado: "recibido"` |
+| TIE-13 | Mismo `envioUuid` dos veces: 200, mismo `trabajoUuid`, sin segunda descarga |
+| TIE-14 | sha256 que no coincide, o zip sin `.dae` o con `..`: 422 legible |
+| TIE-15 | URL fuera de `ERP_BLOB_ORIGENES` o `http`: 400, sin descargar |
+| TIE-16 | El tenant del cuerpo o de la URL se ignora: manda el del token |
+| TIE-17 | `GET /api/trabajos/{uuid}` de otro tenant: 404 |
+| TIE-18 | Usuario del tenant A no ve proyectos del tenant B (con PB-6 a PB-8) |
+| TIE-19 | Logs de un flujo completo sin tokens, contraseñas, cookies ni query de URLs firmadas |
+| TIE-20 | `ERP_LOGIN_DIRECTO` o `ERP_MODO=simulado` con `NODE_ENV=production`: error al arrancar |
+| TIE-21 | `/p/<qrId>` sigue accesible sin sesión (PB-15) |
+| TIE-22 | Flujo completo con el anfitrión simulado: enviar el trabajo, abrir el iframe, ver el estado y el visor, renovar y vencer el token. Con Playwright si el repo ya lo tiene; si no, prueba manual con captura |
 
-## 8. Paradas
-- **U-dependencias:** no se espera ninguna. Si aparece, se para y se pide aprobación con la alternativa descartada.
-- **U-erp-front:** Casa Mueble agrega el iframe en la página del proyecto de QA con la guía de IE-14. No depende del equipo; hasta entonces todo corre con el anfitrión simulado.
-- **U-erp-real:** primera prueba contra QA, con aprobación explícita y solo lectura, sobre P-0002. Requiere este sistema desplegado en `taller-test.casamueble.com.ar` (ver §11). Se relevan las rutas reales y se actualizan §4, el simulado y los esquemas.
+## 7. Paradas
+- **U-dependencias:** `jose` (§5).
+- **U-credenciales:** Santiago y Lautaro aceptan la invitación a la carpintería de pruebas y cargan su usuario en `.env.local`. La sesión de Claude Code no las pide, no las lee y no las imprime.
+- **U-erp-real:** primera prueba contra QA con aprobación explícita: login de desarrollo y validación de un token real contra el JWKS de QA. Solo lectura.
+- **U-erp-front:** que Casa Mueble cargue la URL de este sistema en el iframe y en "Enviar a UCP" de QA. Requiere este sistema desplegado con `https` (ver §9).
 
-## 9. Criterio de cierre para la pre-entrega
-- `typecheck`, `lint` y `npm test` en verde en un worktree limpio.
-- TIE-1 a TIE-17 pasan; TIE-18 con evidencia.
-- Si Casa Mueble agregó el iframe y hay despliegue: el flujo funciona dentro del ERP de QA, con captura. Si no, la demo se hace con el anfitrión simulado, **declarado como simulado**.
+## 8. Criterio de cierre para la pre-entrega
+- `typecheck`, `lint` y `npm test` en verde en un worktree limpio; TIE-1 a TIE-21 en verde y TIE-22 con evidencia.
+- Contra QA: un token real validado con el JWKS (U-erp-real). Si hay despliegue y Casa Mueble apuntó su QA a este sistema: el flujo completo dentro del ERP, con captura. Si no, la demo se hace con el anfitrión simulado, **declarado como simulado**.
 - `CLAUDE.md` describe el flujo, el protocolo y las variables de entorno.
 
-## 10. Componente para el frontend del ERP (borrador para la guía)
-```tsx
-// En la página del proyecto del ERP (React 19).
-const ORIGEN_PFG = "https://taller-test.casamueble.com.ar";
+## 9. Riesgos
+- **Despliegue:** para U-erp-front hace falta este sistema publicado con `https`. La decisión pendiente de dónde corre la base de la demo pasa a bloquear esa prueba.
+- **Cookie en el iframe:** si el ERP y este sistema no comparten el dominio `casamueble.com.ar`, la cookie es de terceros y el navegador la bloquea. Alternativa: `SameSite=None; Secure; Partitioned`, o mandar el token como Bearer en cada pedido del cliente. Se decide al conocer las URLs (consulta 2).
+- **Importador CSV sin spec formal:** sin él, el trabajo queda en `recibido` y la pantalla muestra el visor sin el listado de piezas.
+- **Cinco días hábiles:** si hay que recortar, primero IE-11 (alcanza con el simulado), después `ucp:alto` y el tema.
 
-export function GuiaArmadoEmbebida({ proyectoId, obtenerToken }: {
-  proyectoId: string;
-  obtenerToken: () => Promise<string>; // token de acceso vigente del usuario
-}) {
-  const ref = useRef<HTMLIFrameElement>(null);
-  useEffect(() => {
-    async function alRecibir(e: MessageEvent) {
-      if (e.origin !== ORIGEN_PFG || e.source !== ref.current?.contentWindow) return;
-      if (e.data?.tipo === "pfg:listo" || e.data?.tipo === "pfg:token-requerido") {
-        const token = await obtenerToken();
-        ref.current?.contentWindow?.postMessage({ tipo: "erp:token", v: 1, token }, ORIGEN_PFG);
-      }
-    }
-    window.addEventListener("message", alRecibir);
-    return () => window.removeEventListener("message", alRecibir);
-  }, [obtenerToken]);
-  return <iframe ref={ref} title="Guía de armado"
-    src={`${ORIGEN_PFG}/embebido?proyecto=${encodeURIComponent(proyectoId)}`}
-    style={{ width: "100%", height: "80vh", border: 0 }} />;
-}
-```
+## 10. Consultas para Casa Mueble (Augusto)
+1. El contrato describe este sistema como "Next.js + API + SQL Server". Usamos PostgreSQL (ADR-002). ¿SQL Server es un requisito de ustedes (por ejemplo, porque lo alojan ustedes) o fue una suposición?
+2. URLs por entorno: el origen del frontend del ERP de QA (para `frame-ancestors` y para validar los mensajes), la URL donde esperan este sistema (¿`taller-test.casamueble.com.ar`?) y el host de las URLs firmadas del blob.
+3. El `host-erp.html` que menciona la guía no vino adjunto: ¿nos lo pueden mandar?
+4. ¿Qué significa `trabajo.listo`? ¿Que este sistema procesó el envío (piezas importadas y QR generados) o que el taller terminó el corte (el ejemplo dice "Corte terminado")?
+5. ¿`piezas.csv` es el CSV que exporta OpenCutList tal cual, o lo genera el ERP? (relacionada con la consulta 58).
+6. Si llega un envío con `modelo.version` o `csv.version` nuevas para un proyecto ya enviado, ¿es un trabajo nuevo que reemplaza al anterior? (impacta en los QR versionados e inmutables).
+7. ¿`proyecto.codigo` (por ejemplo `P-0142`) se relaciona con el `0001` de los códigos de pieza? (pendiente: significado de "0001").
+8. ¿El webhook es necesario para la pre-entrega del 25/11 o alcanza con `GET /api/trabajos/{uuid}`?
 
-## 11. Consultas para Casa Mueble (Augusto)
-1. ¿Pueden agregar el componente de §10 en la página del proyecto del ERP de QA antes del 25/11? (requisito del cliente y fecha; si no, demo con el anfitrión simulado).
-2. Origen exacto del frontend de QA y, más adelante, el de producción.
-3. ¿El frontend tiene el token de acceso disponible en JavaScript para pasarlo al iframe? ¿Cuánto dura?
-4. ¿El token del usuario sirve para llamar a la API desde otro servidor (restricción por IP, audiencia u origen)?
-5. Rutas de lectura de proyectos y Documentos, o su OpenAPI.
-6. Si los operarios tienen usuario en el ERP y con qué roles.
-7. Si la ficha del QR debe exigir login (hoy es pública).
-
-Quedan sin efecto las consultas de la v0.1 sobre credenciales cargadas en variables de entorno y sobre refresh y CSRF servidor a servidor. Para U-erp-real alcanza un usuario de QA con el que Santiago entre al ERP desde el navegador.
-
-## 12. Riesgos
-- **Depende de un cambio en el frontend del ERP.** Mitigación: anfitrión simulado (IE-13) y guía lista (IE-14).
-- **Despliegue:** para probar contra el ERP real, este sistema tiene que estar en `taller-test.casamueble.com.ar` (https y mismo sitio). Eso convierte en bloqueante la decisión pendiente de dónde corre la base de la demo. Una demo desde una máquina del equipo solo sirve con el anfitrión simulado.
-- **Otro sitio registrable:** si el ERP no está bajo `casamueble.com.ar`, la cookie dentro del iframe es de terceros y los navegadores la bloquean. Alternativa: cookie `SameSite=None; Secure; Partitioned`. Se decide en U-erp-real.
-- **Token en el navegador:** el token del ERP pasa por el iframe un instante. Mitigación: IE-2 (origen y fuente validados) y nunca en URL ni almacenamiento.
-- **Rutas desconocidas:** si U-erp-real llega tarde, IE-7 e IE-8 quedan probadas solo contra el simulado.
-## 13. Precisiones de la implementación (20/11, **a revisar por el equipo**)
-- **IE-I1. Nombres:** la tabla es `session`, con las columnas `erp_user_id`, `erp_token_encrypted`, `created_at`, `expires_at` y `revoked_at`. Sigue la convención en inglés de `rows.ts`; el contenido es el de IE-4.
-- **IE-I2. Cookie:** son dos `Set-Cookie` con el mismo valor, una con `Path=/embebido` y otra con `Path=/api/embebido`. Así se cumple «solo bajo /embebido y /api/embebido», porque no hay un prefijo común. Vida de la sesión: 8 h, ASUMIDO (`SESION_DURACION_MIN`).
-- **IE-I3. 401 del ERP:** en `whoami` da `TokenErpInvalido`; en una lectura con el token de la sesión da `TokenErpVencido`, porque ese token ya pasó por `whoami`. Un 403 da `TokenErpInvalido`. Un 404 da `RecursoErpInexistente` (error con nombre extra), que la página muestra como 404. La pantalla trata «inválido» igual que «vencido»: intenta renovar.
-- **IE-I4. Rutas y formas ASUMIDAS** (`src/server/erp/rutas.ts` y `esquemas.ts`): `whoami` → `{id, nombre, tenant:{id, nombre}}`; `GET /api/proyectos`; `GET /api/proyectos/<id>` → `{id, nombre, tenantId, muebles[], documentos[{id, nombre, contentType, bytes}]}`; `GET /api/proyectos/<id>/documentos/<docId>/contenido` → bytes. Ids con formato `^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`.
-- **IE-I5. Tenant:** además del filtro del ERP, si `proyecto.tenantId` no coincide con el tenant de la sesión, la respuesta es 404 (TIE-10).
-- **IE-I6. Zip:** se aceptan los métodos 0 y 8, sin zip64 ni cifrado. Se verifican el CRC, el tope de 20 MB (para el zip y para la suma de lo descomprimido) y las rutas: sin `..`, sin rutas absolutas, sin unidad de Windows ni barra invertida. Con varios .dae se toma el primero por nombre (ASUMIDO). El sha256 del zip se guarda en `erp_document`, una tabla nueva de 0002; el archivo no se guarda.
-- **IE-I7. Visor:** el mueble sale del .dae, armado en el navegador con el mismo cargador del visor (`defDesdeModeloErp`). La lista de piezas del ERP no se usa. Lo ASUMIDO: nombre «Pieza C04»; medidas de la caja de la geometría; material del .dae; canteado sin dato; un único módulo «Modelo del ERP»; qrId `erp-<clave>-…`, que no se imprimen. Las fichas abren en `/embebido/proyectos/<erpId>/visor/<docId>/<qrId>`.
-- **IE-I8. Origen del padre:** sale del `document.referrer`. Para que una recarga dentro del iframe lo conserve, se guarda en `sessionStorage` solo ese origen, que no es secreto; el token nunca se guarda. Para «recarga una vez», el marco cuenta las renovaciones seguidas.
-- **IE-I9. Revocación:** `POST /api/embebido/sesion/revocar` es una ruta extra. La usan `erp:salir`, la renovación fallida y la espera vencida de 10 s. Si `whoami` rechaza el token en la renovación, también se revoca.
-- **IE-I10. Origin propio** (IE-3): es el del pedido (`new URL(request.url).origin`). Detrás de un proxy hay que verificar que Next vea el host público. Renovar y revocar también lo exigen.
-- **IE-I11. Arranque:** `ERP_FRONT_ORIGENES` se valida en `next.config.ts`, en el build y al arrancar. Las cabeceras quedan fijas en el build. `src/instrumentation.ts` valida `ERP_MODO` siempre y, con el embebido encendido, valida `ERP_API_URL` y `SESION_CLAVE` (obligatoria en producción). Sin orígenes, `/embebido` y `/api/embebido/*` dan 404. En desarrollo, sin `SESION_CLAVE`, se usa una clave al azar por proceso. La demo simulada corre con `npm run dev`, porque `http` y `simulado` no se permiten en producción.
-- **IE-I12. Estado 404 de la página:** `notFound()` en `/embebido/proyectos/<erpId>` muestra la pantalla de no encontrado (con la marca 404 de Next), pero en `next dev` la respuesta HTTP fue 200 por el streaming. La ruta del modelo sí da 404 real. A verificar con `next start` en el despliegue.
+Quedan resueltas las consultas de la v0.2 sobre las rutas de lectura (no hacen falta: el ERP empuja), sobre si el token está disponible para el iframe (sí, `erp:sesion`) y sobre cómo validarlo (JWKS).

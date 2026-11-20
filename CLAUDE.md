@@ -102,10 +102,10 @@
     - `npm test`: 863 pasan, 29 salteadas, 4 `todo`, 0 fallas.
     - `next build` bien. El aviso de seguridad de Next cortó el build y `next dev` y pasaron al reintentar.
     - Prueba de humo por HTTP con `next dev` y el simulado: CSP, envío 201, repetido 200, 422 legibles, URL ajena 400, sesión con cookie `HttpOnly` doble, tenant distinto rechazado, 404 de otra carpintería, modelo igual byte a byte al .dae, renovación, otro usuario revocado, login de desarrollo, y ningún secreto en los logs.
-    - **No se corrió contra PostgreSQL** (Docker apagado). **Falta TIE-22** en el navegador, con captura: Playwright no está en el repo.
+    - **TIE-22 hecha el 20/11 (Santiago, a mano, en el navegador, contra el ERP simulado, declarado como simulado; Playwright no está en el repo).** Capturas vistas: handshake (`ucp:listo` y `erp:sesion`), `POST /api/trabajos` 201 `success`, pantalla del proyecto y visor 3D del Olmo dentro del iframe sin `AppTabs`, 422 `failed` con la causa legible («El modelo descargado no coincide con su sha256…») y su estado en la pantalla, «La sesión venció», y las cabeceras: `/erp/proyectos/{uuid}` con `frame-ancestors http://localhost:4010` y `/p/olmo-c04` con `frame-ancestors 'none'` (200, sin sesión). No hay captura de renovar, token de otro usuario, tenant distinto ni tema: esos casos los cubren las pruebas automáticas (TIE-6 a TIE-10) y la prueba de humo por HTTP.
+    - **Suite con PostgreSQL corrida el 20/11** (PostgreSQL 17 descartable en un contenedor, ya borrado; `db:migrate` y `db:seed` bien): 972 pasan, 21 salteadas, 4 `todo`, 0 fallas.
   - **Siguiente:**
-    - TIE-22 manual: `npm run erp:simulado` y `ERP_MODO=simulado ERP_WEB_ORIGEN=http://localhost:4010 npm run dev`; abrir el anfitrión por **localhost**, enviar, ver el estado y el visor, renovar y vencer.
-    - Correr la suite con `TEST_DATABASE_URL`.
+    - Repetir TIE-22 (`npm run erp:simulado` y `ERP_MODO=simulado ERP_WEB_ORIGEN=http://localhost:4010 npm run dev`, anfitrión por **localhost**) cuando cambie el protocolo, o contra el anfitrión de Casa Mueble si lo mandan.
     - Revisar IE-I1 a IE-I17.
     - Consultar a Casa Mueble el host del blob y si el lado del ERP está implementado.
     - U-erp-real: validar un token real contra el JWKS de QA, con aprobación.

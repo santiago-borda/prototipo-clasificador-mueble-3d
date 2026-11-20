@@ -100,6 +100,92 @@ describe("TIE-13: mismo envioUuid dos veces", () => {
   });
 });
 
+describe("TIE-13b: reintento de un trabajo failed con el mismo envioUuid (IE-I2 enmendada)", () => {
+  it("primer envío con sha256 malo: 422 y failed; el segundo, con datos correctos, reutiliza el trabajoUuid y queda success", async () => {
+    const e = crearEntorno();
+    const envioUuid = "7f6d0000-0000-4000-8000-0000000000a1";
+    const malo = await enviar(e, e.sim.cuerpoEnvio(P_OLMO.uuid, { variante: "sha256-malo", envioUuid }));
+    expect(malo.r.status).toBe(422);
+    const tenant = (await e.deps.persistence.tenants.findErpTenant(ANA.tenantId))!;
+    const fallado = (await e.deps.persistence.jobs.get(tenant.id, String(malo.cuerpo.trabajoUuid)))!;
+    expect(fallado.status).toBe("failed");
+    expect(await e.deps.persistence.almacen.leer(tenant.id, (e.sim.cuerpoEnvio(P_OLMO.uuid).modelo as { sha256: string }).sha256)).toBeNull();
+
+    e.avanzar(5000);
+    const bien = await enviar(e, e.sim.cuerpoEnvio(P_OLMO.uuid, { envioUuid }));
+    expect(bien.r.status).toBe(200); // el trabajo ya existía: se reintentó sobre el mismo
+    expect(bien.cuerpo).toEqual({ trabajoUuid: malo.cuerpo.trabajoUuid, estado: "success" });
+    const ahora = (await e.deps.persistence.jobs.get(tenant.id, String(malo.cuerpo.trabajoUuid)))!;
+    expect(ahora).toMatchObject({ status: "success", message: MENSAJE_SUCCESS, createdAt: fallado.createdAt });
+    expect(ahora.updatedAt.getTime()).toBeGreaterThan(fallado.updatedAt.getTime());
+    expect(await e.deps.persistence.almacen.leer(tenant.id, ahora.model.sha256)).toEqual(e.sim.zipOlmo);
+    // Un solo trabajo con ese envioUuid, y un tercer envío ya no descarga.
+    const antes = descargas(e);
+    const tercero = await enviar(e, e.sim.cuerpoEnvio(P_OLMO.uuid, { envioUuid }));
+    expect(tercero.r.status).toBe(200);
+    expect(tercero.cuerpo).toEqual(bien.cuerpo);
+    expect(descargas(e)).toBe(antes);
+  });
+
+  it("un reintento con la descarga caída (503) deja el trabajo como estaba: failed con su causa anterior", async () => {
+    let caida = false;
+    const e = crearEntorno({ fetchApp: (fetchSim) => async (input, init) => (caida ? new Response("caído", { status: 502 }) : fetchSim(input, init)) });
+    const envioUuid = "7f6d0000-0000-4000-8000-0000000000a2";
+    const malo = await enviar(e, e.sim.cuerpoEnvio(P_OLMO.uuid, { variante: "sha256-malo", envioUuid }));
+    caida = true;
+    const r = await enviar(e, e.sim.cuerpoEnvio(P_OLMO.uuid, { envioUuid }));
+    expect(r.r.status).toBe(503);
+    const tenant = (await e.deps.persistence.tenants.findErpTenant(ANA.tenantId))!;
+    expect(await e.deps.persistence.jobs.get(tenant.id, String(malo.cuerpo.trabajoUuid))).toMatchObject({ status: "failed", message: malo.cuerpo.mensaje });
+    caida = false;
+    expect((await enviar(e, e.sim.cuerpoEnvio(P_OLMO.uuid, { envioUuid }))).cuerpo).toEqual({ trabajoUuid: malo.cuerpo.trabajoUuid, estado: "success" });
+  });
+
+  it("dos envíos concurrentes con el mismo envioUuid: un solo trabajo y una sola descarga por archivo; el otro ve inProgress", async () => {
+    let soltar!: () => void;
+    const compuerta = new Promise<void>((res) => (soltar = res));
+    const e = crearEntorno({
+      fetchApp: (fetchSim) => async (input, init) => {
+        if (String(input).startsWith(`${BASE_ERP}/blob/`)) await compuerta; // las descargas esperan hasta que se suelte
+        return fetchSim(input, init);
+      },
+    });
+    const cuerpo = e.sim.cuerpoEnvio(P_OLMO.uuid);
+    const a = enviar(e, cuerpo);
+    const b = enviar(e, cuerpo, BRUNO.sub);
+    // Con las descargas frenadas, solo puede responder el que no reservó: 200 con el trabajo en curso, sin descargar.
+    const primerRespondido = await Promise.race([a, b]);
+    expect(primerRespondido.r.status).toBe(200);
+    expect(primerRespondido.cuerpo.estado).toBe("inProgress");
+    soltar();
+    const [ra, rb] = await Promise.all([a, b]);
+    const estados = [ra.r.status, rb.r.status].sort();
+    expect(estados).toEqual([200, 201]);
+    expect(ra.cuerpo.trabajoUuid).toBe(rb.cuerpo.trabajoUuid);
+    expect(descargas(e)).toBe(2);
+    const tenant = (await e.deps.persistence.tenants.findErpTenant(ANA.tenantId))!;
+    expect((await e.deps.persistence.projects.listErpProjects(tenant.id)).length).toBe(1);
+    expect((await e.deps.persistence.jobs.findByEnvio(tenant.id, String(cuerpo.envioUuid)))?.status).toBe("success");
+  });
+});
+
+describe("UUID en mayúsculas: se guardan y se buscan normalizados", () => {
+  it("el mismo envioUuid en mayúsculas y en minúsculas es el mismo trabajo (y el proyecto, el mismo)", async () => {
+    const e = crearEntorno();
+    const cuerpo = e.sim.cuerpoEnvio(P_OLMO.uuid);
+    const envioUuid = String(cuerpo.envioUuid);
+    const a = await enviar(e, cuerpo);
+    expect(a.r.status).toBe(201);
+    const b = await enviar(e, { ...cuerpo, envioUuid: envioUuid.toUpperCase(), proyecto: { ...(cuerpo.proyecto as { uuid: string }), uuid: P_OLMO.uuid.toUpperCase() } });
+    expect(b.r.status).toBe(200);
+    expect(b.cuerpo.trabajoUuid).toBe(a.cuerpo.trabajoUuid);
+    expect(descargas(e)).toBe(2);
+    const tenant = (await e.deps.persistence.tenants.findErpTenant(ANA.tenantId))!;
+    expect((await e.deps.persistence.projects.listErpProjects(tenant.id)).map((p) => p.erpProjectId)).toEqual([P_OLMO.uuid]);
+    expect((await e.deps.persistence.jobs.get(tenant.id, String(a.cuerpo.trabajoUuid)))?.envioUuid).toBe(envioUuid.toLowerCase());
+  });
+});
+
 describe("TIE-14: sha256 que no coincide o zip inválido: 422 legible y trabajo failed con la causa", () => {
   it("sha256 del modelo distinto", async () => {
     const e = crearEntorno();
@@ -113,12 +199,13 @@ describe("TIE-14: sha256 que no coincide o zip inválido: 422 legible y trabajo 
     expect(g).toMatchObject({ estado: "failed", mensaje: resp.mensaje });
     const tenant = (await e.deps.persistence.tenants.findErpTenant(ANA.tenantId))!;
     expect(await e.deps.persistence.almacen.leer(tenant.id, (cuerpo.modelo as { sha256: string }).sha256)).toBeNull();
-    // Repetir el mismo envío devuelve el mismo fallo, sin descargar de nuevo.
+    // Repetir el mismo envío (IE-I2 enmendada): un `failed` se reintenta sobre el mismo trabajo, así que vuelve a descargar
+    // y, con el mismo dato malo, falla igual y con el mismo trabajoUuid.
     const antes = descargas(e);
     const otra = await enviar(e, cuerpo);
     expect(otra.r.status).toBe(422);
     expect(otra.cuerpo.trabajoUuid).toBe(resp.trabajoUuid);
-    expect(descargas(e)).toBe(antes);
+    expect(descargas(e)).toBe(antes + 2);
   });
 
   it("zip sin .dae", async () => {

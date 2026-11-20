@@ -1,8 +1,16 @@
 // IE-2, IE-9: fila ↔ dominio de la integración con el ERP. Puro; lo usan las dos implementaciones (memoria y SQL).
 
 import { esEstadoTrabajo } from "@/lib/erp/estados";
+import { normalizarUuid, UUID } from "@/lib/erp/protocolo";
 import { DocumentoInvalidoError, type ErpProject, type ErpSession, type Job } from "./ports";
 import type { JobRow, ProjectRow, SessionRow } from "./rows";
+
+/**
+ * Forma única de un id que viene del ERP (UUID de carpintería, proyecto o envío): en minúsculas, para que los índices
+ * únicos no admitan el mismo UUID escrito con mayúsculas. Lo que no es un UUID queda como está. Los repositorios lo
+ * aplican al guardar y al buscar, así que no depende de que quien llama haya normalizado.
+ */
+export const idErp = (id: string): string => (UUID.test(id) ? normalizarUuid(id) : id);
 
 export function toErpSession(row: SessionRow): ErpSession {
   return {

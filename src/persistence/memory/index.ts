@@ -26,7 +26,7 @@ import {
   type TenantRepository,
 } from "../ports";
 import { assertDefValido, parseRunDocument, parseStatus, qrIdsOf, toEngineRunRow, toFurnitureDef, toPieceRows, toVersionRows } from "../mappers";
-import { porCodigo, toErpProject, toErpSession, toJob, toJobRow } from "../mappersErp";
+import { idErp, porCodigo, toErpProject, toErpSession, toJob, toJobRow } from "../mappersErp";
 import { defaultDeps } from "../deps";
 import type {
   DesignVersionRow,
@@ -104,7 +104,7 @@ export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}
       const id = input.id ?? deps.newId();
       assertTenant(id);
       if (db.tenant.some((t) => t.id === id)) throw new Error(`La carpintería "${id}" ya existe.`);
-      const row: TenantRow = { id, erp_tenant_id: input.erpTenantId ?? null, name: input.name, enabled: true, created_at: deps.now() };
+      const row: TenantRow = { id, erp_tenant_id: input.erpTenantId == null ? null : idErp(input.erpTenantId), name: input.name, enabled: true, created_at: deps.now() };
       db.tenant.push(row);
       return toTenant(row);
     },
@@ -115,13 +115,15 @@ export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}
     },
     async ensureErpTenant(input) {
       assertTenant(input.erpTenantId);
-      const existing = db.tenant.find((t) => t.erp_tenant_id === input.erpTenantId);
+      const erpTenantId = idErp(input.erpTenantId);
+      const existing = db.tenant.find((t) => t.erp_tenant_id === erpTenantId);
       if (existing) return toTenant(existing);
-      return tenants.create({ name: input.name, erpTenantId: input.erpTenantId });
+      return tenants.create({ name: input.name, erpTenantId });
     },
     async findErpTenant(erpTenantId) {
       assertTenant(erpTenantId);
-      const row = db.tenant.find((t) => t.erp_tenant_id === erpTenantId);
+      const id = idErp(erpTenantId);
+      const row = db.tenant.find((t) => t.erp_tenant_id === id);
       return row ? toTenant(row) : null;
     },
   };
@@ -129,7 +131,8 @@ export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}
   const projects: ProjectRepository = {
     async upsertErpProject(tenantId, input) {
       requireTenant(tenantId);
-      const existing = db.project.find((p) => p.tenant_id === tenantId && p.erp_project_id === input.erpProjectId);
+      const erpProjectId = idErp(input.erpProjectId);
+      const existing = db.project.find((p) => p.tenant_id === tenantId && p.erp_project_id === erpProjectId);
       if (existing) {
         existing.erp_code = input.code;
         existing.name = input.name;
@@ -139,7 +142,7 @@ export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}
       const row: ProjectRow = {
         tenant_id: tenantId,
         id: deps.newId(),
-        erp_project_id: input.erpProjectId,
+        erp_project_id: erpProjectId,
         name: input.name,
         erp_code: input.code,
         delivery_date: input.deliveryDate,
@@ -150,7 +153,8 @@ export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}
     },
     async getErpProject(tenantId, erpProjectId) {
       assertTenant(tenantId);
-      const row = db.project.find((p) => p.tenant_id === tenantId && p.erp_project_id === erpProjectId);
+      const id = idErp(erpProjectId);
+      const row = db.project.find((p) => p.tenant_id === tenantId && p.erp_project_id === id);
       return row ? toErpProject({ ...row }) : null;
     },
     async listErpProjects(tenantId) {
@@ -170,7 +174,7 @@ export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}
         tenant_id: session.tenantId,
         id: session.id,
         erp_user_id: session.erpUserId,
-        erp_tenant_id: session.erpTenantId,
+        erp_tenant_id: idErp(session.erpTenantId),
         created_at: session.createdAt,
         expires_at: session.expiresAt,
         revoked_at: null,
@@ -198,23 +202,77 @@ export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}
       requireTenant(tenantId);
       if (input.status === "failed" && !input.message?.trim()) throw new TrabajoSinCausaError();
       if (!db.project.some((p) => p.tenant_id === tenantId && p.id === input.projectId)) throw new ReferenciaDeOtroTenantError("el proyecto");
-      const existing = db.job.find((j) => j.tenant_id === tenantId && j.envio_uuid === input.envioUuid);
+      const envioUuid = idErp(input.envioUuid);
+      const existing = db.job.find((j) => j.tenant_id === tenantId && j.envio_uuid === envioUuid);
       if (existing) return { job: toJob({ ...existing }), created: false };
-      const id = input.id ?? deps.newId();
+      const id = idErp(input.id ?? deps.newId());
       if (db.job.some((j) => j.id === id)) throw new Error("El trabajo ya existe.");
       const now = deps.now();
-      const row = toJobRow(tenantId, { ...input, id, createdAt: now, updatedAt: now });
+      const row = toJobRow(tenantId, { ...input, envioUuid, id, createdAt: now, updatedAt: now });
       db.job.push(row);
       return { job: toJob({ ...row }), created: true };
     },
+    // Sin `await` entre leer y escribir: en memoria el claim es atómico.
+    async claim(tenantId, input, staleBefore) {
+      requireTenant(tenantId);
+      if (!db.project.some((p) => p.tenant_id === tenantId && p.id === input.projectId)) throw new ReferenciaDeOtroTenantError("el proyecto");
+      const envioUuid = idErp(input.envioUuid);
+      const existing = db.job.find((j) => j.tenant_id === tenantId && j.envio_uuid === envioUuid);
+      const now = deps.now();
+      if (!existing) {
+        const id = idErp(input.id ?? deps.newId());
+        if (db.job.some((j) => j.id === id)) throw new Error("El trabajo ya existe.");
+        const row = toJobRow(tenantId, { ...input, envioUuid, id, status: "inProgress", message: null, createdAt: now, updatedAt: now });
+        db.job.push(row);
+        return { job: toJob({ ...row }), outcome: "created" };
+      }
+      const abandonado = existing.status === "inProgress" && existing.updated_at.getTime() < staleBefore.getTime();
+      if (existing.status !== "failed" && !abandonado) return { job: toJob({ ...existing }), outcome: "existing" };
+      const previous = { message: existing.status === "failed" && existing.message ? existing.message : "El envío anterior no terminó." };
+      existing.status = "inProgress";
+      existing.message = null;
+      existing.project_id = input.projectId;
+      existing.model_sha256 = input.model.sha256;
+      existing.model_version = input.model.version;
+      existing.model_name = input.model.name;
+      existing.csv_sha256 = input.csv.sha256;
+      existing.csv_version = input.csv.version;
+      existing.csv_name = input.csv.name;
+      existing.updated_at = now;
+      return { job: toJob({ ...existing }), outcome: "retry", previous };
+    },
+    async settle(tenantId, jobId, result) {
+      assertTenant(tenantId);
+      if (result.status === "failed" && !result.message.trim()) throw new TrabajoSinCausaError();
+      const row = db.job.find((j) => j.tenant_id === tenantId && j.id === idErp(jobId) && j.status === "inProgress");
+      if (!row) throw new Error("El trabajo no existe o no está en curso.");
+      row.status = result.status;
+      row.message = result.message;
+      row.updated_at = deps.now();
+      return toJob({ ...row });
+    },
+    async abandon(tenantId, jobId, previous) {
+      assertTenant(tenantId);
+      const i = db.job.findIndex((j) => j.tenant_id === tenantId && j.id === idErp(jobId) && j.status === "inProgress");
+      if (i < 0) return;
+      if (previous === null) {
+        db.job.splice(i, 1);
+        return;
+      }
+      db.job[i].status = "failed";
+      db.job[i].message = previous.message;
+      db.job[i].updated_at = deps.now();
+    },
     async get(tenantId, jobId) {
       assertTenant(tenantId);
-      const row = db.job.find((j) => j.tenant_id === tenantId && j.id === jobId);
+      const id = idErp(jobId);
+      const row = db.job.find((j) => j.tenant_id === tenantId && j.id === id);
       return row ? toJob({ ...row }) : null;
     },
     async findByEnvio(tenantId, envioUuid) {
       assertTenant(tenantId);
-      const row = db.job.find((j) => j.tenant_id === tenantId && j.envio_uuid === envioUuid);
+      const envio = idErp(envioUuid);
+      const row = db.job.find((j) => j.tenant_id === tenantId && j.envio_uuid === envio);
       return row ? toJob({ ...row }) : null;
     },
     async latestForProject(tenantId, projectId, status) {

@@ -2,7 +2,7 @@
 // (docs/spec-integracion-erp-minima.md v0.3). Igual que contract.ts: una sola batería contra memoria y PostgreSQL.
 
 import { describe, expect, it } from "vitest";
-import { ReferenciaDeOtroTenantError, TenantInexistenteError, TenantRequeridoError, TrabajoSinCausaError, type NewJob, type Persistence } from "@/persistence/ports";
+import { ReferenciaDeOtroTenantError, TenantInexistenteError, TenantRequeridoError, TrabajoSinCausaError, type ClaimJob, type NewJob, type Persistence } from "@/persistence/ports";
 import type { PersistenceFactory } from "./contract";
 
 const T_A = "5e1a0000-0000-4000-8000-0000000c0001";
@@ -25,6 +25,14 @@ const trabajo = (projectId: string, extra: Partial<NewJob> = {}): NewJob => ({
   csv: { sha256: SHA("b"), version: 1, name: "piezas.csv" },
   ...extra,
 });
+
+/** Lo que pide jobs.claim: el trabajo sin estado ni mensaje. */
+function reserva(projectId: string, extra: Partial<NewJob> = {}): ClaimJob {
+  const { status, message, ...resto } = trabajo(projectId, extra);
+  void status;
+  void message;
+  return resto;
+}
 
 async function conDos(p: Persistence) {
   const a = await p.tenants.ensureErpTenant({ erpTenantId: T_A, name: "A" });
@@ -114,6 +122,98 @@ export function erpContract(label: string, factory: PersistenceFactory): void {
         // TIE-17 / PB-7: el trabajo de una carpintería no se lee desde otra.
         expect(await p.jobs.get(b.id, uno.job.id)).toBeNull();
         expect(await p.jobs.get(a.id, enB.job.id)).toBeNull();
+      } finally {
+        await p.close();
+      }
+    });
+
+    it("IE-7: claim crea inProgress; failed y inProgress abandonado se toman sobre el mismo id; success y inProgress vigente no se tocan", async () => {
+      const p = await abrir();
+      try {
+        const { a } = await conDos(p);
+        const pa = await p.projects.upsertErpProject(a.id, { erpProjectId: P_UUID, code: "P-1", name: "A", deliveryDate: null });
+        const pedido = reserva(pa, { id: "11111111-0000-4000-8000-000000000001" });
+        const ayer = new Date("2000-01-01T00:00:00.000Z"); // nada es más viejo: un inProgress vigente
+        const futuro = new Date("2100-01-01T00:00:00.000Z"); // todo es más viejo: un inProgress abandonado
+
+        const uno = await p.jobs.claim(a.id, pedido, ayer);
+        expect(uno.outcome).toBe("created");
+        expect(uno.job).toMatchObject({ id: pedido.id, status: "inProgress", message: null });
+        // Vigente: otro pedido no lo toma.
+        const igual = await p.jobs.claim(a.id, { ...pedido, id: "22222222-0000-4000-8000-000000000002" }, ayer);
+        expect(igual).toEqual({ job: uno.job, outcome: "existing" });
+
+        // settle a failed: el siguiente claim lo toma sobre el mismo id, con los archivos nuevos.
+        const fallado = await p.jobs.settle(a.id, pedido.id!, { status: "failed", message: "sha256 malo" });
+        expect(fallado).toMatchObject({ status: "failed", message: "sha256 malo" });
+        expect(fallado.updatedAt.getTime()).toBeGreaterThan(uno.job.updatedAt.getTime());
+        const nuevo = { ...pedido, id: "33333333-0000-4000-8000-000000000003", model: { sha256: SHA("c"), version: 4, name: "olmo2.zip" } };
+        const retry = await p.jobs.claim(a.id, nuevo, ayer);
+        expect(retry.outcome).toBe("retry");
+        if (retry.outcome === "retry") expect(retry.previous).toEqual({ message: "sha256 malo" });
+        expect(retry.job).toMatchObject({ id: pedido.id, status: "inProgress", message: null, model: { sha256: SHA("c"), version: 4, name: "olmo2.zip" } });
+        expect(retry.job.createdAt).toEqual(uno.job.createdAt);
+
+        // abandon con previous: vuelve a failed con la causa anterior; sin previous no hay nada que borrar de un trabajo viejo.
+        await p.jobs.abandon(a.id, pedido.id!, { message: "sha256 malo" });
+        expect(await p.jobs.get(a.id, pedido.id!)).toMatchObject({ status: "failed", message: "sha256 malo" });
+
+        // inProgress abandonado (no se toca desde `staleBefore`): se retoma.
+        await p.jobs.claim(a.id, pedido, ayer);
+        const retomado = await p.jobs.claim(a.id, pedido, futuro);
+        expect(retomado.outcome).toBe("retry");
+
+        // success: ya no se reintenta.
+        await p.jobs.settle(a.id, pedido.id!, { status: "success", message: "ok" });
+        expect((await p.jobs.claim(a.id, pedido, futuro)).outcome).toBe("existing");
+        await expect(p.jobs.settle(a.id, pedido.id!, { status: "success", message: "otra vez" })).rejects.toThrow();
+      } finally {
+        await p.close();
+      }
+    });
+
+    it("IE-7: abandon sin previous borra el trabajo recién reservado; settle failed sin mensaje: TrabajoSinCausaError; proyecto ajeno: ReferenciaDeOtroTenantError", async () => {
+      const p = await abrir();
+      try {
+        const { a, b } = await conDos(p);
+        const pa = await p.projects.upsertErpProject(a.id, { erpProjectId: P_UUID, code: "P-1", name: "A", deliveryDate: null });
+        const pedido = reserva(pa, { id: "11111111-0000-4000-8000-000000000001" });
+        const ayer = new Date("2000-01-01T00:00:00.000Z");
+        await p.jobs.claim(a.id, pedido, ayer);
+        await expect(p.jobs.settle(a.id, pedido.id!, { status: "failed", message: " " })).rejects.toThrow(TrabajoSinCausaError);
+        await expect(p.jobs.claim(b.id, { ...pedido, envioUuid: "7f6d0000-0000-4000-8000-000000000002" }, ayer)).rejects.toThrow(ReferenciaDeOtroTenantError);
+        // Otra carpintería no cierra ni borra el trabajo de A.
+        await expect(p.jobs.settle(b.id, pedido.id!, { status: "success", message: "x" })).rejects.toThrow();
+        await p.jobs.abandon(b.id, pedido.id!, null);
+        expect(await p.jobs.get(a.id, pedido.id!)).not.toBeNull();
+        await p.jobs.abandon(a.id, pedido.id!, null);
+        expect(await p.jobs.get(a.id, pedido.id!)).toBeNull();
+        expect(await p.jobs.findByEnvio(a.id, pedido.envioUuid)).toBeNull();
+      } finally {
+        await p.close();
+      }
+    });
+
+    it("UUID del ERP en mayúsculas: carpintería, proyecto, envío y trabajo se guardan y se buscan en minúsculas (el índice único no admite duplicados)", async () => {
+      const p = await abrir();
+      try {
+        const a = await p.tenants.ensureErpTenant({ erpTenantId: T_A.toUpperCase(), name: "A" });
+        expect(a.erpTenantId).toBe(T_A);
+        expect((await p.tenants.ensureErpTenant({ erpTenantId: T_A, name: "A" })).id).toBe(a.id);
+        expect(await p.tenants.findErpTenant(T_A.toUpperCase())).toEqual(a);
+        const pa = await p.projects.upsertErpProject(a.id, { erpProjectId: P_UUID.toUpperCase(), code: "P-1", name: "A", deliveryDate: null });
+        expect(await p.projects.upsertErpProject(a.id, { erpProjectId: P_UUID, code: "P-1", name: "A", deliveryDate: null })).toBe(pa);
+        expect((await p.projects.getErpProject(a.id, P_UUID.toUpperCase()))?.erpProjectId).toBe(P_UUID);
+        expect(await p.projects.listErpProjects(a.id)).toHaveLength(1);
+        const envio = "7F6D0000-0000-4000-8000-00000000ABCD";
+        const uno = await p.jobs.create(a.id, trabajo(pa, { id: "11111111-0000-4000-8000-00000000AAAA", envioUuid: envio }));
+        expect(uno.created).toBe(true);
+        expect(uno.job.envioUuid).toBe(envio.toLowerCase());
+        expect(uno.job.id).toBe("11111111-0000-4000-8000-00000000aaaa");
+        expect((await p.jobs.create(a.id, trabajo(pa, { envioUuid: envio.toLowerCase() }))).created).toBe(false);
+        expect((await p.jobs.claim(a.id, { ...trabajo(pa, { envioUuid: envio }) }, new Date(0))).outcome).toBe("existing");
+        expect(await p.jobs.findByEnvio(a.id, envio)).toEqual(uno.job);
+        expect(await p.jobs.get(a.id, uno.job.id.toUpperCase())).toEqual(uno.job);
       } finally {
         await p.close();
       }

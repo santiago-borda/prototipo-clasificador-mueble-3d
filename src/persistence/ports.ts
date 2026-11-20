@@ -126,6 +126,14 @@ export interface Job {
 
 export type NewJob = Omit<Job, "id" | "createdAt" | "updatedAt"> & { id?: string };
 
+/** Lo que pide `jobs.claim`: el trabajo sin estado ni mensaje (nace `inProgress`). */
+export type ClaimJob = Omit<NewJob, "status" | "message">;
+
+export type ClaimResult =
+  | { job: Job; outcome: "created" }
+  | { job: Job; outcome: "retry"; previous: { message: string } }
+  | { job: Job; outcome: "existing" };
+
 // --- Repositorios ------------------------------------------------------------------------------
 
 export interface TenantRepository {
@@ -168,6 +176,22 @@ export interface JobRepository {
    * sin tocarlo (idempotencia, también entre dos pedidos a la vez). Con `failed` sin `message`: `TrabajoSinCausaError`.
    */
   create(tenantId: string, input: NewJob): Promise<{ job: Job; created: boolean }>;
+  /**
+   * IE-7: reserva el envío antes de descargar, de forma atómica (también entre dos pedidos a la vez):
+   *  - no hay trabajo con ese `envioUuid` → lo crea `inProgress` (`created`);
+   *  - hay uno `failed`, o `inProgress` que no se toca desde `staleBefore` (el proceso que lo tenía murió) → lo toma
+   *    sobre el MISMO id, pasa a `inProgress` y actualiza proyecto y archivos (`retry`; `previous` es lo que había);
+   *  - hay uno `success`, `pending` o `inProgress` vigente → no lo toca (`existing`).
+   * Solo quien recibe `created` o `retry` descarga; después llama a `settle` o a `abandon`.
+   */
+  claim(tenantId: string, input: ClaimJob, staleBefore: Date): Promise<ClaimResult>;
+  /** Cierra un trabajo `inProgress` con `success` o `failed` (este con `message`: `TrabajoSinCausaError`). Actualiza `updatedAt`. */
+  settle(tenantId: string, jobId: string, result: { status: "success" | "failed"; message: string }): Promise<Job>;
+  /**
+   * Deshace un `claim` cuando la descarga es reintentable (503): con `previous: null` borra el trabajo (no queda
+   * rastro); con un estado, lo vuelve a `failed` con ese mensaje. Solo actúa si el trabajo sigue `inProgress`.
+   */
+  abandon(tenantId: string, jobId: string, previous: { message: string } | null): Promise<void>;
   get(tenantId: string, jobId: string): Promise<Job | null>;
   findByEnvio(tenantId: string, envioUuid: string): Promise<Job | null>;
   /** El último trabajo del proyecto (por creación), opcionalmente solo con un estado. */

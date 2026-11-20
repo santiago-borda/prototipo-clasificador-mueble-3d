@@ -2,8 +2,9 @@
 // Response con las dependencias inyectadas. Los llama el servidor del ERP con `Authorization: Bearer <token del
 // usuario>`; el tenant sale del token, nunca del cuerpo ni de la URL (TIE-16).
 //
-// Códigos (spec v0.3 IE-7; estados según las respuestas del 20/11):
-//   201 trabajo nuevo `success` · 200 mismo envioUuid ya recibido (sin descargar de nuevo) · 400 esquema o URL
+// Códigos (spec v0.3 IE-7; estados según las respuestas del 20/11; reintento de `failed`: IE-I2 enmendada):
+//   201 trabajo nuevo `success` · 200 mismo envioUuid ya `success` o `inProgress` (sin descargar de nuevo), o reintento
+//   de uno `failed` sobre el mismo trabajoUuid · 400 esquema o URL
 //   rechazada (sin descargar) · 401 token · 422 sha256 que no coincide, zip inválido o URL que respondió 4xx (queda un
 //   trabajo `failed` con la causa) · 503 descarga o JWKS no disponibles (reintentable; no queda trabajo).
 // Todo error lleva `mensaje`, legible para el usuario del ERP. Ninguna respuesta ni registro lleva las URLs.
@@ -20,6 +21,8 @@ import { nombreDeCarpinteria, type DepsIntegracion } from "./sesion";
 
 export const CUERPO_TRABAJO_MAX_BYTES = 64 * 1024;
 export const MENSAJE_SUCCESS = "Modelo y CSV recibidos y verificados.";
+/** Un trabajo `inProgress` que no se toca desde hace tantos timeouts se considera abandonado (el proceso murió) y se puede retomar. */
+export const ESPERA_ABANDONADO_VECES_TIMEOUT = 4;
 
 const error = (status: number, codigo: string, mensaje: string) => respuestaJson({ error: codigo, mensaje }, status);
 
@@ -140,39 +143,52 @@ export async function postTrabajo(request: Request, deps: DepsIntegracion): Prom
 
   const { persistence } = deps;
   const tenant = await persistence.tenants.ensureErpTenant({ erpTenantId: auth.identidad.erpTenant, name: nombreDeCarpinteria(auth.identidad.erpTenant) });
-  // TIE-13: mismo envioUuid en la carpintería → el mismo trabajo, sin volver a descargar.
-  const previo = await persistence.jobs.findByEnvio(tenant.id, envio.envioUuid);
-  if (previo) {
-    deps.registrar("trabajo-repetido", { estado: previo.status });
-    return respuestaDeTrabajo(previo, 200);
-  }
-
-  const verificado = await descargarYVerificar(deps, envio);
-  if (!verificado.ok && verificado.reintentable) {
-    deps.registrar("trabajo-no-disponible", { motivo: verificado.motivo });
-    return error(503, "descarga-no-disponible", verificado.mensaje);
-  }
-  if (verificado.ok) {
-    await persistence.almacen.guardar(tenant.id, envio.modelo.sha256, verificado.modelo);
-    await persistence.almacen.guardar(tenant.id, envio.csv.sha256, verificado.csv);
-  }
   const projectId = await persistence.projects.upsertErpProject(tenant.id, {
     erpProjectId: envio.proyecto.uuid,
     code: envio.proyecto.codigo,
     name: envio.proyecto.nombre,
     deliveryDate: envio.proyecto.fechaEntrega,
   });
-  const { job, created } = await persistence.jobs.create(tenant.id, {
-    id: deps.nuevoUuid(),
-    envioUuid: envio.envioUuid,
-    projectId,
-    status: verificado.ok ? "success" : "failed",
-    message: verificado.ok ? MENSAJE_SUCCESS : verificado.mensaje,
-    model: aJobFile(envio.modelo),
-    csv: aJobFile(envio.csv),
-  });
-  deps.registrar(created ? "trabajo-creado" : "trabajo-repetido", { estado: job.status, ...(verificado.ok ? {} : { motivo: verificado.motivo }) });
-  return respuestaDeTrabajo(job, created ? 201 : 200);
+  // TIE-13: se reserva el envío antes de descargar (atómico, también entre dos pedidos a la vez).
+  //  - mismo envioUuid ya `success` o `inProgress` vigente → el mismo trabajo, sin descargar (200);
+  //  - ya `failed` (o `inProgress` abandonado) → se reintenta sobre el MISMO trabajoUuid: descarga, verifica y actualiza
+  //    estado, mensaje y actualizado (200; si falla de nuevo, 422);
+  //  - nuevo → 201.
+  const reserva = await persistence.jobs.claim(
+    tenant.id,
+    { id: deps.nuevoUuid(), envioUuid: envio.envioUuid, projectId, model: aJobFile(envio.modelo), csv: aJobFile(envio.csv) },
+    new Date(deps.ahora().getTime() - ESPERA_ABANDONADO_VECES_TIMEOUT * deps.config.timeoutMs),
+  );
+  if (reserva.outcome === "existing") {
+    deps.registrar("trabajo-repetido", { estado: reserva.job.status });
+    return respuestaDeTrabajo(reserva.job, 200);
+  }
+  const previous = reserva.outcome === "retry" ? reserva.previous : null;
+  const jobId = reserva.job.id;
+
+  try {
+    const verificado = await descargarYVerificar(deps, envio);
+    if (!verificado.ok && verificado.reintentable) {
+      // 503: no queda rastro (trabajo nuevo) o vuelve a su `failed` anterior (reintento).
+      await persistence.jobs.abandon(tenant.id, jobId, previous);
+      deps.registrar("trabajo-no-disponible", { motivo: verificado.motivo });
+      return error(503, "descarga-no-disponible", verificado.mensaje);
+    }
+    if (verificado.ok) {
+      await persistence.almacen.guardar(tenant.id, envio.modelo.sha256, verificado.modelo);
+      await persistence.almacen.guardar(tenant.id, envio.csv.sha256, verificado.csv);
+    }
+    const job = await persistence.jobs.settle(tenant.id, jobId, {
+      status: verificado.ok ? "success" : "failed",
+      message: verificado.ok ? MENSAJE_SUCCESS : verificado.mensaje,
+    });
+    deps.registrar(reserva.outcome === "created" ? "trabajo-creado" : "trabajo-reintentado", { estado: job.status, ...(verificado.ok ? {} : { motivo: verificado.motivo }) });
+    return respuestaDeTrabajo(job, reserva.outcome === "created" ? 201 : 200);
+  } catch (e) {
+    // Un error inesperado (p. ej. la base) no deja el envío trabado en `inProgress`.
+    await persistence.jobs.abandon(tenant.id, jobId, previous ?? null).catch(() => undefined);
+    throw e;
+  }
 }
 
 /** IE-8: GET /api/trabajos/{trabajoUuid}. Un trabajo de otra carpintería (o inexistente) da 404 (TIE-17). */

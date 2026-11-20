@@ -6,7 +6,7 @@
 import type { Kysely } from "kysely";
 import { defaultDeps } from "../deps";
 import { assertDefValido, parseRunDocument, parseStatus, qrIdsOf, toEngineRunRow, toFurnitureDef, toPieceRows, toVersionRows } from "../mappers";
-import { porCodigo, toErpProject, toErpSession, toJob, toJobRow } from "../mappersErp";
+import { idErp, porCodigo, toErpProject, toErpSession, toJob, toJobRow } from "../mappersErp";
 import {
   assertTenant,
   CodigoRepetidoEnVersionError,
@@ -86,7 +86,7 @@ export function createSqlPersistence(db: Kysely<Database>, overrides: Partial<Pe
     async create(input) {
       const id = input.id ?? deps.newId();
       assertTenant(id);
-      const row: TenantRow = { id, erp_tenant_id: input.erpTenantId ?? null, name: input.name, enabled: true, created_at: deps.now() };
+      const row: TenantRow = { id, erp_tenant_id: input.erpTenantId == null ? null : idErp(input.erpTenantId), name: input.name, enabled: true, created_at: deps.now() };
       await db.transaction().execute(async (trx) => {
         const existing = await trx.selectFrom("tenant").select("id").where("id", "=", id).executeTakeFirst();
         if (existing) throw new Error(`La carpintería "${id}" ya existe.`);
@@ -101,10 +101,11 @@ export function createSqlPersistence(db: Kysely<Database>, overrides: Partial<Pe
     },
     async ensureErpTenant(input) {
       assertTenant(input.erpTenantId);
-      const buscar = () => db.selectFrom("tenant").selectAll().where("erp_tenant_id", "=", input.erpTenantId).executeTakeFirst();
+      const erpTenantId = idErp(input.erpTenantId);
+      const buscar = () => db.selectFrom("tenant").selectAll().where("erp_tenant_id", "=", erpTenantId).executeTakeFirst();
       const existing = await buscar();
       if (existing) return toTenant(existing);
-      const row: TenantRow = { id: deps.newId(), erp_tenant_id: input.erpTenantId, name: input.name, enabled: true, created_at: deps.now() };
+      const row: TenantRow = { id: deps.newId(), erp_tenant_id: erpTenantId, name: input.name, enabled: true, created_at: deps.now() };
       try {
         await db.insertInto("tenant").values(row).execute();
         return toTenant(row);
@@ -117,7 +118,7 @@ export function createSqlPersistence(db: Kysely<Database>, overrides: Partial<Pe
     },
     async findErpTenant(erpTenantId) {
       assertTenant(erpTenantId);
-      const row = await db.selectFrom("tenant").selectAll().where("erp_tenant_id", "=", erpTenantId).executeTakeFirst();
+      const row = await db.selectFrom("tenant").selectAll().where("erp_tenant_id", "=", idErp(erpTenantId)).executeTakeFirst();
       return row ? toTenant(row) : null;
     },
   };
@@ -126,8 +127,9 @@ export function createSqlPersistence(db: Kysely<Database>, overrides: Partial<Pe
     async upsertErpProject(tenantId, input) {
       assertTenant(tenantId);
       await requireTenant(db, tenantId);
+      const erpProjectId = idErp(input.erpProjectId);
       const buscar = () =>
-        db.selectFrom("project").select("id").where("tenant_id", "=", tenantId).where("erp_project_id", "=", input.erpProjectId).executeTakeFirst();
+        db.selectFrom("project").select("id").where("tenant_id", "=", tenantId).where("erp_project_id", "=", erpProjectId).executeTakeFirst();
       const actualizar = (id: string) =>
         db
           .updateTable("project")
@@ -143,7 +145,7 @@ export function createSqlPersistence(db: Kysely<Database>, overrides: Partial<Pe
       const row: ProjectRow = {
         tenant_id: tenantId,
         id: deps.newId(),
-        erp_project_id: input.erpProjectId,
+        erp_project_id: erpProjectId,
         name: input.name,
         erp_code: input.code,
         delivery_date: input.deliveryDate,
@@ -161,7 +163,7 @@ export function createSqlPersistence(db: Kysely<Database>, overrides: Partial<Pe
     },
     async getErpProject(tenantId, erpProjectId) {
       assertTenant(tenantId);
-      const row = await db.selectFrom("project").selectAll().where("tenant_id", "=", tenantId).where("erp_project_id", "=", erpProjectId).executeTakeFirst();
+      const row = await db.selectFrom("project").selectAll().where("tenant_id", "=", tenantId).where("erp_project_id", "=", idErp(erpProjectId)).executeTakeFirst();
       return row ? toErpProject(row) : null;
     },
     async listErpProjects(tenantId) {
@@ -182,7 +184,7 @@ export function createSqlPersistence(db: Kysely<Database>, overrides: Partial<Pe
             tenant_id: session.tenantId,
             id: session.id,
             erp_user_id: session.erpUserId,
-            erp_tenant_id: session.erpTenantId,
+            erp_tenant_id: idErp(session.erpTenantId),
             created_at: session.createdAt,
             expires_at: session.expiresAt,
             revoked_at: null,
@@ -212,16 +214,103 @@ export function createSqlPersistence(db: Kysely<Database>, overrides: Partial<Pe
   };
 
   const buscarPorEnvio = (tenantId: string, envioUuid: string) =>
-    db.selectFrom("job").selectAll().where("tenant_id", "=", tenantId).where("envio_uuid", "=", envioUuid).executeTakeFirst();
+    db.selectFrom("job").selectAll().where("tenant_id", "=", tenantId).where("envio_uuid", "=", idErp(envioUuid)).executeTakeFirst();
 
   const jobs: JobRepository = {
+    async claim(tenantId, input, staleBefore) {
+      assertTenant(tenantId);
+      const envioUuid = idErp(input.envioUuid);
+      const now = deps.now();
+      for (let intento = 0; intento < 2; intento++) {
+        const existing = await buscarPorEnvio(tenantId, envioUuid);
+        if (!existing) {
+          const row = toJobRow(tenantId, { ...input, envioUuid, id: idErp(input.id ?? deps.newId()), status: "inProgress", message: null, createdAt: now, updatedAt: now });
+          try {
+            await db.transaction().execute(async (trx) => {
+              await requireTenant(trx, tenantId);
+              const project = await trx.selectFrom("project").select("id").where("tenant_id", "=", tenantId).where("id", "=", input.projectId).executeTakeFirst();
+              if (!project) throw new ReferenciaDeOtroTenantError("el proyecto");
+              await trx.insertInto("job").values(row).execute();
+            });
+            return { job: toJob(row), outcome: "created" };
+          } catch (error) {
+            // Dos envíos iguales a la vez: el otro ya lo creó (job_envio_uq); se vuelve a mirar.
+            if (error instanceof ReferenciaDeOtroTenantError || error instanceof TenantInexistenteError) throw error;
+            if (await buscarPorEnvio(tenantId, envioUuid)) continue;
+            throw error;
+          }
+        }
+        const abandonado = existing.status === "inProgress" && existing.updated_at.getTime() < staleBefore.getTime();
+        if (existing.status !== "failed" && !abandonado) return { job: toJob(existing), outcome: "existing" };
+        // Toma condicional: si dos pedidos llegan a la vez, solo uno ve el estado que leyó y lo cambia.
+        const project = await db.selectFrom("project").select("id").where("tenant_id", "=", tenantId).where("id", "=", input.projectId).executeTakeFirst();
+        if (!project) throw new ReferenciaDeOtroTenantError("el proyecto");
+        const tomado = await db
+          .updateTable("job")
+          .set({
+            status: "inProgress",
+            message: null,
+            project_id: input.projectId,
+            model_sha256: input.model.sha256,
+            model_version: input.model.version,
+            model_name: input.model.name,
+            csv_sha256: input.csv.sha256,
+            csv_version: input.csv.version,
+            csv_name: input.csv.name,
+            updated_at: now,
+          })
+          .where("tenant_id", "=", tenantId)
+          .where("id", "=", existing.id)
+          .where("status", "=", existing.status)
+          .where("updated_at", "=", existing.updated_at)
+          .executeTakeFirst();
+        if (Number(tomado.numUpdatedRows) === 1) {
+          const previous = { message: existing.status === "failed" && existing.message ? existing.message : "El envío anterior no terminó." };
+          const actual = await db.selectFrom("job").selectAll().where("tenant_id", "=", tenantId).where("id", "=", existing.id).executeTakeFirstOrThrow();
+          return { job: toJob(actual), outcome: "retry", previous };
+        }
+        // Otro lo tomó antes: se vuelve a mirar (ahora estará inProgress y vigente).
+      }
+      const ultimo = await buscarPorEnvio(tenantId, envioUuid);
+      if (!ultimo) throw new Error("No se pudo reservar el envío.");
+      return { job: toJob(ultimo), outcome: "existing" };
+    },
+    async settle(tenantId, jobId, result) {
+      assertTenant(tenantId);
+      if (result.status === "failed" && !result.message.trim()) throw new TrabajoSinCausaError();
+      const id = idErp(jobId);
+      const r = await db
+        .updateTable("job")
+        .set({ status: result.status, message: result.message, updated_at: deps.now() })
+        .where("tenant_id", "=", tenantId)
+        .where("id", "=", id)
+        .where("status", "=", "inProgress")
+        .executeTakeFirst();
+      if (Number(r.numUpdatedRows) !== 1) throw new Error("El trabajo no existe o no está en curso.");
+      return toJob(await db.selectFrom("job").selectAll().where("tenant_id", "=", tenantId).where("id", "=", id).executeTakeFirstOrThrow());
+    },
+    async abandon(tenantId, jobId, previous) {
+      assertTenant(tenantId);
+      const id = idErp(jobId);
+      if (previous === null) {
+        await db.deleteFrom("job").where("tenant_id", "=", tenantId).where("id", "=", id).where("status", "=", "inProgress").execute();
+        return;
+      }
+      await db
+        .updateTable("job")
+        .set({ status: "failed", message: previous.message, updated_at: deps.now() })
+        .where("tenant_id", "=", tenantId)
+        .where("id", "=", id)
+        .where("status", "=", "inProgress")
+        .execute();
+    },
     async create(tenantId, input) {
       assertTenant(tenantId);
       if (input.status === "failed" && !input.message?.trim()) throw new TrabajoSinCausaError();
       const previo = await buscarPorEnvio(tenantId, input.envioUuid);
       if (previo) return { job: toJob(previo), created: false };
       const now = deps.now();
-      const row = toJobRow(tenantId, { ...input, id: input.id ?? deps.newId(), createdAt: now, updatedAt: now });
+      const row = toJobRow(tenantId, { ...input, envioUuid: idErp(input.envioUuid), id: idErp(input.id ?? deps.newId()), createdAt: now, updatedAt: now });
       try {
         await db.transaction().execute(async (trx) => {
           await requireTenant(trx, tenantId);
@@ -239,7 +328,7 @@ export function createSqlPersistence(db: Kysely<Database>, overrides: Partial<Pe
     },
     async get(tenantId, jobId) {
       assertTenant(tenantId);
-      const row = await db.selectFrom("job").selectAll().where("tenant_id", "=", tenantId).where("id", "=", jobId).executeTakeFirst();
+      const row = await db.selectFrom("job").selectAll().where("tenant_id", "=", tenantId).where("id", "=", idErp(jobId)).executeTakeFirst();
       return row ? toJob(row) : null;
     },
     async findByEnvio(tenantId, envioUuid) {

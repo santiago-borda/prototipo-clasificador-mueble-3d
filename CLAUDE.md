@@ -44,7 +44,7 @@
   - **Pendiente de decisión del equipo: QR de una versión reemplazada.** Hoy `resolveQrTarget` solo resuelve versiones `publicada`: un QR de pieza o de módulo de una versión `reemplazada` da 404, igual que uno no publicado (ASUMIDO en S2A). Pero el QR ya estaba impreso y pegado en la pieza, y «un QR nunca cambia de destino» (modelo de datos §4.2): quizás tenga que seguir resolviendo a su versión, con un aviso de que es una versión anterior (como `newerVersionAvailable`). Cambiarlo pide una spec.
   - **Siguiente:** prueba manual de S2A; decidir qué pasa con el QR de una versión reemplazada; S3.
 - **Integración con el ERP según el contrato UCP v1 (20/11, rama `erp-integracion-minima`, sin push).**
-  - **Spec:** `docs/spec-integracion-erp-minima.md` v0.3. Reemplaza a la v0.2, que estaba implementada en esta rama y se rehízo. Precisiones IE-I1 a IE-I14 (**a revisar**) en su §11.
+  - **Spec:** `docs/spec-integracion-erp-minima.md` v0.3. Reemplaza a la v0.2, que estaba implementada en esta rama y se rehízo. Precisiones IE-I1 a IE-I17 (**a revisar**; IE-I15 a IE-I17 salen de la revisión del 20/11) en su §11.
   - **Fuentes de Casa Mueble** (en `docs/casa-mueble/`): `contrato-ucp-v1.md`, `guia-autenticacion-qa.md` y `respuestas-20-11-contrato-ucp.md`. Las respuestas mandan sobre la spec donde difieren (estados, `ERP_BLOB_ORIGENES`).
   - **El contrato lo generó una IA:** todo lo que afirma del ERP real es ASUMIDO hasta U-erp-real.
   - **Dependencia:** `jose` 6.2.14, aprobada por Santiago el 20/11 (parada U-dependencias; versión exacta). R5 la lista.
@@ -57,8 +57,8 @@
     - `ucp:alto` se manda como máximo cada 200 ms. El tema puede ser claro u oscuro. Los mensajes se aceptan solo de `ERP_WEB_ORIGEN` y `window.parent`, y se mandan siempre a `ERP_WEB_ORIGEN`, nunca a `"*"`.
     - El token del ERP no se guarda en ningún lado (contrato §1): ni en la base, ni en storage, ni en la URL, ni en los logs.
   - **Envío del ERP:**
-    - `POST /api/trabajos` (Bearer; el tenant sale del token). Valida el esquema (400) y las URLs: solo https y solo de `ERP_BLOB_ORIGENES` (400 sin descargar). Si ya existe el mismo `envioUuid` en la carpintería, responde 200 con el mismo trabajo.
-    - Si es nuevo, descarga los dos archivos, verifica el sha256 y que el zip traiga un `.dae` sin `..`, guarda los dos en el almacén y responde 201 `{trabajoUuid, estado: "success"}`.
+    - `POST /api/trabajos` (Bearer; el tenant sale del token). Valida el esquema (400) y las URLs: solo https y solo de `ERP_BLOB_ORIGENES` (400 sin descargar). Se reserva el envío antes de descargar (`jobs.claim`, atómico): si el mismo `envioUuid` ya está `success` o `inProgress`, responde 200 con el mismo trabajo y no descarga.
+    - Si es nuevo, descarga los dos archivos, verifica el sha256 y que el zip traiga un `.dae` sin `..`, guarda los dos en el almacén y responde 201 `{trabajoUuid, estado: "success"}`. **Un `failed` se reintenta sobre el mismo `trabajoUuid`** (vuelve a descargar y actualiza estado, mensaje y `actualizado`; 200 si sale bien, 422 si falla otra vez; IE-I15). Los UUID del ERP se guardan y se buscan en minúsculas (IE-I17).
     - Una falla permanente responde 422 y deja un trabajo `failed` con la causa. Red caída o 5xx responden 503 y no dejan trabajo.
     - `GET /api/trabajos/{uuid}` responde 404 para otra carpintería.
     - Estados: `pending | inProgress | success | failed`. **ASUMIDO:** `success` = archivos recibidos, verificados y guardados; el CSV no se procesa todavía. `proyecto.cliente` no se guarda.
@@ -83,7 +83,7 @@
     - `ERP_API_URL`.
     - `ERP_BLOB_ORIGENES`: **vacía**, porque Casa Mueble no informó el host; vacía significa que se rechaza toda descarga.
     - `ERP_LOGIN_DIRECTO`.
-    - `ERP_MODO` y `ERP_SIMULADO_URL`.
+    - `ERP_MODO` y `ERP_SIMULADO_URL`. **`.env.example` trae `ERP_MODO=simulado` y `ERP_WEB_ORIGEN=http://localhost:4010` por defecto; los valores de QA están comentados, con la línea de cómo pasar a QA** (`ERP_MODO=real` y descomentarlos; usar QA es U-erp-real).
     - `ERP_TIMEOUT_MS`, `ERP_ZIP_MAX_BYTES` y `ERP_CSV_MAX_BYTES`.
     - `ERP_FRONT_ORIGENES`, `SESION_CLAVE` y `SESION_DURACION_MIN` ya no existen.
     - Las credenciales de QA van solo al `.env.local` de cada uno. Claude Code no las pide, no las lee y no las imprime.
@@ -106,7 +106,7 @@
   - **Siguiente:**
     - TIE-22 manual: `npm run erp:simulado` y `ERP_MODO=simulado ERP_WEB_ORIGEN=http://localhost:4010 npm run dev`; abrir el anfitrión por **localhost**, enviar, ver el estado y el visor, renovar y vencer.
     - Correr la suite con `TEST_DATABASE_URL`.
-    - Revisar IE-I1 a IE-I14.
+    - Revisar IE-I1 a IE-I17.
     - Consultar a Casa Mueble el host del blob y si el lado del ERP está implementado.
     - U-erp-real: validar un token real contra el JWKS de QA, con aprobación.
     - U-erp-front: requiere despliegue https; dominio `taller-qa` o `taller-test`, a confirmar.

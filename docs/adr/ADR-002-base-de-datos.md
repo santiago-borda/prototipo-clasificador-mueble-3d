@@ -1,6 +1,6 @@
 # ADR-002: Base de datos y capa de acceso
 
-**Estado:** Propuesto · **Fecha:** 17/11/2026 · **Deciden:** Santiago Borda y Lautaro Salina
+**Estado:** Aceptado el 20/11/2026 (a pedido de Santiago Borda; propuesto el 17/11/2026) · **Fecha:** 17/11/2026 · **Deciden:** Santiago Borda y Lautaro Salina
 
 ## Contexto
 Hoy no hay base de datos. Las fichas salen de un archivo del código y las importaciones son archivos JSON en Vercel Blob. El producto necesita guardar, por carpintería, lo que describe `docs/modelo-de-datos.md`.
@@ -37,8 +37,8 @@ Requisito de esta sesión: que la capa soporte los dos motores, justificado con 
 | Drizzle | Sí | Figura MSSQL en la documentación | orm.drizzle.team/docs/get-started | La página anuncia la versión 1.0 en beta y no dice el estado del soporte de MSSQL. |
 | SQL a mano con `pg` | Sí | No (habría que reescribir todo con otro controlador) | — | La menor cantidad de dependencias, pero no cumple el requisito de los dos motores. |
 
-## Decisión propuesta
-1. **Motor: PostgreSQL, ASUMIDO** hasta que Casa Mueble responda CA-2. Si el ERP usa SQL Server **y** Casa Mueble quiere operar una sola base, se cambia a SQL Server con el procedimiento de «Cómo revertir».
+## Decisión
+1. **Motor: PostgreSQL.** Casa Mueble respondió el 20/11/2026 que permite PostgreSQL (consulta 5 de `docs/casa-mueble/respuestas-20-11-contrato-ucp.md`); el «SQL Server» del contrato UCP v1 fue un error del documento, que generó una IA. Si más adelante Casa Mueble quiere operar una sola base con el ERP en SQL Server, se cambia con el procedimiento de «Cómo revertir». Sigue abierto **dónde se aloja** la base del despliegue de `taller-qa` (decisión del equipo).
 2. **Capa de acceso en dos niveles:**
    - **Repositorios:** interfaces de TypeScript que usan los casos de uso. No exponen SQL ni tipos de Kysely. Cada una tiene una implementación en memoria (para las pruebas) y una en SQL.
    - **Kysely** dentro de la implementación en SQL, con el dialecto elegido por configuración (`PostgresDialect` o `MssqlDialect`).
@@ -64,6 +64,6 @@ Requisito de esta sesión: que la capa soporte los dos motores, justificado con 
 - **Antes de producción** no hay datos que migrar: el cambio es casi gratis hasta entonces. Conviene tener la respuesta de CA-2 antes del primer despliegue con datos reales.
 
 ## Acciones
-1. [ ] El equipo acepta o corrige este ADR.
+1. [x] El equipo acepta o corrige este ADR. Aceptado el 20/11/2026.
 2. [x] Aprobar las dependencias `kysely`, `pg` y `@types/pg` (spec de S2, parada U-dependencias). Aprobadas por Santiago el 17/11/2026; `kysely` en 0.28.x (la 0.29 pide Node 22).
-3. [ ] Enviar CA-2 a Casa Mueble.
+3. [x] CA-2 (motor de la base): respondida por Casa Mueble el 20/11/2026, permite PostgreSQL. Falta definir dónde se aloja la base del despliegue.

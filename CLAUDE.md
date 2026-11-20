@@ -43,17 +43,74 @@
   - Verificado el 18/11 (base local descartable en un contenedor, ya borrada): `typecheck` sin errores; `lint` 0 errores y 1 aviso (`_def` sin usar en `tests/fixtures/s2a/capturar-ficha.ts`, que no se tocó después de la captura); `npm test` sin base 709 pasan, 27 salteadas, 4 `todo`; con base 796 pasan, 21 salteadas, 4 `todo`. En los dos casos **fallan 2 pruebas ajenas a S2A**: TP-72 (`tests/pdf.validate.test.ts`) y TS-11 (`tests/pdf.sintetico.test.ts`), porque el commit `fddd8aa` («specs de s2 aprobadas») subió `tests/fixtures/csv-ocl/gabinete/diagrama-corte-blanco18.pdf` (decide el equipo). `next build` bien, con `/p/[qrId]` como `ƒ`. Prueba de humo con `next start`: 200 y 404 iguales con memoria y con base; con la base caída 500, error registrado y sin la clave en el log. **Falta la prueba manual en el celular** (3 tipos del Olmo con la base local, y ver la pantalla de error). **19/11:** Santiago sacó el PDF de git (`759725e`) y S2A PB-15 suma el caso de una versión no publicada (404): `npm test` sin base 714 pasan, 27 salteadas, 4 `todo`; con base 804 pasan, 21 salteadas, 4 `todo`; **0 fallas** en los dos casos.
   - **Pendiente de decisión del equipo: QR de una versión reemplazada.** Hoy `resolveQrTarget` solo resuelve versiones `publicada`: un QR de pieza o de módulo de una versión `reemplazada` da 404, igual que uno no publicado (ASUMIDO en S2A). Pero el QR ya estaba impreso y pegado en la pieza, y «un QR nunca cambia de destino» (modelo de datos §4.2): quizás tenga que seguir resolviendo a su versión, con un aviso de que es una versión anterior (como `newerVersionAvailable`). Cambiarlo pide una spec.
   - **Siguiente:** prueba manual de S2A; decidir qué pasa con el QR de una versión reemplazada; S3.
-- **Integración con el ERP por iframe hecha (20/11, rama `erp-integracion-minima`, desde `s2a-app-lee-base` con `fable/s2-base-de-datos` mergeada; sin push).** Spec `docs/spec-integracion-erp-minima.md` v0.2 (opción b, embebido; reemplaza a la v0.1, que no tenía código en la rama). Precisiones IE-I1 a IE-I12 (**a revisar**) en el §13 de la spec. Sin dependencias nuevas. **Nunca se llamó al ERP real**: todo corre contra el ERP simulado.
-  - **Flujo:** el ERP abre `/embebido?proyecto=<erpId>` en un iframe. Después: `pfg:listo` → `erp:token` → `POST /api/embebido/sesion` (valida con `whoami` y crea la sesión) → `/embebido/proyectos/<erpId>` (muebles y Documentos leídos en el servidor) → «Ver en 3D» → `/embebido/proyectos/<erpId>/visor/<docId>[/<qrId>]`. Si el token vence: `pfg:token-requerido` → `POST /api/embebido/sesion/renovar` (mismo usuario; si no, revoca) → se recarga una vez. Si pasan 10 s sin respuesta, o falla, se revoca (`POST /api/embebido/sesion/revocar`, también con `erp:salir`). El token del ERP nunca va en la URL, en el almacenamiento ni en logs.
-  - **Código:** `src/lib/embebido/` (puro: `protocolo.ts` IE-2, `origenes.ts` IE-10, `renovacion.ts` IE-5, `defErp.ts` mueble desde el .dae, `ids.ts`); `src/server/erp/` (IE-1: `cliente.ts`, `esquemas.ts`, `errores.ts`, `rutas.ts` con las rutas **ASUMIDAS**, `config.ts`, `zip.ts`, lector de zip con `node:zlib`); `src/server/embebido/` (`sesion.ts`, `cripto.ts` con AES-256-GCM, `http.ts`, `api.ts`, `proyecto.ts`, `registro.ts`, `config.ts`, `deps.ts`); rutas `src/app/api/embebido/`; páginas `src/app/embebido/`; componentes `src/components/embebido/`; `src/instrumentation.ts` (validación al arrancar). `lookup.ts` suma la fuente `registerErpFurniture`; `qrHref` usa una ruta base por mueble y `/prueba` no cambia. En `/embebido` no se muestran `AppTabs` ni los «Otros muebles» del menú del visor.
-  - **Base:** migración `db/migrations/0002_sesion.ts` con `session` (id = sha256 del token de la cookie; token del ERP cifrado), `erp_document` (sha256 de los zips abiertos) y `project_erp_uq`. Repositorios nuevos en `ports.ts`: `tenants.ensureErpTenant`, `projects.linkErpProject`, `sessions`, `erpDocuments`, en memoria y en SQL. Sin `DATABASE_URL`, las sesiones viven en la memoria del proceso. PB-1 se enmendó (`ALL_TABLES`).
-  - **Cabeceras:** `/embebido` y `/embebido/*` llevan `frame-ancestors <ERP_FRONT_ORIGENES>`; el resto del sitio, `/p/*` incluida, lleva `frame-ancestors 'none'` (en `next.config.ts`). Sin `ERP_FRONT_ORIGENES`, el embebido está apagado: `/embebido` da 404 y la app es la de siempre (así queda en Vercel hoy).
-  - **Variables** (solo nombres; valores en el entorno): `ERP_FRONT_ORIGENES`, `ERP_MODO` (`real` o `simulado`; simulado no arranca en producción), `ERP_API_URL`, `ERP_SIMULADO_URL`, `SESION_CLAVE` (32 bytes en base64, obligatoria en producción), `SESION_DURACION_MIN`, `ERP_TIMEOUT_MS`, `ERP_ZIP_MAX_BYTES`. Ver `.env.example`.
-  - **ERP simulado y demo:** `erp-simulado/` (no es código de la app). `npm run erp:simulado` levanta `node:http` en `127.0.0.1:4010`, imita `whoami` y las lecturas (usuarios u-ana y u-bruno de «Casa Mueble (simulado)» y u-carla de otra carpintería; P-0002 con el zip del Olmo) y sirve `http://localhost:4010/anfitrion?proyecto=P-0002`, que embebe la app y tiene botones para vencer el token, mandar el token de otro usuario y hacer `erp:salir`. La app se corre con `ERP_MODO=simulado ERP_FRONT_ORIGENES=http://localhost:4010 npm run dev` y se abre por **localhost** (no 127.0.0.1), para que la cookie sea del mismo sitio. Cuando el ERP es el simulado, la pantalla lo dice arriba.
-  - **Guía para Casa Mueble:** `docs/guia-embebido-erp.md` (IE-14).
-  - Pruebas: `tests/embebido/` (`protocolo`, `cabeceras`, `erp`, `servidor`, `renovacion`, `visor`; TIE-1 a TIE-17), `tests/persistence/contractEmbebido.ts` (memoria y PostgreSQL) y `tests/helpers/embebido.ts` (ERP simulado en proceso, sin red).
-  - Verificado el 20/11, sin base: `typecheck` sin errores; `lint` 0 errores y 1 aviso (el conocido de `capturar-ficha.ts`); `npm test` 829 pasan, 28 salteadas, 4 `todo`, 0 fallas; `next build` bien (al primer intento cortó con el aviso de seguridad de Next y pasó al reintentar). Prueba de humo con `next dev` y el ERP simulado: intercambio, cookie httpOnly x2, Origin ajeno 403, proyecto, modelo igual byte a byte al .dae del repo, vencido → renovar → ok, otro usuario → revocada, y ni tokens ni cookie en el log. **No se corrió contra PostgreSQL** (Docker apagado). **Falta TIE-18 en el navegador** (abrir el anfitrión, ver P-0002, el visor, vencer el token y seguir), con captura: Playwright no está en el repo. Ver también IE-I12 (estado 404 de la página en `dev`).
-  - **Siguiente:** TIE-18 manual; correr la suite con `TEST_DATABASE_URL`; mandar la guía y las consultas del §11 a Augusto; U-erp-front y U-erp-real (despliegue en `taller-test.casamueble.com.ar`, pendiente de decisión del equipo).
+- **Integración con el ERP según el contrato UCP v1 (20/11, rama `erp-integracion-minima`, sin push).**
+  - **Spec:** `docs/spec-integracion-erp-minima.md` v0.3. Reemplaza a la v0.2, que estaba implementada en esta rama y se rehízo. Precisiones IE-I1 a IE-I14 (**a revisar**) en su §11.
+  - **Fuentes de Casa Mueble** (en `docs/casa-mueble/`): `contrato-ucp-v1.md`, `guia-autenticacion-qa.md` y `respuestas-20-11-contrato-ucp.md`. Las respuestas mandan sobre la spec donde difieren (estados, `ERP_BLOB_ORIGENES`).
+  - **El contrato lo generó una IA:** todo lo que afirma del ERP real es ASUMIDO hasta U-erp-real.
+  - **Dependencia:** `jose` 6.2.14, aprobada por Santiago el 20/11 (parada U-dependencias; versión exacta). R5 la lista.
+  - **Nunca se llamó al ERP real.** Las pruebas y la demo corren contra el ERP simulado.
+  - **Flujo del iframe (§5 del contrato):**
+    - El ERP carga `/erp/proyectos/{proyectoUuid}`. El iframe manda `ucp:listo` y recibe `erp:sesion` (`accessToken`, `vence`, `tenantId`, `proyecto`, `tema`).
+    - Comprueba que el proyecto sea el de la ruta y llama a `POST /api/erp/sesion` con `{accessToken, tenantId}`. El servidor valida el token con IE-1, rechaza un `tenantId` distinto del `tenant_id` del token y crea la sesión.
+    - Cada `erp:token` va a `POST /api/erp/sesion/renovar`, que exige el mismo `sub` y `tenant_id`; si no coinciden, revoca la sesión.
+    - Si pasa `vence` + 60 s sin token nuevo, la sesión vence («La sesión venció. Volvé a abrir desde el ERP»).
+    - `ucp:alto` se manda como máximo cada 200 ms. El tema puede ser claro u oscuro. Los mensajes se aceptan solo de `ERP_WEB_ORIGEN` y `window.parent`, y se mandan siempre a `ERP_WEB_ORIGEN`, nunca a `"*"`.
+    - El token del ERP no se guarda en ningún lado (contrato §1): ni en la base, ni en storage, ni en la URL, ni en los logs.
+  - **Envío del ERP:**
+    - `POST /api/trabajos` (Bearer; el tenant sale del token). Valida el esquema (400) y las URLs: solo https y solo de `ERP_BLOB_ORIGENES` (400 sin descargar). Si ya existe el mismo `envioUuid` en la carpintería, responde 200 con el mismo trabajo.
+    - Si es nuevo, descarga los dos archivos, verifica el sha256 y que el zip traiga un `.dae` sin `..`, guarda los dos en el almacén y responde 201 `{trabajoUuid, estado: "success"}`.
+    - Una falla permanente responde 422 y deja un trabajo `failed` con la causa. Red caída o 5xx responden 503 y no dejan trabajo.
+    - `GET /api/trabajos/{uuid}` responde 404 para otra carpintería.
+    - Estados: `pending | inProgress | success | failed`. **ASUMIDO:** `success` = archivos recibidos, verificados y guardados; el CSV no se procesa todavía. `proyecto.cliente` no se guarda.
+  - **Código puro** (`src/lib/erp/`): `protocolo.ts`, `origenes.ts`, `alto.ts`, `vencimiento.ts`, `estados.ts`, `defErp.ts`.
+  - **Código del servidor:**
+    - `src/server/erp/`: `token.ts` (IE-1, jose), `config.ts` (IE-12 y validación al arrancar), `descarga.ts`, `login.ts`, `zip.ts`, `errores.ts`.
+    - `src/server/integracion/`: `sesion.ts`, `api.ts`, `trabajos.ts`, `envio.ts`, `http.ts`, `cripto.ts`, `registro.ts`, `deps.ts`. El validador de token es uno por proceso, para que la caché del JWKS dure.
+  - **Rutas y pantallas:**
+    - API: `src/app/api/erp/` y `src/app/api/trabajos/`.
+    - Páginas: `src/app/erp/` (estado del proyecto y visor en `/erp/proyectos/{uuid}/visor`, con altos fijos en px) e `/ingresar`. `/erp` e `/ingresar` usan `connection()` para leer el entorno en cada pedido y no en el build.
+    - Componentes: `src/components/erp/`.
+    - En `/erp` no se muestran `AppTabs` ni los «Otros muebles».
+  - **Login de desarrollo (IE-11):** `/ingresar`, solo con `ERP_LOGIN_DIRECTO=habilitado`; con `NODE_ENV=production` el servidor no arranca. Lo hace el servidor; la contraseña no se guarda ni se registra. **Contra el ERP de QA es U-erp-real: requiere aprobación del equipo.**
+  - **Base:**
+    - Migración `db/migrations/0002_integracion_erp.ts`: `session` (sin token), `job` (único por `tenant_id` y `envio_uuid`), `file_content` (almacén por carpintería y sha256, en la base; ASUMIDO hasta S3), y en `project` las columnas `erp_code` y `delivery_date` y el único `project_erp_uq`.
+    - Reemplaza a `0002_sesion` de la v0.2, que se quitó junto con `erp_document`. **Una base local que tenga aplicada `0002_sesion` hay que recrearla:** `npm run db:down`, borrar el volumen del contenedor y después `db:up`, `db:migrate` y `db:seed`.
+    - Repositorios: `tenants.findErpTenant`, `projects.upsertErpProject`, `getErpProject`, `listErpProjects`, `sessions.extend`, `jobs` y `almacen`. Están en memoria y en SQL; los mapeadores en `src/persistence/mappersErp.ts`.
+  - **Cabeceras:** `/erp` y `/erp/*` llevan `frame-ancestors <ERP_WEB_ORIGEN>`. El resto del sitio, `/p/*` incluida, lleva `'none'`. Sin `ERP_WEB_ORIGEN` la integración está apagada: `/erp/*`, `/api/erp/*` y `/api/trabajos` dan 404. Así queda en Vercel hoy.
+  - **Variables** (solo nombres; los valores de QA, que no son secretos, en `.env.example`):
+    - `ERP_WEB_ORIGEN`: un origen, sin barra final.
+    - `ERP_ISSUER`: con barra final.
+    - `ERP_API_URL`.
+    - `ERP_BLOB_ORIGENES`: **vacía**, porque Casa Mueble no informó el host; vacía significa que se rechaza toda descarga.
+    - `ERP_LOGIN_DIRECTO`.
+    - `ERP_MODO` y `ERP_SIMULADO_URL`.
+    - `ERP_TIMEOUT_MS`, `ERP_ZIP_MAX_BYTES` y `ERP_CSV_MAX_BYTES`.
+    - `ERP_FRONT_ORIGENES`, `SESION_CLAVE` y `SESION_DURACION_MIN` ya no existen.
+    - Las credenciales de QA van solo al `.env.local` de cada uno. Claude Code no las pide, no las lee y no las imprime.
+  - **ERP simulado** (`erp-simulado/`, no es código de la app):
+    - `npm run erp:simulado` levanta `node:http` en `127.0.0.1:4010`.
+    - Firma tokens RS256 con una clave generada al arrancar y sirve su JWKS, el descubrimiento y `/api/session/login`. Usuarios: `ana@simulado.test` y `bruno@simulado.test` (clave `simulado`, que es un dato de prueba) y Carla, de otra carpintería.
+    - Sirve URLs firmadas que vencen a los 15 min (zip del Olmo y un CSV) y `POST /simulado/enviar` («Enviar a UCP», que llama a `/api/trabajos` desde el servidor).
+    - El anfitrión está en `http://localhost:4010/anfitrion`. Tiene botones de envío (bien, sha256 malo, sin `.dae`, URL ajena), renovar, token de otro usuario, tenant distinto, dejar de renovar, tema y recargar. Con `?duracion=60` los tokens duran 60 s.
+    - Reemplaza al `host-erp.html`, que Casa Mueble no mandó.
+  - **Pruebas:**
+    - `tests/erp/`: `token`, `protocolo`, `cabeceras`, `sesion`, `trabajos`, `simulado` y `visor`. Cubren TIE-1 a TIE-21.
+    - `tests/persistence/contractErp.ts` corre contra memoria y PostgreSQL; `tests/persistence/migraciones.test.ts` enmendada.
+    - `tests/helpers/erp.ts`: simulado en proceso, sin red.
+  - **Verificado el 20/11, sin base:**
+    - `typecheck` sin errores y `lint` con 0 errores y el aviso conocido de `capturar-ficha.ts`.
+    - `npm test`: 863 pasan, 29 salteadas, 4 `todo`, 0 fallas.
+    - `next build` bien. El aviso de seguridad de Next cortó el build y `next dev` y pasaron al reintentar.
+    - Prueba de humo por HTTP con `next dev` y el simulado: CSP, envío 201, repetido 200, 422 legibles, URL ajena 400, sesión con cookie `HttpOnly` doble, tenant distinto rechazado, 404 de otra carpintería, modelo igual byte a byte al .dae, renovación, otro usuario revocado, login de desarrollo, y ningún secreto en los logs.
+    - **No se corrió contra PostgreSQL** (Docker apagado). **Falta TIE-22** en el navegador, con captura: Playwright no está en el repo.
+  - **Siguiente:**
+    - TIE-22 manual: `npm run erp:simulado` y `ERP_MODO=simulado ERP_WEB_ORIGEN=http://localhost:4010 npm run dev`; abrir el anfitrión por **localhost**, enviar, ver el estado y el visor, renovar y vencer.
+    - Correr la suite con `TEST_DATABASE_URL`.
+    - Revisar IE-I1 a IE-I14.
+    - Consultar a Casa Mueble el host del blob y si el lado del ERP está implementado.
+    - U-erp-real: validar un token real contra el JWKS de QA, con aprobación.
+    - U-erp-front: requiere despliegue https; dominio `taller-qa` o `taller-test`, a confirmar.
+    - IE-14, el webhook (P2).
 - Alcance del PFG: ayudar al operario o carpintero con el armado (tiempo, clasificación, identificación). El ERP de Casa Mueble ya tiene un 3D general de gestión; eso no se duplica.
 - Sesiones: S1 diagnóstico y arquitectura sin código (ADR de stack, base de datos PostgreSQL o SQL Server, almacenamiento, auth, integración); S2 base de datos; S3 almacenamiento de archivos; S4 vinculación con la API de auth del ERP; S5 integración embebida con el ERP; S6 experiencia del operario. Una rama `fable/sN-...` por sesión. Los textos de las sesiones están en `prompts-fable-sesiones.md` (proyecto de Claude).
 - **Sin cambio visible por ahora**: el flujo de subida (`/importar`), el visor 3D y la ficha (`/p/[qrId]`) quedan como están. S2 y S3 solo pueden cambiar lo que hay por detrás, con una prueba de que la ficha no cambió. Las mejoras a esas pantallas se anotan como propuestas.
@@ -161,8 +218,8 @@ npm run dev:lan    # accesible desde el celular en la misma wifi
 npm run typecheck && npm run lint && npm test && npm run build
 npm run db:up && npm run db:migrate && npm run db:seed   # base local (necesita Docker, PFG_DB_PASSWORD y DATABASE_URL; ver S2)
 # Sin DATABASE_URL, npm run dev usa la semilla del Olmo en memoria; con ella, /p/<qrId> lee de esa base (S2A)
-npm run erp:simulado   # ERP simulado + anfitrión en http://localhost:4010/anfitrion?proyecto=P-0002
-ERP_MODO=simulado ERP_FRONT_ORIGENES=http://localhost:4010 npm run dev   # la app embebible (abrir por localhost)
+npm run erp:simulado   # ERP simulado (RS256 + JWKS propio) y anfitrión en http://localhost:4010/anfitrion
+ERP_MODO=simulado ERP_WEB_ORIGEN=http://localhost:4010 npm run dev   # la app embebible (abrir por localhost); con ERP_LOGIN_DIRECTO=habilitado, /ingresar
 ```
 
 ## Despliegue (Vercel)
@@ -170,7 +227,7 @@ ERP_MODO=simulado ERP_FRONT_ORIGENES=http://localhost:4010 npm run dev   # la ap
 - `NEXT_PUBLIC_BASE_URL` (ver `.env.example`): URL estable de producción, sin `/` final. `QrSheet.tsx` la usa como base de los QR y cae a `window.location.origin` si falta. Se inlinea en build: cambiarla exige redesplegar. `.env*` está en `.gitignore` salvo `.env.example`.
 - Sabrina no se despliega (ver "Varios muebles"): en Vercel la variable `NEXT_PUBLIC_ENABLE_SABRINA` queda sin definir y la carpeta `Sabrina/` no existe (está en `.gitignore`).
 - **No renombrar el proyecto de Vercel una vez impresos los QR** (cambia la URL y rompe los impresos).
-- Lectura abierta a propósito (sin login). **Excepción: `/embebido/*`** (integración con el ERP, spec v0.2): sesión propia por intercambio de token con el ERP, comprobada dentro de cada página y ruta, sin middleware. `/p/<qrId>` sigue pública. `public/models/Olmo/olmo.dae` es público para quien tenga la URL. `src/app/robots.ts` (`Disallow: /`) y `X-Robots-Tag: noindex, nofollow` (`next.config.ts`) evitan la indexación, no dan control de acceso. No agregar middleware/proxy de auth ni cuentas de usuario **hasta que la spec de S4 esté aprobada**; después, solo como ella lo defina.
+- Lectura abierta a propósito (sin login). **Excepción: `/erp/*`, `/api/erp/*` y `/api/trabajos`** (integración con el ERP, spec v0.3): sesión propia a partir del token del ERP validado con su JWKS, o Bearer en `/api/trabajos`, comprobada dentro de cada ruta, sin middleware. `/p/<qrId>` sigue pública. `public/models/Olmo/olmo.dae` es público para quien tenga la URL. `src/app/robots.ts` (`Disallow: /`) y `X-Robots-Tag: noindex, nofollow` (`next.config.ts`) evitan la indexación, no dan control de acceso. No agregar middleware/proxy de auth ni cuentas de usuario **hasta que la spec de S4 esté aprobada**; después, solo como ella lo defina.
 - **Excepción acotada: escritura del importador.** Subir, listar y borrar importaciones exige la clave compartida `IMPORT_UPLOAD_KEY`, comprobada **dentro de cada handler de ruta** (encabezado `x-import-key`, comparación en tiempo constante, nunca en la URL). No es un sistema de usuarios ni un middleware; leer una importación sigue siendo por link con id no adivinable. La clave la guarda y la cambia solo el responsable del proyecto.
 
 ## Importador de prueba (.dae + CSV, guardado en el servidor)

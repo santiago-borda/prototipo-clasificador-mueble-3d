@@ -57,6 +57,7 @@ export function paginaAnfitrion(o: {
     <button id="enviar-malo">Enviar con sha256 malo</button>
     <button id="enviar-sin-dae">Enviar zip sin .dae</button>
     <button id="enviar-ajena">Enviar con URL ajena</button>
+    <button id="enviar-csv-malo">Enviar con CSV con problemas</button>
   </div>
   <div class="controles">
     <button id="renovar">Renovar el token ya</button>
@@ -151,6 +152,7 @@ export function paginaAnfitrion(o: {
   document.getElementById("enviar-malo").onclick = function () { enviar("sha256-malo"); };
   document.getElementById("enviar-sin-dae").onclick = function () { enviar("sin-dae"); };
   document.getElementById("enviar-ajena").onclick = function () { enviar("url-ajena"); };
+  document.getElementById("enviar-csv-malo").onclick = function () { enviar("csv-con-problemas"); };
   document.getElementById("renovar").onclick = function () { renovar(); };
   document.getElementById("otro").onclick = function () {
     const otro = USUARIOS.find(function (u) { return u.sub !== usuario.value; });

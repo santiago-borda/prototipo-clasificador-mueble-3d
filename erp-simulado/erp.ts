@@ -14,6 +14,7 @@
 import { createHash, createHmac, generateKeyPairSync, randomBytes, randomUUID, timingSafeEqual, type KeyObject } from "node:crypto";
 import { SignJWT } from "jose";
 import { paginaAnfitrion } from "./anfitrion";
+import { csvOlmo, csvOlmoConProblemas } from "./csvOlmo";
 import { crearZip } from "./zip";
 
 export interface UsuarioSimulado {
@@ -49,15 +50,13 @@ export const PROYECTOS: readonly ProyectoSimulado[] = [
   { uuid: "5e1a0000-0000-4000-8000-000000000201", codigo: "P-0201", nombre: "Proyecto de otra carpintería (simulado)", cliente: "Otro cliente", fechaEntrega: "2027-01-10", tenantId: TENANT_OTRO },
 ];
 
-/** CSV de piezas de prueba, con las columnas de OpenCutList (el sistema no lo procesa todavía: solo lo verifica). */
-export const CSV_SIMULADO = [
-  "Número,Nombre,Cantidad,Longitud,Ancho,Espesor,Material",
-  "C01,Tapa,1,1200,550,18,Blanco nature 18",
-  "C04,Frente de cajón,3,404,140,18,Blanco nature 18",
-  "",
-].join("\n");
+/** «Listado de piezas» del Olmo con el formato de OpenCutList (docs/spec-importador-csv-envio.md §2). */
+export const CSV_SIMULADO = csvOlmo();
+/** Variante con filas con problemas (IC-4): C01 con guiones bajos de más y C05 con cantidad no entera. */
+export const CSV_SIMULADO_CON_PROBLEMAS = csvOlmoConProblemas();
 
-export type VarianteEnvio = "ok" | "sha256-malo" | "sin-dae" | "url-ajena";
+export const VARIANTES_ENVIO = ["ok", "sha256-malo", "sin-dae", "url-ajena", "csv-con-problemas"] as const;
+export type VarianteEnvio = (typeof VARIANTES_ENVIO)[number];
 
 export interface OpcionesErpSimulado {
   /** Bytes del .dae que va dentro del zip del modelo. */
@@ -120,10 +119,12 @@ export function crearErpSimulado(opciones: OpcionesErpSimulado): ErpSimulado {
   ]);
   const zipSinDae = crearZip([{ nombre: "LEEME.txt", datos: "zip sin modelo" }]);
   const csv = new TextEncoder().encode(CSV_SIMULADO);
+  const csvConProblemas = new TextEncoder().encode(CSV_SIMULADO_CON_PROBLEMAS);
   const archivos: Record<string, { datos: Uint8Array; tipo: string }> = {
     "olmo.zip": { datos: zipOlmo, tipo: "application/zip" },
     "sin-dae.zip": { datos: zipSinDae, tipo: "application/zip" },
     "piezas.csv": { datos: csv, tipo: "text/csv; charset=utf-8" },
+    "piezas-con-problemas.csv": { datos: csvConProblemas, tipo: "text/csv; charset=utf-8" },
   };
 
   const firmaBlob = (nombre: string, exp: number) => createHmac("sha256", secretoBlob).update(`${nombre}.${exp}`).digest("base64url");
@@ -160,7 +161,9 @@ export function crearErpSimulado(opciones: OpcionesErpSimulado): ErpSimulado {
       envioUuid: o.envioUuid ?? randomUUID(),
       proyecto: { uuid: proyecto.uuid, codigo: proyecto.codigo, nombre: proyecto.nombre, cliente: proyecto.cliente, fechaEntrega: proyecto.fechaEntrega },
       modelo: { url: urlModelo, nombre: "olmo.zip", version: 3, sha256: variante === "sha256-malo" ? "0".repeat(64) : sha256(archivos[zip].datos) },
-      csv: { url: urlFirmada("piezas.csv"), nombre: "piezas.csv", version: 1, sha256: sha256(csv) },
+      csv: variante === "csv-con-problemas"
+        ? { url: urlFirmada("piezas-con-problemas.csv"), nombre: "piezas.csv", version: 2, sha256: sha256(csvConProblemas) }
+        : { url: urlFirmada("piezas.csv"), nombre: "piezas.csv", version: 1, sha256: sha256(csv) },
     };
   }
 
@@ -217,7 +220,7 @@ export function crearErpSimulado(opciones: OpcionesErpSimulado): ErpSimulado {
       const usuario = USUARIOS.find((u) => u.sub === cuerpo?.usuario);
       const proyecto = PROYECTOS.find((p) => p.uuid === cuerpo?.proyecto);
       if (!usuario || !proyecto) return json({ error: "pedido-invalido" }, 400);
-      const variante = (["ok", "sha256-malo", "sin-dae", "url-ajena"] as const).find((v) => v === cuerpo?.variante) ?? "ok";
+      const variante = VARIANTES_ENVIO.find((v) => v === cuerpo?.variante) ?? "ok";
       const envio = cuerpoEnvio(proyecto.uuid, { variante, envioUuid: typeof cuerpo?.envioUuid === "string" ? cuerpo.envioUuid : undefined });
       const token = await emitirToken(usuario.sub);
       let respuesta: Response;

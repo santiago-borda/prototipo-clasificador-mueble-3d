@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { QrSheets } from "@/components/QrSheets";
-import { claveDelProyecto } from "@/components/erp/ModeloErpGate";
+import { CruceListado } from "@/components/erp/CruceListado";
+import { claveDelProyecto, cruceDelProyecto } from "@/components/erp/ModeloErpGate";
 import { getErpFurnitureDef, resolveQr } from "@/lib/lookup";
 
 // /erp/proyectos/{uuid}/visor (mueble) y …/visor/<qrId> (módulo o pieza). La compuerta ya registró el modelo.
@@ -33,6 +34,7 @@ export default function FichaErp() {
       <Link href={volver} className="block px-4 pt-3 text-xs text-slate-500 underline">
         ← Volver al proyecto
       </Link>
+      <CruceListado cruce={cruceDelProyecto(proyecto)} />
       <QrSheets target={propio} />
     </>
   );

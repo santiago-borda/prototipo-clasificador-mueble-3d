@@ -1,0 +1,13 @@
+﻿No.;Designación;Cantidad;Longitud - cruda;Ancho - crudo;Espesor - crudo;Longitud;Anchura;Grosor;Area - final;Tipo de material;Nombre del material;Descripción del material;URL del material;Nombres de instancias;Descripción;URL;Etiquetas;Longitud del borde 1;Longitud del borde 2;Ancho del borde 1;Ancho de borde 2;Frente;Dorso;Etiquetas
+A;0001-01-M01-C03;1;799,6 mm;399,6 mm;18,0 mm;800,0 mm;400,0 mm;18,0 mm;0,32 m²;Tablero;Blanco 18;"";"";"";"";"";"";Canto_Blanco (0,2 mm x 22,0 mm);Canto_Blanco (0,2 mm x 22,0 mm);Canto_Blanco (0,2 mm x 22,0 mm);Canto_Blanco (0,2 mm x 22,0 mm);"";"";Layer0
+B;0001-01-M01-C02;1;763,8 mm;399,8 mm;18,0 mm;764,0 mm;400,0 mm;18,0 mm;0,31 m²;Tablero;Blanco 18;"";"";"";"";"";"";"";Canto_Blanco (0,2 mm x 22,0 mm);"";Canto_Blanco (0,2 mm x 22,0 mm);"";"";Layer0
+C;0001-01-M01-C01;2;699,8 mm;399,8 mm;18,0 mm;700,0 mm;400,0 mm;18,0 mm;0,28 m²;Tablero;Blanco 18;"";"";"";"";"";"";"";Canto_Blanco (0,2 mm x 22,0 mm);Canto_Blanco (0,2 mm x 22,0 mm);"";"";"";Layer0
+A;0001-01-M01-C04;1;764,0 mm;664,0 mm;3,0 mm;764,0 mm;664,0 mm;3,0 mm;0,51 m²;Tablero;Blanco 3 mm;"";"";"";"";"";"";"";"";"";"";"";"";Layer0
+A;0001-01-M01-C03 - Longitud del borde 1;1;800,0 mm;22,0 mm;0,2 mm;800,0 mm;22,0 mm;0,2 mm;"";Canto;Canto_Blanco;"";"";"";"";"";"";"";"";"";"";"";"";""
+B;0001-01-M01-C03 - Longitud del borde 2;1;800,0 mm;22,0 mm;0,2 mm;800,0 mm;22,0 mm;0,2 mm;"";Canto;Canto_Blanco;"";"";"";"";"";"";"";"";"";"";"";"";""
+C;0001-01-M01-C02 - Longitud del borde 2;1;764,0 mm;22,0 mm;0,2 mm;764,0 mm;22,0 mm;0,2 mm;"";Canto;Canto_Blanco;"";"";"";"";"";"";"";"";"";"";"";"";""
+D;0001-01-M01-C01 - Longitud del borde 2;2;700,0 mm;22,0 mm;0,2 mm;700,0 mm;22,0 mm;0,2 mm;"";Canto;Canto_Blanco;"";"";"";"";"";"";"";"";"";"";"";"";""
+E;0001-01-M01-C01 - Ancho del borde 1;2;400,0 mm;22,0 mm;0,2 mm;400,0 mm;22,0 mm;0,2 mm;"";Canto;Canto_Blanco;"";"";"";"";"";"";"";"";"";"";"";"";""
+F;0001-01-M01-C02 - Ancho de borde 2;1;400,0 mm;22,0 mm;0,2 mm;400,0 mm;22,0 mm;0,2 mm;"";Canto;Canto_Blanco;"";"";"";"";"";"";"";"";"";"";"";"";""
+G;0001-01-M01-C03 - Ancho de borde 2;1;400,0 mm;22,0 mm;0,2 mm;400,0 mm;22,0 mm;0,2 mm;"";Canto;Canto_Blanco;"";"";"";"";"";"";"";"";"";"";"";"";""
+H;0001-01-M01-C03 - Ancho del borde 1;1;400,0 mm;22,0 mm;0,2 mm;400,0 mm;22,0 mm;0,2 mm;"";Canto;Canto_Blanco;"";"";"";"";"";"";"";"";"";"";"";"";""

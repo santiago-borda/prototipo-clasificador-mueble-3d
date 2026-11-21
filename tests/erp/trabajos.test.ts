@@ -6,10 +6,14 @@
 import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getModelo, getProyecto, getProyectos, postIngresar, postRenovar, postSesion } from "@/server/integracion/api";
-import { postTrabajo, getTrabajo, MENSAJE_SUCCESS } from "@/server/integracion/trabajos";
+import { mensajeListadoLeido } from "@/lib/csv-ocl/envio";
+import { postTrabajo, getTrabajo } from "@/server/integracion/trabajos";
+
 import { crearZip } from "../../erp-simulado/zip";
 import { ANA, BASE_ERP, BRUNO, CARLA, cookieDe, crearEntorno, DAE_OLMO, get, P_OLMO, P_OTRA, P_SIN_ENVIAR, post, type Entorno } from "../helpers/erp";
 
+/** IC-5: el Olmo del ERP simulado tiene 21 tipos y 33 piezas. */
+const MENSAJE_SUCCESS = mensajeListadoLeido({ tipos: 21, piezasTotales: 33 });
 const sha256 = async (d: Uint8Array) => createHash("sha256").update(d).digest("hex");
 
 async function enviar(e: Entorno, cuerpo: Record<string, unknown>, sub = ANA.sub) {

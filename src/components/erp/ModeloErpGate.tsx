@@ -4,10 +4,14 @@
 // /api/erp/proyectos/{uuid}/modelo (el servidor lo saca del zip guardado), arma el mueble en el navegador
 // (`defDesdeModeloErp`), lo registra en lookup.ts con un blob: local y muestra el mismo visor y las mismas fichas
 // que /prueba. El trabajo del modelo viene en la cabecera `x-ucp-trabajo`.
+//
+// IC-8 e IC-9 (docs/spec-importador-csv-envio.md): pide a la vez /listado. Si el trabajo tiene listado (y es el mismo
+// trabajo del modelo), el mueble se arma con el CSV (`defDesdeListadoErp`) y se cruza con el .dae (`cruceErp`); si
+// no (404 `sin-listado`), como antes, con `defDesdeModeloErp`.
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { claveErp, defDesdeModeloErp } from "@/lib/erp/defErp";
+import { claveErp, cruceErp, defDesdeListadoErp, defDesdeModeloErp, type CruceErp, type ListadoErp } from "@/lib/erp/defErp";
 import { UUID } from "@/lib/erp/protocolo";
 import { getErpFurnitureDef, registerErpFurniture } from "@/lib/lookup";
 import { buildFurnitureModel } from "@/model/colladaModel";
@@ -27,6 +31,15 @@ const MENSAJES: Record<string, { titulo: string; texto: string }> = {
 
 /** Clave del mueble ya registrado para este proyecto en este navegador (vuelta del visor a la ficha). */
 const claveRegistrada = new Map<string, string>();
+/** Cruce del listado con el modelo de cada proyecto ya cargado (null: el trabajo no tiene listado). */
+const cruceRegistrado = new Map<string, CruceErp | null>();
+
+/** El listado del trabajo, o null si no tiene (404 `sin-listado`) o no se pudo leer. */
+async function pedirListado(proyectoUuid: string): Promise<ListadoErp | null> {
+  const r = await fetch(`/api/erp/proyectos/${encodeURIComponent(proyectoUuid)}/listado`, { credentials: "same-origin", cache: "no-store" }).catch(() => null);
+  if (!r || !r.ok) return null;
+  return (await r.json().catch(() => null)) as ListadoErp | null;
+}
 
 export function ModeloErpGate({ proyectoUuid, children }: { proyectoUuid: string; children: React.ReactNode }) {
   const [estado, setEstado] = useState<Estado>(() => {
@@ -39,6 +52,7 @@ export function ModeloErpGate({ proyectoUuid, children }: { proyectoUuid: string
     let cancelado = false;
     (async () => {
       try {
+        const pedidoListado = pedirListado(proyectoUuid);
         const r = await fetch(`/api/erp/proyectos/${encodeURIComponent(proyectoUuid)}/modelo`, { credentials: "same-origin", cache: "no-store" });
         if (cancelado) return;
         if (!r.ok) {
@@ -53,7 +67,14 @@ export function ModeloErpGate({ proyectoUuid, children }: { proyectoUuid: string
         skipTextures(loader);
         const collada = loader.parse(texto, "/");
         if (!collada) throw new Error("dae ilegible");
-        const def = defDesdeModeloErp(buildFurnitureModel(collada.scene), { trabajoUuid, nombre: "Modelo del ERP" });
+        const modelo = buildFurnitureModel(collada.scene);
+        const listado = await pedidoListado;
+        if (cancelado) return;
+        // El listado tiene que ser del mismo trabajo que el modelo (entre los dos pedidos pudo llegar otro envío).
+        const conListado = listado && listado.trabajoUuid === trabajoUuid ? listado : null;
+        const opciones = { trabajoUuid, nombre: "Modelo del ERP" };
+        const def = conListado ? defDesdeListadoErp(modelo, conListado, opciones) : defDesdeModeloErp(modelo, opciones);
+        cruceRegistrado.set(proyectoUuid, conListado ? cruceErp(modelo, def) : null);
         const modelUrl = URL.createObjectURL(new Blob([texto], { type: "model/vnd.collada+xml" }));
         const clave = claveErp(trabajoUuid);
         const registrado = registerErpFurniture(clave, { ...def, modelUrl }, `/erp/proyectos/${encodeURIComponent(proyectoUuid)}/visor`);
@@ -81,6 +102,11 @@ export function ModeloErpGate({ proyectoUuid, children }: { proyectoUuid: string
   }
   if (estado.tipo === "cargando") return <AvisoErp titulo="Cargando el modelo…" />;
   return <ViewerLayout embebido>{children}</ViewerLayout>;
+}
+
+/** IC-10: el cruce del listado con el modelo de un proyecto ya cargado; null si el trabajo no tiene listado. */
+export function cruceDelProyecto(proyectoUuid: string): CruceErp | null | undefined {
+  return cruceRegistrado.get(proyectoUuid);
 }
 
 /** La clave del modelo de un proyecto ya cargado en este navegador (para las fichas del visor). */

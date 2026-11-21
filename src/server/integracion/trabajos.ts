@@ -8,19 +8,23 @@
 //   rechazada (sin descargar) · 401 token · 422 sha256 que no coincide, zip inválido o URL que respondió 4xx (queda un
 //   trabajo `failed` con la causa) · 503 descarga o JWKS no disponibles (reintentable; no queda trabajo).
 // Todo error lleva `mensaje`, legible para el usuario del ERP. Ninguna respuesta ni registro lleva las URLs.
+//
+// Importador del CSV (docs/spec-importador-csv-envio.md IC-1 a IC-5): con los archivos verificados, el CSV se lee
+// con el parser de OpenCutList. Un CSV ilegible o con filas con problemas deja el trabajo `failed` (422) con la
+// causa; los archivos se guardan solo si el trabajo queda `success`.
 
 import type { Job, JobFile } from "@/persistence/ports";
 import { DescargaFallida, JwksNoDisponible, TokenErpInvalido, TokenErpVencido } from "@/server/erp/errores";
 import { descargar, motivoUrlRechazada, sha256Hex, type MotivoUrlRechazada } from "@/server/erp/descarga";
 import type { IdentidadErp } from "@/server/erp/token";
 import { extraerDae, ZipInvalidoError, type MotivoZipInvalido } from "@/server/erp/zip";
+import { leerCsvDelEnvio, mensajeListadoLeido } from "@/lib/csv-ocl/envio";
 import { normalizarUuid, UUID } from "@/lib/erp/protocolo";
 import { parsearEnvio, type ArchivoDelEnvio, type Envio } from "./envio";
 import { bearer, cuerpoJson, respuestaJson } from "./http";
 import { nombreDeCarpinteria, type DepsIntegracion } from "./sesion";
 
 export const CUERPO_TRABAJO_MAX_BYTES = 64 * 1024;
-export const MENSAJE_SUCCESS = "Modelo y CSV recibidos y verificados.";
 /** Un trabajo `inProgress` que no se toca desde hace tantos timeouts se considera abandonado (el proceso murió) y se puede retomar. */
 export const ESPERA_ABANDONADO_VECES_TIMEOUT = 4;
 
@@ -120,6 +124,12 @@ async function descargarYVerificar(
   return { ok: true, modelo, csv };
 }
 
+/** IC-2 a IC-5: el CSV ya verificado → mensaje del trabajo `success`, o la causa del `failed`. */
+function resultadoDelCsv(csv: Uint8Array): { ok: true; mensaje: string } | { ok: false; mensaje: string; motivo: string } {
+  const lectura = leerCsvDelEnvio(csv);
+  return lectura.ok ? { ok: true, mensaje: mensajeListadoLeido(lectura.listado) } : { ok: false, mensaje: lectura.mensaje, motivo: lectura.motivo };
+}
+
 /** IE-7: POST /api/trabajos. */
 export async function postTrabajo(request: Request, deps: DepsIntegracion): Promise<Response> {
   const auth = await autenticar(request, deps);
@@ -174,15 +184,14 @@ export async function postTrabajo(request: Request, deps: DepsIntegracion): Prom
       deps.registrar("trabajo-no-disponible", { motivo: verificado.motivo });
       return error(503, "descarga-no-disponible", verificado.mensaje);
     }
-    if (verificado.ok) {
+    // IC-1 a IC-5: con los archivos verificados, se lee el CSV.
+    const resultado = verificado.ok ? resultadoDelCsv(verificado.csv) : verificado;
+    if (resultado.ok && verificado.ok) {
       await persistence.almacen.guardar(tenant.id, envio.modelo.sha256, verificado.modelo);
       await persistence.almacen.guardar(tenant.id, envio.csv.sha256, verificado.csv);
     }
-    const job = await persistence.jobs.settle(tenant.id, jobId, {
-      status: verificado.ok ? "success" : "failed",
-      message: verificado.ok ? MENSAJE_SUCCESS : verificado.mensaje,
-    });
-    deps.registrar(reserva.outcome === "created" ? "trabajo-creado" : "trabajo-reintentado", { estado: job.status, ...(verificado.ok ? {} : { motivo: verificado.motivo }) });
+    const job = await persistence.jobs.settle(tenant.id, jobId, { status: resultado.ok ? "success" : "failed", message: resultado.mensaje });
+    deps.registrar(reserva.outcome === "created" ? "trabajo-creado" : "trabajo-reintentado", { estado: job.status, ...(resultado.ok ? {} : { motivo: resultado.motivo }) });
     return respuestaDeTrabajo(job, reserva.outcome === "created" ? 201 : 200);
   } catch (e) {
     // Un error inesperado (p. ej. la base) no deja el envío trabado en `inProgress`.

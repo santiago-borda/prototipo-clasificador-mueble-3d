@@ -2,8 +2,10 @@
 // Request a Response con las dependencias inyectadas (las rutas de src/app/api/erp/ solo las arman). Ninguna
 // respuesta lleva el token del ERP; ningún registro lleva el token, la contraseña ni la cookie.
 
+import { listadoId } from "@/engine/hash";
+import { leerCsvDelEnvio } from "@/lib/csv-ocl/envio";
 import { esTokenBienFormado, normalizarUuid, UUID } from "@/lib/erp/protocolo";
-import type { ErpSession } from "@/persistence/ports";
+import type { ErpSession, Job } from "@/persistence/ports";
 import { JwksNoDisponible, LoginErpRechazado, TokenErpInvalido, TokenErpVencido } from "@/server/erp/errores";
 import { loginDirecto } from "@/server/erp/login";
 import { extraerDae, ZipInvalidoError } from "@/server/erp/zip";
@@ -156,17 +158,28 @@ export async function getProyecto(request: Request, deps: DepsIntegracion, proye
   });
 }
 
-/** IE-5: GET /api/erp/proyectos/{uuid}/modelo: el .dae del último trabajo `success`, sacado del zip guardado. */
-export async function getModelo(request: Request, deps: DepsIntegracion, proyectoUuid: string): Promise<Response> {
+type TrabajoConModelo = { ok: true; tenantId: string; job: Job } | { ok: false; respuesta: Response };
+
+/** Sesión + proyecto de su carpintería + su último trabajo `success` (el que sirven /modelo y /listado). */
+async function trabajoConModelo(request: Request, deps: DepsIntegracion, proyectoUuid: string): Promise<TrabajoConModelo> {
   const s = await exigirSesion(request, deps);
-  if (!s.ok) return s.respuesta;
-  const noEncontrado = () => respuestaJson({ error: "no-encontrado" }, 404);
-  if (!UUID.test(proyectoUuid)) return noEncontrado();
+  if (!s.ok) return s;
+  const noEncontrado = { ok: false as const, respuesta: respuestaJson({ error: "no-encontrado" }, 404) };
+  if (!UUID.test(proyectoUuid)) return noEncontrado;
   const { tenantId } = s.session;
   const proyecto = await deps.persistence.projects.getErpProject(tenantId, normalizarUuid(proyectoUuid));
-  if (!proyecto) return noEncontrado();
+  if (!proyecto) return noEncontrado;
   const job = await deps.persistence.jobs.latestForProject(tenantId, proyecto.id, "success");
-  if (!job) return noEncontrado();
+  if (!job) return noEncontrado;
+  return { ok: true, tenantId, job };
+}
+
+/** IE-5: GET /api/erp/proyectos/{uuid}/modelo: el .dae del último trabajo `success`, sacado del zip guardado. */
+export async function getModelo(request: Request, deps: DepsIntegracion, proyectoUuid: string): Promise<Response> {
+  const t = await trabajoConModelo(request, deps, proyectoUuid);
+  if (!t.ok) return t.respuesta;
+  const { tenantId, job } = t;
+  const noEncontrado = () => respuestaJson({ error: "no-encontrado" }, 404);
   const zip = await deps.persistence.almacen.leer(tenantId, job.model.sha256);
   if (!zip) return noEncontrado();
   let dae: Uint8Array;
@@ -178,5 +191,30 @@ export async function getModelo(request: Request, deps: DepsIntegracion, proyect
   }
   return new Response(dae.slice().buffer as ArrayBuffer, {
     headers: { "content-type": "model/vnd.collada+xml", "cache-control": "no-store", "x-content-type-options": "nosniff", "x-ucp-trabajo": job.id },
+  });
+}
+
+/**
+ * IC-6 (docs/spec-importador-csv-envio.md): GET /api/erp/proyectos/{uuid}/listado: el listado de piezas del mismo
+ * trabajo que sirve /modelo, recalculado desde los bytes del CSV guardados (el parser es puro y determinista). Un CSV
+ * guardado que no da un listado publicable (trabajos aceptados antes del importador) da 404 `sin-listado`.
+ */
+export async function getListado(request: Request, deps: DepsIntegracion, proyectoUuid: string): Promise<Response> {
+  const t = await trabajoConModelo(request, deps, proyectoUuid);
+  if (!t.ok) return t.respuesta;
+  const { tenantId, job } = t;
+  const csv = await deps.persistence.almacen.leer(tenantId, job.csv.sha256);
+  if (!csv) return respuestaJson({ error: "no-encontrado" }, 404);
+  const lectura = leerCsvDelEnvio(csv);
+  if (!lectura.ok) return respuestaJson({ error: "sin-listado", trabajoUuid: job.id }, 404);
+  const { listado } = lectura;
+  return respuestaJson({
+    trabajoUuid: job.id,
+    listadoId: listadoId(listado.pieces),
+    piezas: listado.piezas,
+    tipos: listado.tipos,
+    piezasTotales: listado.piezasTotales,
+    metrosCanto: listado.metrosCanto,
+    avisos: listado.avisos,
   });
 }

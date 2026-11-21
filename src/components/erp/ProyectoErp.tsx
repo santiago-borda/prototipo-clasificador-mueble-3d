@@ -7,6 +7,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import type { ListadoErp } from "@/lib/erp/defErp";
 import { ETIQUETA_ESTADO, type EstadoTrabajo } from "@/lib/erp/estados";
 import { AvisoErp } from "./AvisoErp";
 import { useMarcoErp } from "./MarcoErp";
@@ -17,7 +18,7 @@ interface DatosProyecto {
   modelo: { trabajoUuid: string; nombre: string; version: number } | null;
 }
 
-type Estado = { tipo: "cargando" } | { tipo: "listo"; datos: DatosProyecto } | { tipo: "sin-enviar" } | { tipo: "sin-sesion" } | { tipo: "error" };
+type Estado = { tipo: "cargando" } | { tipo: "listo"; datos: DatosProyecto; listado: ListadoErp | null } | { tipo: "sin-enviar" } | { tipo: "sin-sesion" } | { tipo: "error" };
 
 const COLOR_ESTADO: Record<EstadoTrabajo, string> = {
   pending: "bg-slate-200 text-slate-800",
@@ -40,7 +41,15 @@ export function ProyectoErp({ proyectoUuid }: { proyectoUuid: string }) {
       else if (r.status === 404) setEstado({ tipo: "sin-enviar" });
       else if (r.status === 401) setEstado({ tipo: "sin-sesion" });
       else if (!r.ok) setEstado({ tipo: "error" });
-      else setEstado({ tipo: "listo", datos: (await r.json()) as DatosProyecto });
+      else {
+        const datos = (await r.json()) as DatosProyecto;
+        // IC-10: resumen del listado del CSV del trabajo del modelo (null si no tiene).
+        const l = datos.modelo
+          ? await fetch(`/api/erp/proyectos/${encodeURIComponent(proyectoUuid)}/listado`, { credentials: "same-origin", cache: "no-store" }).catch(() => null)
+          : null;
+        const listado = l?.ok ? ((await l.json().catch(() => null)) as ListadoErp | null) : null;
+        if (!cancelado) setEstado({ tipo: "listo", datos, listado: listado && listado.trabajoUuid === datos.modelo?.trabajoUuid ? listado : null });
+      }
     })();
     return () => {
       cancelado = true;
@@ -74,6 +83,7 @@ export function ProyectoErp({ proyectoUuid }: { proyectoUuid: string }) {
   }
 
   const { proyecto, trabajo, modelo } = estado.datos;
+  const { listado } = estado;
   return (
     <main className="mx-auto w-full max-w-3xl p-4 text-sm sm:p-6">
       {encabezado(proyecto.codigo, proyecto.nombre)}
@@ -109,7 +119,12 @@ export function ProyectoErp({ proyectoUuid }: { proyectoUuid: string }) {
         ) : (
           <p className="mt-2 opacity-70">Todavía no hay un modelo verificado.</p>
         )}
-        <p className="mt-2 text-xs opacity-60">El listado de piezas del CSV todavía no se procesa: se guarda para el importador.</p>
+        {modelo && listado && (
+          <p className="mt-2 text-xs opacity-70">
+            Listado de piezas: {listado.tipos} {listado.tipos === 1 ? "tipo" : "tipos"}, {listado.piezasTotales} {listado.piezasTotales === 1 ? "pieza" : "piezas"} · {listado.metrosCanto.toLocaleString("es-AR")} m de canto
+          </p>
+        )}
+        {modelo && !listado && <p className="mt-2 text-xs opacity-60">Este envío no tiene un listado de piezas leído: las fichas salen del modelo 3D.</p>}
       </section>
       {actualizar}
     </main>

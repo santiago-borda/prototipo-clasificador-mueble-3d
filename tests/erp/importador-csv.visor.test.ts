@@ -3,7 +3,8 @@
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { pedirListado } from "@/components/erp/pedirListado";
 import { olmoDef } from "@/data/furniture.mock";
 import { leerCsvDelEnvio, type ListadoDelEnvio } from "@/lib/csv-ocl/envio";
 import { cruceErp, defDesdeListadoErp, defDesdeModeloErp } from "@/lib/erp/defErp";
@@ -70,5 +71,30 @@ describe("TIC-9: cruceErp con el gabinete (.dae y CSV reales de OpenCutList)", (
     const def = defDesdeListadoErp(modelo, listado, opciones);
     expect(def.pieceTypes).toHaveLength(4);
     expect(cruceErp(modelo, def)).toEqual({ coincide: true, diferencias: [] });
+  });
+});
+
+describe("IC-8 (revisión del 21/11): pedirListado distingue «sin listado» de «no se pudo leer»", () => {
+  const T = "0f1e2d3c-4b5a-4000-8000-000000000001";
+  const responder = (status: number, cuerpo: unknown) => vi.fn(async () => new Response(JSON.stringify(cuerpo), { status, headers: { "content-type": "application/json" } }));
+  afterEach(() => vi.unstubAllGlobals());
+
+  it.each([
+    ["404 sin-listado del mismo trabajo", responder(404, { error: "sin-listado", trabajoUuid: T }), { tipo: "sin-listado" }],
+    ["404 sin-listado de otro trabajo", responder(404, { error: "sin-listado", trabajoUuid: "otro" }), { tipo: "error", motivo: "otro-trabajo" }],
+    ["404 no-encontrado", responder(404, { error: "no-encontrado" }), { tipo: "error", motivo: "red" }],
+    ["401", responder(401, { error: "no-autenticada" }), { tipo: "error", motivo: "no-autenticada" }],
+    ["500", responder(500, {}), { tipo: "error", motivo: "red" }],
+    ["listado de otro trabajo", responder(200, { trabajoUuid: "otro", piezas: [] }), { tipo: "error", motivo: "otro-trabajo" }],
+    ["red cortada", vi.fn(async () => { throw new TypeError("failed to fetch"); }), { tipo: "error", motivo: "red" }],
+  ] as const)("%s", async (_caso, fetchFalso, esperado) => {
+    vi.stubGlobal("fetch", fetchFalso);
+    expect(await pedirListado("5e1a0000-0000-4000-8000-000000000142", T)).toEqual(esperado);
+  });
+
+  it("200 del mismo trabajo: el listado", async () => {
+    const cuerpo = { trabajoUuid: T, listadoId: "sha256:x", piezas: [], tipos: 0, piezasTotales: 0, metrosCanto: 0, avisos: [] };
+    vi.stubGlobal("fetch", responder(200, cuerpo));
+    expect(await pedirListado("5e1a0000-0000-4000-8000-000000000142", T)).toEqual({ tipo: "listado", listado: cuerpo });
   });
 });

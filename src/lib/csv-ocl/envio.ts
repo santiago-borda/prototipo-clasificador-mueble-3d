@@ -11,6 +11,15 @@ import type { CsvRejection } from "./reasons";
 
 /** Filas con problemas que se nombran en el mensaje (IC-4); el resto se cuenta. */
 export const FILAS_EN_MENSAJE = 3;
+/**
+ * IC-I7 (revisión del 21/11): topes de largo. Los mensajes del parser copian la celda del CSV, que puede ser larguísima,
+ * y `job.message` es varchar(2000) en la base: un mensaje más largo haría fallar el `settle` (500 en vez del 422).
+ */
+export const LARGO_MAX_PROBLEMA = 200;
+export const LARGO_MAX_MENSAJE = 1500;
+
+/** Corta en `max` caracteres (contando el «…» final). */
+export const acotar = (texto: string, max: number): string => (texto.length <= max ? texto : `${texto.slice(0, max - 1)}…`);
 
 export type MotivoCsvEnvio = "csv-utf8" | `csv-${CsvRejection}` | "csv-borrador";
 
@@ -86,14 +95,27 @@ export function textoUtf8(bytes: Uint8Array): string | null {
   }
 }
 
-/** IC-4: cuántas filas tienen problemas y las primeras, con fila, columna y el mensaje del parser. */
+/**
+ * IC-4: cuántas filas tienen problemas y las primeras FILAS_EN_MENSAJE filas, cada una con sus problemas (columna y
+ * mensaje del parser, sin el punto final); «y N filas más» cuenta filas, no problemas.
+ */
 function mensajeBorrador(issues: readonly CsvIssue[]): string {
-  const problemas = issues.filter((i) => i.reason !== "nombre-ausente");
-  const filas = new Set(problemas.map((i) => i.csvRow));
-  const primeras = problemas.slice(0, FILAS_EN_MENSAJE).map((i) => `fila ${i.csvRow}, «${i.column}»: ${i.message}`);
-  const resto = problemas.length - primeras.length;
-  const cuantas = filas.size === 1 ? "1 fila" : `${filas.size} filas`;
-  return `El listado de piezas del CSV tiene ${cuantas} con problemas: ${primeras.join(" · ")}${resto > 0 ? ` · y ${resto} más` : ""}. Corregí el modelo o el CSV y volvé a enviar el proyecto.`;
+  const porFila = new Map<number, CsvIssue[]>();
+  for (const i of issues) {
+    if (i.reason === "nombre-ausente") continue;
+    const lista = porFila.get(i.csvRow);
+    if (lista) lista.push(i);
+    else porFila.set(i.csvRow, [i]);
+  }
+  const filas = [...porFila.keys()].sort((a, b) => a - b);
+  const primeras = filas.slice(0, FILAS_EN_MENSAJE).map((fila) => {
+    const problemas = (porFila.get(fila) ?? []).map((i) => `«${i.column}»: ${acotar(i.message.replace(/\.$/, ""), LARGO_MAX_PROBLEMA)}`);
+    return `fila ${fila}, ${problemas.join("; ")}`;
+  });
+  const resto = filas.length - primeras.length;
+  const cuantas = filas.length === 1 ? "1 fila" : `${filas.length} filas`;
+  const mas = resto === 0 ? "" : ` · y ${resto === 1 ? "1 fila más" : `${resto} filas más`}`;
+  return acotar(`El listado de piezas del CSV tiene ${cuantas} con problemas: ${primeras.join(" · ")}${mas}. Corregí el modelo o el CSV y volvé a enviar el proyecto.`, LARGO_MAX_MENSAJE);
 }
 
 export function leerCsvDelEnvio(bytes: Uint8Array): LecturaCsvEnvio {
@@ -102,7 +124,7 @@ export function leerCsvDelEnvio(bytes: Uint8Array): LecturaCsvEnvio {
     return { ok: false, motivo: "csv-utf8", mensaje: "El CSV no está en UTF-8: exportá de nuevo el «Listado de piezas» desde OpenCutList." };
   }
   const leido = parseOclCsv(texto);
-  if (!leido.ok) return { ok: false, motivo: `csv-${leido.reason}`, mensaje: `El CSV no se pudo leer: ${leido.message}` };
+  if (!leido.ok) return { ok: false, motivo: `csv-${leido.reason}`, mensaje: acotar(`El CSV no se pudo leer: ${leido.message}`, LARGO_MAX_MENSAJE) };
   if (leido.listing.status !== "publicable") return { ok: false, motivo: "csv-borrador", mensaje: mensajeBorrador(leido.issues) };
 
   const { pieces } = leido.listing;

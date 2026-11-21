@@ -136,6 +136,35 @@ describe("saveFile / readFile", () => {
   });
 });
 
+describe("revisión del 21/11 (S3-I7, S3-I8)", () => {
+  it("S3-I8: la fila ya existe pero los bytes no están en ESTE almacén (cambió FILE_STORE): se vuelven a subir", async () => {
+    const { a, p, deps } = await entorno();
+    const meta = await saveFile(deps, a, imagen(PNG));
+    const otroAlmacen = createMemoryFileStore(); // p. ej. de local a blob: la fila es la misma, los bytes no están
+    const deps2: FileDeps = { ...deps, store: otroAlmacen };
+    await expect(readFile(deps2, a, meta.id)).rejects.toThrow(ArchivoCorruptoError);
+    expect(await saveFile(deps2, a, imagen(PNG))).toEqual(meta);
+    expect(await otroAlmacen.list("t/")).toEqual([meta.storageKey]);
+    expect((await readFile(deps2, a, meta.id)).body).toEqual(PNG);
+    expect(await p.files.findBySha256(a, sha(PNG))).toEqual(meta); // una sola fila
+  });
+
+  it("S3-I7: maxBytes propio reemplaza al de la clase (en los dos sentidos)", () => {
+    const zip = new Uint8Array(REGLAS.zip.maxBytes + 10);
+    zip.set(ZIP);
+    expect(() => tipoReal("zip", "application/zip", zip)).toThrow(ArchivoDemasiadoGrandeError);
+    expect(tipoReal("zip", "application/zip", zip, REGLAS.zip.maxBytes + 10)).toBe("application/zip");
+    expect(() => tipoReal("zip", "application/zip", ZIP, 3)).toThrow(ArchivoDemasiadoGrandeError);
+  });
+
+  it("zip con preámbulo (no empieza con «PK» pero trae el fin del directorio central): es zip", () => {
+    const fin = [0x50, 0x4b, 0x05, 0x06, ...new Array(18).fill(0)];
+    const conPreambulo = new Uint8Array([...new TextEncoder().encode("#!/bin/sh preámbulo\n"), ...fin]);
+    expect(tipoReal("zip", "application/zip", conPreambulo)).toBe("application/zip");
+    expect(() => tipoReal("zip", "application/zip", new TextEncoder().encode("no es un zip"))).toThrow(TipoNoPermitidoError);
+  });
+});
+
 describe("PF-11 (F9): imports de src/files", () => {
   const DIR = path.resolve(__dirname, "..", "..", "src", "files");
   const puros = ["store.ts", "keys.ts", "rules.ts", "memory.ts", "meta.ts", "errors.ts"];

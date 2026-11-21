@@ -6,7 +6,7 @@
 // Otro valor: `ConfigArchivosError` al armar las dependencias (no se adivina).
 
 import path from "node:path";
-import { createFileAlmacen } from "@/files/almacen";
+import { createFileAlmacen, type LimitesAlmacen } from "@/files/almacen";
 import { createBlobFileStore } from "@/files/blob";
 import { createLocalFileStore } from "@/files/local";
 import type { Almacen, Persistence } from "@/persistence/ports";
@@ -23,13 +23,13 @@ export class ConfigArchivosError extends Error {
 /** Carpeta del adaptador local (S3-D8). */
 export const CARPETA_LOCAL = ".file-data";
 
-export function almacenDesdeEntorno(env: Record<string, string | undefined>, persistence: Persistence): Almacen {
+export function almacenDesdeEntorno(env: Record<string, string | undefined>, persistence: Persistence, limites: LimitesAlmacen = {}): Almacen {
   const modo = (env.FILE_STORE ?? "").trim();
   if (modo === "") return persistence.almacen;
-  if (modo === "blob") return createFileAlmacen({ store: createBlobFileStore({ token: env.BLOB_READ_WRITE_TOKEN || undefined }), files: persistence.files });
+  if (modo === "blob") return createFileAlmacen({ store: createBlobFileStore({ token: env.BLOB_READ_WRITE_TOKEN || undefined }), files: persistence.files }, limites);
   if (modo === "local") {
     if (env.NODE_ENV === "production") throw new ConfigArchivosError("«local» es solo para desarrollo (NODE_ENV=production)");
-    return createFileAlmacen({ store: createLocalFileStore(path.resolve(process.cwd(), CARPETA_LOCAL)), files: persistence.files });
+    return createFileAlmacen({ store: createLocalFileStore(path.resolve(process.cwd(), CARPETA_LOCAL)), files: persistence.files }, limites);
   }
   throw new ConfigArchivosError(`«${modo}» no es un valor válido (vacía, ${FILE_STORES.join(" o ")})`);
 }

@@ -58,3 +58,8 @@ El cruce en el servidor (necesita leer el .dae sin `DOMParser`, o `jsdom` como d
 - **IC-I4.** El cruce se hace en el navegador porque `observeDae` e `indexDae` necesitan `DOMParser` y en el servidor solo existe con `jsdom`, que hoy es dependencia de desarrollo. Pasarlo al servidor es una decisión del equipo (dependencia).
 - **IC-I5.** El listado se recalcula en cada `GET …/listado` (IC-6). Si el parser cambia, un trabajo viejo puede dar otro listado o `sin-listado`: el `listadoId` lo deja a la vista. Guardarlo pediría una migración.
 - **IC-I6.** El texto de las razones y los mensajes son los del spike (en español, accionables).
+
+### Revisión adversarial del 21/11 (corregido en la misma rama)
+- **IC-I7. Topes de largo del mensaje.** Los mensajes del parser copian la celda del CSV y `job.message` es varchar(2000): una celda larguísima hacía fallar el `settle` en PostgreSQL (500 en vez del 422). Ahora cada problema se corta en 200 caracteres, el mensaje en 1500 (`acotar`, con «…») y `postTrabajo` corta en 1900 antes del `settle`.
+- **IC-4 enmendado.** El mensaje agrupa por **fila**: «tiene N filas con problemas: fila 3, «Longitud»: …; «Cantidad»: … · fila 5, … · y M filas más.» (antes contaba problemas y repetía la fila).
+- **IC-8 enmendado.** El visor y la pantalla del proyecto arman desde el .dae **solo** con 404 `sin-listado` del mismo trabajo. Cualquier otra falla de `/listado` (red, 401, 500, listado de otro trabajo) muestra «No se pudo leer el listado de piezas» y no registra nada, así el próximo montaje lo vuelve a intentar (`src/components/erp/pedirListado.ts`). Antes, un 500 pasajero dejaba en silencio fichas adivinadas del .dae por el resto de la sesión.

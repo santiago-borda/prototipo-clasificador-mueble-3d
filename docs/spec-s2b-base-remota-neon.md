@@ -43,6 +43,7 @@ Enmienda a: `docs/spec-s2-base-de-datos.md` v0.2 (S2-D5, B10: guarda de base loc
 
 ## 5. Precisiones (a revisar)
 - **S2B-I1.** La confirmación es el host exacto y no una bandera: una bandera se copia de un comando a otro sin mirar; el host obliga a decir **qué** base.
-- **S2B-I2.** Se exige TLS por la URL (`sslmode`), no por código: Neon lo pide igual. `pg` trata `require` como `verify-full` (verifica el certificado), lo que con Neon funciona.
+- **S2B-I2.** Se exige TLS por la URL (`sslmode`), no por código: Neon lo pide igual. `pg` trata `require` como `verify-full` (verifica el certificado), lo que con Neon funciona; **salvo con `uselibpqcompat=true`**, que la guarda rechaza (S2B-I5).
 - **S2B-I3.** Las cadenas de Neon traen `channel_binding=require`; `pg` lo ignora como parámetro desconocido (ASUMIDO, a verificar en la primera corrida).
+- **S2B-I5 (revisión adversarial del 21/11).** `pg` obedece `host` / `hostaddr` de la query por encima del host de la URL, se queda con el último `sslmode` si se repite, y `uselibpqcompat` o `ssl=0` cambian cómo cifra: con eso se salteaban la confirmación y el TLS. La guarda remota acepta solo `postgres:`/`postgresql:` y una **lista blanca** de parámetros (`sslmode`, `channel_binding`, `application_name`, `connect_timeout`), cada uno una vez; si no, `parametro-no-permitido`. La guarda local (`assertLocalDatabase`, de S2) ahora también rechaza `host` / `hostaddr` en la query (era un agujero previo: `db:migrate` podía apuntar a otra base). Pruebas en S2B PB-1 y PB-3.
 - **S2B-I4.** Neon es temporal (decisión del 21/11): cambiar de proveedor es cambiar la URL y volver a correr el §2; el esquema es PostgreSQL estándar (ADR-002).

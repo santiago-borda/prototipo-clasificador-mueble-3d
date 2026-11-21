@@ -18,7 +18,7 @@ import { DescargaFallida, JwksNoDisponible, TokenErpInvalido, TokenErpVencido } 
 import { descargar, motivoUrlRechazada, sha256Hex, type MotivoUrlRechazada } from "@/server/erp/descarga";
 import type { IdentidadErp } from "@/server/erp/token";
 import { extraerDae, ZipInvalidoError, type MotivoZipInvalido } from "@/server/erp/zip";
-import { leerCsvDelEnvio, mensajeListadoLeido } from "@/lib/csv-ocl/envio";
+import { acotar, leerCsvDelEnvio, mensajeListadoLeido } from "@/lib/csv-ocl/envio";
 import { normalizarUuid, UUID } from "@/lib/erp/protocolo";
 import { parsearEnvio, type ArchivoDelEnvio, type Envio } from "./envio";
 import { bearer, cuerpoJson, respuestaJson } from "./http";
@@ -187,10 +187,10 @@ export async function postTrabajo(request: Request, deps: DepsIntegracion): Prom
     // IC-1 a IC-5: con los archivos verificados, se lee el CSV.
     const resultado = verificado.ok ? resultadoDelCsv(verificado.csv) : verificado;
     if (resultado.ok && verificado.ok) {
-      await persistence.almacen.guardar(tenant.id, envio.modelo.sha256, verificado.modelo);
-      await persistence.almacen.guardar(tenant.id, envio.csv.sha256, verificado.csv);
+      await persistence.almacen.guardar(tenant.id, envio.modelo.sha256, verificado.modelo, "modelo");
+      await persistence.almacen.guardar(tenant.id, envio.csv.sha256, verificado.csv, "csv");
     }
-    const job = await persistence.jobs.settle(tenant.id, jobId, { status: resultado.ok ? "success" : "failed", message: resultado.mensaje });
+    const job = await persistence.jobs.settle(tenant.id, jobId, { status: resultado.ok ? "success" : "failed", message: acotar(resultado.mensaje, 1900) } /* IC-I7: job.message es varchar(2000) */);
     deps.registrar(reserva.outcome === "created" ? "trabajo-creado" : "trabajo-reintentado", { estado: job.status, ...(resultado.ok ? {} : { motivo: resultado.motivo }) });
     return respuestaDeTrabajo(job, reserva.outcome === "created" ? 201 : 200);
   } catch (e) {

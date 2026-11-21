@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { ListadoErp } from "@/lib/erp/defErp";
+import { pedirListado, type PedidoListado } from "./pedirListado";
 import { ETIQUETA_ESTADO, type EstadoTrabajo } from "@/lib/erp/estados";
 import { AvisoErp } from "./AvisoErp";
 import { useMarcoErp } from "./MarcoErp";
@@ -18,7 +18,7 @@ interface DatosProyecto {
   modelo: { trabajoUuid: string; nombre: string; version: number } | null;
 }
 
-type Estado = { tipo: "cargando" } | { tipo: "listo"; datos: DatosProyecto; listado: ListadoErp | null } | { tipo: "sin-enviar" } | { tipo: "sin-sesion" } | { tipo: "error" };
+type Estado = { tipo: "cargando" } | { tipo: "listo"; datos: DatosProyecto; listado: PedidoListado | null } | { tipo: "sin-enviar" } | { tipo: "sin-sesion" } | { tipo: "error" };
 
 const COLOR_ESTADO: Record<EstadoTrabajo, string> = {
   pending: "bg-slate-200 text-slate-800",
@@ -43,12 +43,9 @@ export function ProyectoErp({ proyectoUuid }: { proyectoUuid: string }) {
       else if (!r.ok) setEstado({ tipo: "error" });
       else {
         const datos = (await r.json()) as DatosProyecto;
-        // IC-10: resumen del listado del CSV del trabajo del modelo (null si no tiene).
-        const l = datos.modelo
-          ? await fetch(`/api/erp/proyectos/${encodeURIComponent(proyectoUuid)}/listado`, { credentials: "same-origin", cache: "no-store" }).catch(() => null)
-          : null;
-        const listado = l?.ok ? ((await l.json().catch(() => null)) as ListadoErp | null) : null;
-        if (!cancelado) setEstado({ tipo: "listo", datos, listado: listado && listado.trabajoUuid === datos.modelo?.trabajoUuid ? listado : null });
+        // IC-10: resumen del listado del CSV del trabajo del modelo (null: no hay modelo).
+        const listado = datos.modelo ? await pedirListado(proyectoUuid, datos.modelo.trabajoUuid) : null;
+        if (!cancelado) setEstado({ tipo: "listo", datos, listado });
       }
     })();
     return () => {
@@ -119,12 +116,13 @@ export function ProyectoErp({ proyectoUuid }: { proyectoUuid: string }) {
         ) : (
           <p className="mt-2 opacity-70">Todavía no hay un modelo verificado.</p>
         )}
-        {modelo && listado && (
+        {modelo && listado?.tipo === "listado" && (
           <p className="mt-2 text-xs opacity-70">
-            Listado de piezas: {listado.tipos} {listado.tipos === 1 ? "tipo" : "tipos"}, {listado.piezasTotales} {listado.piezasTotales === 1 ? "pieza" : "piezas"} · {listado.metrosCanto.toLocaleString("es-AR")} m de canto
+            Listado de piezas: {listado.listado.tipos} {listado.listado.tipos === 1 ? "tipo" : "tipos"}, {listado.listado.piezasTotales} {listado.listado.piezasTotales === 1 ? "pieza" : "piezas"} · {listado.listado.metrosCanto.toLocaleString("es-AR")} m de canto
           </p>
         )}
-        {modelo && !listado && <p className="mt-2 text-xs opacity-60">Este envío no tiene un listado de piezas leído: las fichas salen del modelo 3D.</p>}
+        {modelo && listado?.tipo === "sin-listado" && <p className="mt-2 text-xs opacity-60">Este envío no tiene un listado de piezas leído: las fichas salen del modelo 3D.</p>}
+        {modelo && listado?.tipo === "error" && <p className="mt-2 text-xs opacity-80">No se pudo leer el listado de piezas. Probá «Actualizar».</p>}
       </section>
       {actualizar}
     </main>

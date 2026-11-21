@@ -25,25 +25,30 @@ export interface NewFile {
   uploadedBy: string;
   /** Si viene (p. ej. el que declaró el ERP), tiene que coincidir con el calculado: si no, `Sha256DistintoError`. */
   expectedSha256?: string;
+  /** S3-I7: tope propio (p. ej. ERP_ZIP_MAX_BYTES); si no viene, el de la clase (`REGLAS`). */
+  maxBytes?: number;
 }
 
 export const sha256Hex = (body: Uint8Array): string => createHash("sha256").update(body).digest("hex");
 
 export async function saveFile(deps: FileDeps, tenantId: string, input: NewFile): Promise<StoredFileMeta> {
-  const contentType = tipoReal(input.kind, input.contentType, input.body); // F6: nada escrito si no cumple
+  const contentType = tipoReal(input.kind, input.contentType, input.body, input.maxBytes); // F6: nada escrito si no cumple
   const sha256 = sha256Hex(input.body);
   if (input.expectedSha256 !== undefined && input.expectedSha256.toLowerCase() !== sha256) throw new Sha256DistintoError();
   const storageKey = fileKey(tenantId, sha256);
 
   const existing = await deps.files.findBySha256(tenantId, sha256);
-  if (existing) return existing; // F4: no se vuelve a subir
+  // F4: no se vuelve a subir. S3-I8 (revisión del 21/11): salvo que los bytes no estén en ESTE almacén (la fila es una
+  // sola para todos los adaptadores: p. ej. se guardó con FILE_STORE=local y ahora es blob, o se perdieron).
+  if (existing && (await deps.store.get(existing.storageKey))) return existing;
 
   try {
-    await deps.store.put(storageKey, input.body, contentType);
+    await deps.store.put(existing?.storageKey ?? storageKey, input.body, contentType);
   } catch (error) {
     // Bytes de un intento anterior cuya fila no se llegó a guardar (PF-12): son los mismos (misma clave = mismo sha256).
     if (!(error instanceof YaExisteError)) throw error;
   }
+  if (existing) return existing;
   return deps.files.insert(tenantId, {
     id: (deps.newId ?? randomUUID)(),
     sha256,

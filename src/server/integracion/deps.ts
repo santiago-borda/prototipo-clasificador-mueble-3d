@@ -40,7 +40,7 @@ export async function depsIntegracion(env: Record<string, string | undefined> = 
   if (!config) throw new IntegracionApagadaError();
   const persistence = await getPersistence();
   return {
-    persistence: { ...persistence, almacen: almacenDesdeEntorno(env, persistence) },
+    persistence: { ...persistence, almacen: almacenDesdeEntorno(env, persistence, { zipMaxBytes: config.zipMaxBytes, csvMaxBytes: config.csvMaxBytes }) },
     config,
     validarToken: validadorPara(config),
     fetchImpl: fetch,

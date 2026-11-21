@@ -6,10 +6,10 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { listadoId } from "@/engine/hash";
-import { FILAS_EN_MENSAJE, leerCsvDelEnvio, mensajeListadoLeido } from "@/lib/csv-ocl/envio";
-import { parseOclCsv } from "@/lib/csv-ocl/parse";
+import { acotar, FILAS_EN_MENSAJE, LARGO_MAX_MENSAJE, leerCsvDelEnvio, mensajeListadoLeido } from "@/lib/csv-ocl/envio";
 import { getListado, postSesion } from "@/server/integracion/api";
 import { postTrabajo } from "@/server/integracion/trabajos";
+import { csvOlmo } from "../../erp-simulado/csvOlmo";
 import { CSV_SIMULADO, CSV_SIMULADO_CON_PROBLEMAS } from "../../erp-simulado/erp";
 import { ANA, CARLA, cookieDe, crearEntorno, get, P_OLMO, post, type Entorno } from "../helpers/erp";
 
@@ -79,12 +79,38 @@ describe("TIC-3: CSV que no se puede usar", () => {
     expect(l.mensaje).toMatch(/guiones bajos de más/);
     expect(l.mensaje).toMatch(/«2,5» no es una cantidad entera/);
     expect(l.mensaje).toMatch(/volvé a enviar el proyecto/);
-    // Con más de FILAS_EN_MENSAJE problemas se agrega «y N más».
-    const leido = parseOclCsv(CSV_SIMULADO_CON_PROBLEMAS);
-    if (!leido.ok) throw new Error("rechazado");
-    const problemas = leido.issues.filter((i) => i.reason !== "nombre-ausente").length;
-    if (problemas > FILAS_EN_MENSAJE) expect(l.mensaje).toContain(`y ${problemas - FILAS_EN_MENSAJE} más`);
-    else expect(l.mensaje).not.toMatch(/y \d+ más/);
+    expect(l.mensaje).not.toContain("..");
+    expect(l.mensaje).toMatch(/^El listado de piezas del CSV tiene 2 filas con problemas: /);
+    expect(l.mensaje).not.toMatch(/filas? más/);
+  });
+
+  it("IC-4 (revisión del 21/11): agrupa por fila; «y N filas más» cuenta filas, no problemas", () => {
+    // SINTÉTICO: el CSV del Olmo simulado con Longitud y Cantidad inválidas en 5 piezas (2 problemas por fila).
+    const codigos = ["C02", "C03", "C04", "C05", "C06"].map((c) => `0001-01-M01-${c}`);
+    const texto = csvOlmo({ cantidad: Object.fromEntries(codigos.map((c) => [c, "x"])) });
+    // Longitud inválida: se reemplaza la primera medida final de cada una de esas filas.
+    const filas = texto.split("\r\n").map((f) => (codigos.some((c) => f.split(";")[1] === c) ? f.split(";").map((celda, i) => (i === 6 ? "abc" : celda)).join(";") : f));
+    const l = leerCsvDelEnvio(bytes(filas.join("\r\n")));
+    if (l.ok) throw new Error("tenía que fallar");
+    expect(l.mensaje).toMatch(/^El listado de piezas del CSV tiene 5 filas con problemas: /);
+    expect(l.mensaje.match(/fila \d+, /g)).toHaveLength(FILAS_EN_MENSAJE);
+    expect(l.mensaje).toContain("· y 2 filas más.");
+    expect(l.mensaje).toMatch(/fila 3, «[^»]+»: [^·]+; «[^»]+»: /); // los dos problemas de la fila 3 juntos
+  });
+
+  it("IC-I7: una celda larguísima no hace un mensaje de más de LARGO_MAX_MENSAJE (job.message es varchar(2000))", () => {
+    const larga = "Z".repeat(5000);
+    const conProblemas = csvOlmo({ designacion: { "0001-01-M01-C01": larga, "0001-01-M01-C02": larga, "0001-01-M01-C03": larga } });
+    const l = leerCsvDelEnvio(bytes(conProblemas));
+    if (l.ok) throw new Error("tenía que fallar");
+    expect(l.mensaje.length).toBeLessThanOrEqual(LARGO_MAX_MENSAJE);
+    // Unidad no soportada (el archivo entero se rechaza) con una celda larguísima: también acotado.
+    const enCm = CSV_SIMULADO.replace("980,0 mm", `${"9".repeat(3000)} cm`);
+    const r = leerCsvDelEnvio(bytes(enCm));
+    if (r.ok) throw new Error("tenía que fallar");
+    expect(r.motivo).toBe("csv-unidad-no-soportada");
+    expect(r.mensaje.length).toBeLessThanOrEqual(LARGO_MAX_MENSAJE);
+    expect(acotar("abcdef", 4)).toBe("abc…");
   });
 });
 

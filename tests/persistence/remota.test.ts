@@ -38,6 +38,13 @@ describe("S2B PB-1: assertConfirmedRemoteDatabase", () => {
     ["sin sslmode", URL_OK.replace("?sslmode=require&", "?"), HOST, "sin-tls"],
     ["sslmode=prefer", URL_OK.replace("sslmode=require", "sslmode=prefer"), HOST, "sin-tls"],
     ["sslmode=disable", URL_OK.replace("sslmode=require", "sslmode=disable"), HOST, "sin-tls"],
+    // S2B-I5 (revisión del 21/11): pg obedece estos parámetros por encima de lo que mira la guarda.
+    ["host en la query", `${URL_OK}&host=otra-base.ejemplo.com`, HOST, "parametro-no-permitido"],
+    ["hostaddr en la query", `${URL_OK}&hostaddr=10.0.0.9`, HOST, "parametro-no-permitido"],
+    ["sslmode repetido", `${URL_OK}&sslmode=disable`, HOST, "parametro-no-permitido"],
+    ["uselibpqcompat", `${URL_OK}&uselibpqcompat=true`, HOST, "parametro-no-permitido"],
+    ["ssl=0", `${URL_OK}&ssl=0`, HOST, "parametro-no-permitido"],
+    ["otro protocolo", URL_OK.replace("postgresql:", "socket:"), HOST, "url-ilegible"],
   ] as const)("%s → %s", (_caso, url, confirmado, esperado) => {
     expect(motivo(() => assertConfirmedRemoteDatabase(url, confirmado))).toBe(esperado);
   });
@@ -62,5 +69,11 @@ describe("S2B PB-2: los errores nunca llevan la URL (trae la clave)", () => {
 describe("S2B PB-3: la guarda local no cambia (PB-14 de S2)", () => {
   it("db:migrate y db:seed siguen rechazando la base remota, aunque esté confirmada", () => {
     expect(() => assertLocalDatabase(URL_OK)).toThrow(BaseNoLocalError);
+  });
+
+  it("S2B-I5: una URL local con host o hostaddr en la query (pg se conectaría a esa otra base) se rechaza", () => {
+    expect(() => assertLocalDatabase("postgres://pfg:clave@127.0.0.1:5432/pfg?host=db.ejemplo.com")).toThrow(BaseNoLocalError);
+    expect(() => assertLocalDatabase("postgres://pfg:clave@localhost/pfg?hostaddr=10.0.0.9")).toThrow(BaseNoLocalError);
+    expect(() => assertLocalDatabase("postgres://pfg:clave@127.0.0.1:5432/pfg")).not.toThrow();
   });
 });

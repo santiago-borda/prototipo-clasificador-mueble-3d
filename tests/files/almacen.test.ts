@@ -58,6 +58,24 @@ describe("S3-I1: los archivos del envío en FileStore", () => {
   });
 });
 
+describe("S3-I7 y S3-I8 (revisión del 21/11): createFileAlmacen", () => {
+  it("la clase la dice quien guarda (un zip con preámbulo va como zip) y los topes son los de la integración", async () => {
+    const p = createMemoryPersistence();
+    const t = await p.tenants.create({ name: "A", id: "carpinteria-a" });
+    const store = createMemoryFileStore();
+    const fin = [0x50, 0x4b, 0x05, 0x06, ...new Array(18).fill(0)];
+    const zip = new Uint8Array([...new TextEncoder().encode("preámbulo"), ...fin]);
+    const almacen = createFileAlmacen({ store, files: p.files }, { zipMaxBytes: 1000, csvMaxBytes: 5 });
+    await almacen.guardar(t.id, sha(zip), zip, "modelo");
+    expect(await p.files.findBySha256(t.id, sha(zip))).toMatchObject({ kind: "zip", contentType: "application/zip" });
+    const csv = new TextEncoder().encode("a;b;c");
+    await almacen.guardar(t.id, sha(csv), csv, "csv");
+    expect(await p.files.findBySha256(t.id, sha(csv))).toMatchObject({ kind: "csv", contentType: "text/csv" });
+    const largo = new TextEncoder().encode("a;b;c;d");
+    await expect(almacen.guardar(t.id, sha(largo), largo, "csv")).rejects.toThrow(/máximo es 5/);
+  });
+});
+
 describe("S3-I1: FILE_STORE", () => {
   const p = createMemoryPersistence();
   it("vacía: el almacén de la base (sin cambios)", () => {

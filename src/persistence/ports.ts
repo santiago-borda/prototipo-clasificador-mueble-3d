@@ -208,7 +208,8 @@ export type { FileRepository, NewStoredFile, StoredFileMeta } from "@/files/meta
 import type { FileRepository } from "@/files/meta";
 
 export interface Almacen {
-  guardar(tenantId: string, sha256: string, datos: Uint8Array): Promise<void>;
+  /** `clase`: qué archivo del envío es (la tabla `file_content` no la usa; el almacén sobre FileStore sí, S3-I8). */
+  guardar(tenantId: string, sha256: string, datos: Uint8Array, clase?: "modelo" | "csv"): Promise<void>;
   leer(tenantId: string, sha256: string): Promise<Uint8Array | null>;
 }
 
@@ -343,7 +344,7 @@ export class BaseNoLocalError extends Error {
 }
 
 /** Por qué no se acepta una base remota en `db:migrate:remota` / `db:seed:remota` (S2B-1, S2B-2). */
-export type MotivoBaseRemota = "url-ilegible" | "es-local" | "sin-confirmar" | "host-distinto" | "sin-tls";
+export type MotivoBaseRemota = "url-ilegible" | "es-local" | "sin-confirmar" | "host-distinto" | "sin-tls" | "parametro-no-permitido";
 
 const TEXTO_BASE_REMOTA: Record<MotivoBaseRemota, string> = {
   "url-ilegible": "la URL de DATABASE_URL no se puede leer",
@@ -351,6 +352,7 @@ const TEXTO_BASE_REMOTA: Record<MotivoBaseRemota, string> = {
   "sin-confirmar": "falta confirmarla: definí DB_REMOTA_HOST con el host exacto de la base",
   "host-distinto": "DB_REMOTA_HOST no es el host de DATABASE_URL",
   "sin-tls": "la URL tiene que pedir una conexión cifrada (sslmode=require, verify-ca o verify-full)",
+  "parametro-no-permitido": "la URL trae un parámetro no permitido o repetido (solo sslmode, channel_binding, application_name y connect_timeout, una vez cada uno)",
 };
 
 /** S2B-1: la base remota no está confirmada o no va cifrada. El mensaje lleva solo el host, nunca la URL. */

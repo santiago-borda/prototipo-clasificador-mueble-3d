@@ -24,6 +24,12 @@ export const REGLAS: Record<FileKind, Regla> = {
 };
 
 const empieza = (b: Uint8Array, firma: readonly number[], desde = 0) => firma.every((x, i) => b[desde + i] === x);
+
+/** Firma del fin del directorio central de un zip (50 4B 05 06) en los últimos 65.557 bytes. */
+function tieneFinDeDirectorio(b: Uint8Array): boolean {
+  for (let i = b.length - 22; i >= Math.max(0, b.length - 65557); i -= 1) if (empieza(b, [0x50, 0x4b, 0x05, 0x06], i)) return true;
+  return false;
+}
 const ascii = (s: string) => [...s].map((c) => c.charCodeAt(0));
 
 /** ¿Los bytes tienen la firma de ese tipo? Los de texto se aceptan si no traen bytes nulos. */
@@ -36,7 +42,9 @@ function tieneFirma(tipo: string, b: Uint8Array): boolean {
     case "image/webp":
       return empieza(b, ascii("RIFF")) && empieza(b, ascii("WEBP"), 8);
     case "application/zip":
-      return empieza(b, [0x50, 0x4b, 0x03, 0x04]) || empieza(b, [0x50, 0x4b, 0x05, 0x06]); // zip vacío: solo el fin del directorio
+      // Empieza con una entrada local o, como lo lee src/server/erp/zip.ts, trae el fin del directorio central en los
+      // últimos 64 KB + 22 bytes (un zip con preámbulo, p. ej. autoextraíble, no empieza con «PK»).
+      return empieza(b, [0x50, 0x4b, 0x03, 0x04]) || tieneFinDeDirectorio(b);
     case "application/pdf":
       return empieza(b, ascii("%PDF-"));
     case "model/vnd.collada+xml": {
@@ -55,9 +63,10 @@ function tieneFirma(tipo: string, b: Uint8Array): boolean {
  * `ArchivoDemasiadoGrandeError` o `TipoNoPermitidoError` (con el tipo declarado). Un PNG declarado como JPEG se
  * guarda como PNG (PF-7).
  */
-export function tipoReal(kind: FileKind, declarado: string, body: Uint8Array): string {
+export function tipoReal(kind: FileKind, declarado: string, body: Uint8Array, maxBytes?: number): string {
   const regla = REGLAS[kind];
-  if (body.length > regla.maxBytes) throw new ArchivoDemasiadoGrandeError(kind, body.length, regla.maxBytes);
+  const max = maxBytes ?? regla.maxBytes;
+  if (body.length > max) throw new ArchivoDemasiadoGrandeError(kind, body.length, max);
   const real = regla.tipos.find((t) => tieneFirma(t, body));
   if (!real) throw new TipoNoPermitidoError(kind, declarado);
   return real;

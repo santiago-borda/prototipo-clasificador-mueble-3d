@@ -13,6 +13,7 @@ import {
   VersionInmutableError,
   type Almacen,
   type DesignVersionRef,
+  type FileRepository,
   type FurnitureRepository,
   type JobRepository,
   type Persistence,
@@ -26,7 +27,7 @@ import {
   type TenantRepository,
 } from "../ports";
 import { assertDefValido, parseRunDocument, parseStatus, qrIdsOf, toEngineRunRow, toFurnitureDef, toPieceRows, toVersionRows } from "../mappers";
-import { idErp, porCodigo, toErpProject, toErpSession, toJob, toJobRow } from "../mappersErp";
+import { idErp, porCodigo, toErpProject, toErpSession, toJob, toJobRow, toStoredFile, toStoredFileRow } from "../mappersErp";
 import { defaultDeps } from "../deps";
 import type {
   DesignVersionRow,
@@ -39,6 +40,7 @@ import type {
   ProjectRow,
   QrCodeRow,
   SessionRow,
+  StoredFileRow,
   TenantRow,
 } from "../rows";
 
@@ -54,6 +56,7 @@ interface Db {
   session: SessionRow[];
   job: JobRow[];
   file_content: FileContentRow[];
+  stored_file: StoredFileRow[];
 }
 
 export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}): Persistence {
@@ -70,6 +73,7 @@ export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}
     session: [],
     job: [],
     file_content: [],
+    stored_file: [],
   };
 
   const toTenant = (row: TenantRow): Tenant => ({ id: row.id, name: row.name, erpTenantId: row.erp_tenant_id, enabled: row.enabled });
@@ -300,6 +304,28 @@ export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}
     },
   };
 
+  const files: FileRepository = {
+    async insert(tenantId, file) {
+      requireTenant(tenantId);
+      const existing = db.stored_file.find((f) => f.tenant_id === tenantId && f.sha256 === file.sha256);
+      if (existing) return toStoredFile(existing);
+      if (db.stored_file.some((f) => f.tenant_id === tenantId && f.id === file.id)) throw new Error("stored_file_pk: id repetido");
+      const row = toStoredFileRow(tenantId, { ...file, createdAt: deps.now() });
+      db.stored_file.push(row);
+      return toStoredFile(row);
+    },
+    async get(tenantId, id) {
+      assertTenant(tenantId);
+      const row = db.stored_file.find((f) => f.tenant_id === tenantId && f.id === id);
+      return row ? toStoredFile(row) : null;
+    },
+    async findBySha256(tenantId, sha256) {
+      assertTenant(tenantId);
+      const row = db.stored_file.find((f) => f.tenant_id === tenantId && f.sha256 === sha256);
+      return row ? toStoredFile(row) : null;
+    },
+  };
+
   const furniture: FurnitureRepository = {
     async saveDesignVersion(tenantId, input) {
       requireTenant(tenantId);
@@ -511,5 +537,5 @@ export function createMemoryPersistence(overrides: Partial<PersistenceDeps> = {}
     },
   };
 
-  return { tenants, furniture, qr, runs, projects, sessions, jobs, almacen, close: async () => {} };
+  return { tenants, furniture, qr, runs, projects, sessions, jobs, almacen, files, close: async () => {} };
 }

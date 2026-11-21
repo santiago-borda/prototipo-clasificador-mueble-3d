@@ -3,6 +3,8 @@
 import { createMemoryPersistence } from "@/persistence/memory";
 import { persistenceContract } from "./contract";
 import { erpContract } from "./contractErp";
+import { filesContract } from "./contractFiles";
 
 persistenceContract("memoria", async (overrides) => createMemoryPersistence(overrides));
 erpContract("memoria", async (overrides) => createMemoryPersistence(overrides));
+filesContract("memoria", async (overrides) => createMemoryPersistence(overrides));

@@ -2,8 +2,8 @@
 
 import { esEstadoTrabajo } from "@/lib/erp/estados";
 import { normalizarUuid, UUID } from "@/lib/erp/protocolo";
-import { DocumentoInvalidoError, type ErpProject, type ErpSession, type Job } from "./ports";
-import type { JobRow, ProjectRow, SessionRow } from "./rows";
+import { DocumentoInvalidoError, type ErpProject, type ErpSession, type Job, type StoredFileMeta } from "./ports";
+import type { JobRow, ProjectRow, SessionRow, StoredFileRow } from "./rows";
 
 /**
  * Forma única de un id que viene del ERP (UUID de carpintería, proyecto o envío): en minúsculas, para que los índices
@@ -69,3 +69,32 @@ export function toJobRow(tenantId: string, job: Job): JobRow {
     updated_at: job.updatedAt,
   };
 }
+
+// --- S3: stored_file ---
+
+export function toStoredFileRow(tenantId: string, f: StoredFileMeta): StoredFileRow {
+  return {
+    tenant_id: tenantId,
+    id: f.id,
+    sha256: f.sha256,
+    bytes: f.bytes,
+    content_type: f.contentType,
+    kind: f.kind,
+    original_name: f.originalName,
+    storage_key: f.storageKey,
+    uploaded_by: f.uploadedBy,
+    created_at: f.createdAt,
+  };
+}
+
+export const toStoredFile = (r: StoredFileRow): StoredFileMeta => ({
+  id: r.id,
+  sha256: r.sha256,
+  bytes: r.bytes,
+  contentType: r.content_type,
+  kind: r.kind,
+  originalName: r.original_name,
+  storageKey: r.storage_key,
+  uploadedBy: r.uploaded_by,
+  createdAt: r.created_at,
+});

@@ -1,8 +1,10 @@
 // Raíz de composición de la integración con el ERP: arma las dependencias desde el entorno. Solo servidor (ningún
 // módulo "use client" importa src/server/, PB-13). La persistencia es la misma de la app (src/server/datos.ts): con
 // DATABASE_URL, la base; sin ella, la memoria del proceso (sesiones, trabajos y archivos no sobreviven a un reinicio).
+// Los archivos de los envíos van donde diga FILE_STORE (S3-I1, src/server/archivos.ts); vacía, en la base.
 
 import { randomUUID } from "node:crypto";
+import { almacenDesdeEntorno } from "@/server/archivos";
 import { getPersistence } from "@/server/datos";
 import { leerConfigErp, type ConfigErp } from "@/server/erp/config";
 import { crearValidadorToken, type ValidarToken } from "@/server/erp/token";
@@ -36,8 +38,9 @@ function validadorPara(config: ConfigErp): ValidarToken {
 export async function depsIntegracion(env: Record<string, string | undefined> = process.env): Promise<DepsIntegracion> {
   const config = leerConfigErp(env);
   if (!config) throw new IntegracionApagadaError();
+  const persistence = await getPersistence();
   return {
-    persistence: await getPersistence(),
+    persistence: { ...persistence, almacen: almacenDesdeEntorno(env, persistence) },
     config,
     validarToken: validadorPara(config),
     fetchImpl: fetch,

@@ -6,7 +6,7 @@
 import type { Kysely } from "kysely";
 import { defaultDeps } from "../deps";
 import { assertDefValido, parseRunDocument, parseStatus, qrIdsOf, toEngineRunRow, toFurnitureDef, toPieceRows, toVersionRows } from "../mappers";
-import { idErp, porCodigo, toErpProject, toErpSession, toJob, toJobRow } from "../mappersErp";
+import { idErp, porCodigo, toErpProject, toErpSession, toJob, toJobRow, toStoredFile, toStoredFileRow } from "../mappersErp";
 import {
   assertTenant,
   CodigoRepetidoEnVersionError,
@@ -17,6 +17,7 @@ import {
   TrabajoSinCausaError,
   VersionInmutableError,
   type Almacen,
+  type FileRepository,
   type FurnitureRepository,
   type JobRepository,
   type Persistence,
@@ -365,6 +366,39 @@ export function createSqlPersistence(db: Kysely<Database>, overrides: Partial<Pe
     },
   };
 
+  const files: FileRepository = {
+    async insert(tenantId, file) {
+      assertTenant(tenantId);
+      const buscar = () => db.selectFrom("stored_file").selectAll().where("tenant_id", "=", tenantId).where("sha256", "=", file.sha256).executeTakeFirst();
+      const existing = await buscar();
+      if (existing) return toStoredFile(existing);
+      const row = toStoredFileRow(tenantId, { ...file, createdAt: deps.now() });
+      try {
+        await db.transaction().execute(async (trx) => {
+          await requireTenant(trx, tenantId);
+          await trx.insertInto("stored_file").values(row).execute();
+        });
+        return toStoredFile(row);
+      } catch (error) {
+        if (error instanceof TenantInexistenteError) throw error;
+        // El mismo contenido guardado a la vez (stored_file_sha256_uq): vale la fila del otro.
+        const otra = await buscar();
+        if (otra) return toStoredFile(otra);
+        throw error;
+      }
+    },
+    async get(tenantId, id) {
+      assertTenant(tenantId);
+      const row = await db.selectFrom("stored_file").selectAll().where("tenant_id", "=", tenantId).where("id", "=", id).executeTakeFirst();
+      return row ? toStoredFile(row) : null;
+    },
+    async findBySha256(tenantId, sha256) {
+      assertTenant(tenantId);
+      const row = await db.selectFrom("stored_file").selectAll().where("tenant_id", "=", tenantId).where("sha256", "=", sha256).executeTakeFirst();
+      return row ? toStoredFile(row) : null;
+    },
+  };
+
   const furniture: FurnitureRepository = {
     async saveDesignVersion(tenantId, input) {
       assertTenant(tenantId);
@@ -652,5 +686,5 @@ export function createSqlPersistence(db: Kysely<Database>, overrides: Partial<Pe
     },
   };
 
-  return { tenants, furniture, qr, runs, projects, sessions, jobs, almacen, close: () => db.destroy() };
+  return { tenants, furniture, qr, runs, projects, sessions, jobs, almacen, files, close: () => db.destroy() };
 }

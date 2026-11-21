@@ -203,6 +203,10 @@ export interface JobRepository {
  * reversible hasta decidir dónde van los archivos (S3, docs/spec-s3-almacenamiento-archivos.md). Quien guarda ya
  * verificó el sha256 y el tamaño. Guardar dos veces el mismo no hace nada.
  */
+// S3: los tipos de los archivos viven en src/files/meta.ts (src/files no puede importar src/persistence, PB-13).
+export type { FileRepository, NewStoredFile, StoredFileMeta } from "@/files/meta";
+import type { FileRepository } from "@/files/meta";
+
 export interface Almacen {
   guardar(tenantId: string, sha256: string, datos: Uint8Array): Promise<void>;
   leer(tenantId: string, sha256: string): Promise<Uint8Array | null>;
@@ -246,6 +250,8 @@ export interface Persistence {
   sessions: SessionRepository;
   jobs: JobRepository;
   almacen: Almacen;
+  /** S3: metadatos de los archivos guardados en un `FileStore`. */
+  files: FileRepository;
   /** Libera las conexiones (la implementación en memoria no hace nada). */
   close(): Promise<void>;
 }

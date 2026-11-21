@@ -1,6 +1,6 @@
 # Especificación — S3: almacenamiento de archivos
 
-Versión: **v0.1 (17/11/2026), borrador a aprobar por el equipo.** No hay código.
+Versión: **v0.2 (21/11/2026).** v0.1 (17/11) era un borrador; Santiago aprobó avanzar con S3 el 21/11 («apruebo todo»), antes de leer la v0.2. Implementada en la rama `erp-integracion-minima` (sin push). Lo que cambió al implementarla está en el §9 (S3-I1 a S3-I6, **a revisar**).
 Antecedentes: `docs/adr/ADR-003-almacenamiento-de-archivos.md`, `docs/modelo-de-datos.md` (entidad `stored_file`), `docs/spec-s2-base-de-datos.md`, `src/importer/store.ts`, `src/importer/blobStore.ts`, `docs/spec-importador-prueba.md`.
 Condición: ADR-003 aceptado y S2 cerrada (tabla `stored_file` y repositorios).
 
@@ -110,3 +110,16 @@ Sin dependencias nuevas.
 4. `usecases.ts` con `FileRepository` en memoria; PF-4 a PF-6 y PF-12.
 5. Parada U-alias; adaptador de Blob; PF-9 a PF-11.
 6. Actualizar `CLAUDE.md`, `.gitignore` y `.env.example`.
+
+## 9. Implementación v0.2 (21/11/2026)
+
+**Hecho:** `src/files/` con `store.ts` (`FileStore`), `errors.ts`, `keys.ts` (`fileKey`, `tenantPrefix`), `rules.ts` (`REGLAS`, `tipoReal`), `memory.ts`, `local.ts`, `blob.ts` (cliente inyectable), `meta.ts` (`StoredFileMeta`, `FileRepository`), `usecases.ts` (`saveFile`, `readFile`, `readFileBySha256`) y `almacen.ts`; `FileRepository` (`persistence.files`) en memoria y en SQL sobre la tabla `stored_file` de S2 (sin migración nueva); `src/server/archivos.ts` (`almacenDesdeEntorno`). Pruebas: `tests/files/store.test.ts` (PF-1, PF-2 y PF-8 contra los tres adaptadores; Blob con un cliente falso), `tests/files/usecases.test.ts` (PF-3 a PF-7, PF-11, PF-12), `tests/files/almacen.test.ts` (S3-I1) y `tests/persistence/contractFiles.ts` (contrato de `stored_file` contra memoria y PostgreSQL). PF-9 y PF-10 se cumplen sin probar nada nuevo: el importador no se tocó.
+
+- **S3-I1. Almacén de la integración con el ERP sobre `FileStore`** (no estaba en la v0.1, que es anterior a la integración). `createFileAlmacen` implementa el `Almacen` de la integración (zip y CSV de cada envío, por sha256) con `saveFile` / `readFileBySha256`. Lo elige `FILE_STORE`: vacía = la tabla `file_content` en la base, **como hasta ahora** (es el valor por defecto: nada cambia sin la variable); `blob` = Vercel Blob privado con `BLOB_READ_WRITE_TOKEN`; `local` = `.file-data/` (rechazada con `NODE_ENV=production`); otro valor = `ConfigArchivosError`. El zip se guarda como clase `zip` y el CSV como clase `csv` (nueva, 5 MB, ASUMIDO), con `uploadedBy: "erp"`.
+- **S3-I2. `ImportStore` no se tocó (S3-D1 enmendada).** La v0.1 pedía que pasara a ser un alias de `FileStore`, con la parada U-alias. Para no tocar el importador, `FileStore` tiene sus propios adaptadores (copian la lógica de `ImportStore`, con `YaExisteError`). Unificarlos queda como propuesta (y su parada, vigente).
+- **S3-I3. `expectedSha256`:** `saveFile` acepta el sha256 que declaró quien sube (el ERP) y, si no coincide con el calculado, lanza `Sha256DistintoError` sin escribir nada. La integración ya lo verificó antes; es una segunda barrera.
+- **S3-I4. «Ya existe» en Vercel Blob:** con `allowOverwrite: false`, `@vercel/blob` lanza un `BlobError` con el mensaje del servicio; el adaptador lo reconoce por el texto «already exists» (ASUMIDO: no está documentado como un error con nombre). A verificar en la primera prueba manual con Blob. `saveFile` igual no vuelve a subir lo que ya tiene fila.
+- **S3-I5. Los tipos de `stored_file` viven en `src/files/meta.ts`** y `src/persistence/ports.ts` los reexporta: `src/files/` no puede importar `src/persistence/` (PB-13, S2A-5). Por lo mismo, `createFileAlmacen` devuelve un tipo estructural igual a `Almacen`.
+- **S3-I6. El adaptador local rechaza** también segmentos vacíos (`t//x`) y `.`, además de `..`, rutas absolutas y caracteres fuera de `[A-Za-z0-9._-/]`.
+- **No hecho (fuera de la v0.2):** mover lo que ya está en `file_content` a `FileStore` (con `FILE_STORE` cambiado, los envíos anteriores no se encuentran: hay que volver a enviarlos); adaptadores de S3 o Azure; `issueUpload` (S3-D9); borrar archivos sin fila.
+- **Para usar `FILE_STORE=blob` en Vercel:** el store de Blob es el mismo del importador (Production y Preview comparten `BLOB_READ_WRITE_TOKEN`); las claves van bajo `t/`, separadas de `importaciones/` y `proto-csv/`. Cargar la variable en Vercel es un cambio de despliegue: decisión del equipo.

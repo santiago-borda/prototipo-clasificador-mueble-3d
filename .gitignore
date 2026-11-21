@@ -59,6 +59,8 @@ next-env.d.ts
 
 # importador de prueba: almacenamiento local de desarrollo (IMPORT_STORE=local)
 /.import-data/
+# S3: adaptador local de FileStore (FILE_STORE=local)
+/.file-data/
 # salidas locales del OCR (páginas rasterizadas y respuestas de Vision)
 /.ocr-data/
 # credenciales (claves de cuenta de servicio de Google Cloud)

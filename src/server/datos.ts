@@ -4,6 +4,8 @@
 //   - con DATABASE_URL: la implementación en SQL (la URL nunca se imprime: lleva la clave);
 //   - sin ella: la de memoria, con la misma semilla del Olmo que `db:seed` (`seedOlmo`).
 // S2A-2: `resolveQrTarget` resuelve un qrId de /p/<qrId> contra la base. Solo /p/<qrId> lee de la base.
+// S2A-4b (v0.3, decisión de Santiago del 21/11): un QR de una versión `reemplazada` sigue abriendo su versión, con el
+// aviso «Hay una versión más nueva de este diseño» (el QR ya estaba impreso y nunca cambia de destino).
 
 import { targetFromDef, type QrTarget } from "@/lib/qrTarget";
 import { createMemoryPersistence } from "@/persistence/memory";
@@ -78,20 +80,27 @@ function describeCause(cause: unknown): string {
   return typeof code === "string" ? `${cause.name} ${code}` : cause.name;
 }
 
+/** Estados de versión cuyos QR resuelven: la publicada y las reemplazadas (S2A-4b). */
+const VISIBLES: readonly string[] = ["publicada", "reemplazada"];
+
 /**
- * Destino de un qrId según la base, con la misma forma que `resolveQr`. undefined si no existe o si su versión
- * no está publicada (incluye `reemplazada`) o el QR está revocado: /p/<qrId> responde 404, como hoy (S2A-4).
+ * Destino de un qrId según la base, con la misma forma que `resolveQr`. undefined si no existe, si su versión no
+ * está publicada ni reemplazada (borrador, en revisión, rechazada…) o si el QR está revocado: /p/<qrId> responde 404,
+ * como hoy (S2A-4). Un QR de una versión `reemplazada` abre esa versión con `newerVersionAvailable: true` (S2A-4b).
  * Si la base no responde lanza `PersistenciaNoDisponibleError` y lo registra; nunca cae a los datos estáticos.
  */
 export async function resolveQrTargetWith(persistence: Persistence, qrId: string): Promise<QrTarget | undefined> {
   try {
     const resolution = await persistence.qr.resolve(qrId);
-    if (!resolution || resolution.status !== "publicada") return undefined;
+    if (!resolution || !VISIBLES.includes(resolution.status)) return undefined;
     if (resolution.kind === "piece" && resolution.revoked) return undefined;
 
     const def = await persistence.furniture.getFurnitureDef(resolution.tenantId, resolution.designVersionId);
     if (!def) throw new DocumentoInvalidoError("design_version");
-    const target = targetFromDef(def, qrId);
+    // El repositorio ya lo calcula (hay una versión publicada con número mayor); se fuerza por si no: el aviso es
+    // la razón de mostrar una versión reemplazada.
+    const visible = resolution.status === "reemplazada" && !def.furniture.newerVersionAvailable ? { ...def, furniture: { ...def.furniture, newerVersionAvailable: true } } : def;
+    const target = targetFromDef(visible, qrId);
     // El qrId resolvió en la base pero no aparece en el mueble leído (o con otro nivel): dato inconsistente.
     if (!target || target.kind !== resolution.kind) throw new DocumentoInvalidoError("qr_code");
     return target;

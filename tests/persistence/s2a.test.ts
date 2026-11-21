@@ -1,7 +1,8 @@
 // S2A: la ficha y el visor de /p/<qrId> leen de la base (docs/spec-s2a-app-lee-base.md v0.2, §4).
 // S2A PB-14 (la ficha no cambió, contra la captura previa), S2A PB-15 (mismo destino y misma respuesta de la página;
 // inexistente y no publicado: 404),
-// S2A PB-16 (base caída: error con nombre, nunca datos estáticos) y S2A PB-17 (`OLMO_MODEL_ID`).
+// S2A PB-16 (base caída: error con nombre, nunca datos estáticos), S2A PB-17 (`OLMO_MODEL_ID`) y S2A PB-18 (v0.3: QR
+// de una versión reemplazada, con el aviso de versión más nueva).
 // Memoria siempre; PostgreSQL solo con TEST_DATABASE_URL (esquema propio por prueba, que se borra), como sql.test.ts.
 
 import { readFileSync } from "node:fs";
@@ -37,6 +38,18 @@ function sinPublicar(): FurnitureDef {
     furniture: { ...olmoDef.furniture, id: "s2a-borrador", qrId: qr("mueble") },
     modules: olmoDef.modules.map((m) => ({ ...m, id: qr(m.id), furnitureId: "s2a-borrador", qrId: qr(m.qrId) })),
     pieceTypes: olmoDef.pieceTypes.map((piece) => ({ ...piece, moduleId: qr(piece.moduleId), qrId: qr(piece.qrId) })),
+  };
+}
+
+/** Primer fixture como otro mueble, con qrId propios por versión (`v`): la 2 trae QR nuevos de módulo y pieza. */
+function versionDe(v: 1 | 2): FurnitureDef {
+  const id = "s2a-versiones";
+  const qr = (x: string) => `s2a-v${v}-${x}`;
+  return {
+    ...olmoDef,
+    furniture: { ...olmoDef.furniture, id, qrId: "s2a-versiones-mueble", designVersion: `v${v}` },
+    modules: olmoDef.modules.map((m) => ({ ...m, id: `s2a-${m.id}`, furnitureId: id, qrId: qr(m.qrId) })),
+    pieceTypes: olmoDef.pieceTypes.map((piece) => ({ ...piece, moduleId: `s2a-${piece.moduleId}`, qrId: qr(piece.qrId) })),
   };
 }
 
@@ -147,6 +160,54 @@ function bateria(nombre: string, abrir: () => Promise<Caso & { cerrar(): Promise
           expect(await resolveQrTargetWith(raiz, qrId)).toBeUndefined();
           expect(await pageStatus(qrId)).toBe(404);
         });
+      });
+    });
+
+    describe("S2A PB-18 (v0.3): un QR de una versión reemplazada abre su versión con el aviso", () => {
+      const v1 = versionDe(1);
+      const v2 = versionDe(2);
+      const pieza1 = v1.pieceTypes[3].qrId;
+      const modulo1 = v1.modules[0].qrId;
+      const pieza2 = v2.pieceTypes[3].qrId;
+
+      beforeAll(async () => {
+        const raiz = await getPersistence();
+        const r1 = await raiz.furniture.saveDesignVersion("desarrollo", { def: v1, modelId: null, createdBy: "prueba" });
+        await raiz.furniture.publish("desarrollo", r1.designVersionId, "prueba");
+        const r2 = await raiz.furniture.saveDesignVersion("desarrollo", { def: v2, modelId: null, createdBy: "prueba", furnitureId: r1.furnitureId });
+        await raiz.furniture.publish("desarrollo", r2.designVersionId, "prueba");
+      });
+
+      it.each([pieza1, modulo1])("%s (versión 1, reemplazada): abre la versión 1 con newerVersionAvailable y la página responde 200", async (qrId) => {
+        const raiz = await getPersistence();
+        expect((await raiz.qr.resolve(qrId))?.status).toBe("reemplazada");
+        const target = await resolveQrTargetWith(raiz, qrId);
+        expect(target?.def.furniture.designVersion).toBe("v1");
+        expect(target?.def.furniture.newerVersionAvailable).toBe(true);
+        expect(await pageStatus(qrId)).toBe(200);
+        const { target: enPagina, loadedDef } = await renderPage(qrId);
+        expect(enPagina).toEqual(target);
+        expect((loadedDef as FurnitureDef).furniture.newerVersionAvailable).toBe(true);
+        const html = renderToStaticMarkup(createElement(QrSheets, { target: enPagina }));
+        expect(html).toContain("Hay una versión más nueva de este diseño");
+        expect(html).toContain("Esta ficha corresponde a la versión v1");
+      });
+
+      it("la versión 2 (publicada) abre sin aviso; el QR de mueble abre la versión vigente", async () => {
+        const raiz = await getPersistence();
+        const t2 = await resolveQrTargetWith(raiz, pieza2);
+        expect(t2?.def.furniture).toMatchObject({ designVersion: "v2", newerVersionAvailable: false });
+        expect(renderToStaticMarkup(createElement(QrSheets, { target: t2! }))).not.toContain("Hay una versión más nueva");
+        expect((await resolveQrTargetWith(raiz, "s2a-versiones-mueble"))?.def.furniture.designVersion).toBe("v2");
+      });
+
+      it("un QR revocado de la versión reemplazada sigue en 404 (S2A-4)", async () => {
+        const raiz = await getPersistence();
+        const revocado: Persistence = {
+          ...raiz,
+          qr: { ...raiz.qr, resolve: async (id) => { const r = await raiz.qr.resolve(id); return r && r.kind === "piece" ? { ...r, revoked: true } : r; } },
+        };
+        expect(await resolveQrTargetWith(revocado, pieza1)).toBeUndefined();
       });
     });
   });

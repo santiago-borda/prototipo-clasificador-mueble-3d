@@ -336,6 +336,28 @@ export class BaseNoLocalError extends Error {
   }
 }
 
+/** Por qué no se acepta una base remota en `db:migrate:remota` / `db:seed:remota` (S2B-1, S2B-2). */
+export type MotivoBaseRemota = "url-ilegible" | "es-local" | "sin-confirmar" | "host-distinto" | "sin-tls";
+
+const TEXTO_BASE_REMOTA: Record<MotivoBaseRemota, string> = {
+  "url-ilegible": "la URL de DATABASE_URL no se puede leer",
+  "es-local": "es local: usá db:migrate y db:seed",
+  "sin-confirmar": "falta confirmarla: definí DB_REMOTA_HOST con el host exacto de la base",
+  "host-distinto": "DB_REMOTA_HOST no es el host de DATABASE_URL",
+  "sin-tls": "la URL tiene que pedir una conexión cifrada (sslmode=require, verify-ca o verify-full)",
+};
+
+/** S2B-1: la base remota no está confirmada o no va cifrada. El mensaje lleva solo el host, nunca la URL. */
+export class BaseRemotaNoConfirmadaError extends Error {
+  constructor(
+    readonly host: string,
+    readonly motivo: MotivoBaseRemota,
+  ) {
+    super(`La base "${host}" no se toca: ${TEXTO_BASE_REMOTA[motivo]}.`);
+    this.name = "BaseRemotaNoConfirmadaError";
+  }
+}
+
 /**
  * S2A-4: la base no respondió (conexión rechazada, caída, tiempo agotado). Lleva la causa original en `cause`.
  * El mensaje no incluye la URL de la base (lleva la clave). Quien la recibe muestra un error: nunca cae a datos estáticos.

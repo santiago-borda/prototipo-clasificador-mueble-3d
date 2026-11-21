@@ -1,12 +1,13 @@
 // npm run db:seed — carga el primer fixture en la base local de DATABASE_URL (B10). Correr antes db:migrate.
+// npm run db:seed:remota — lo mismo en una base remota confirmada con DB_REMOTA_HOST y con TLS (S2B-2).
 
 import { createDb } from "@/persistence/sql/connection";
 import { createSqlPersistence } from "@/persistence/sql";
 import { seedOlmo } from "../seed";
-import { localDatabaseUrl } from "./env";
+import { localDatabaseUrl, remoteDatabaseUrl } from "./env";
 
 async function main(): Promise<void> {
-  const { url, host } = localDatabaseUrl();
+  const { url, host } = process.argv.includes("--remota") ? remoteDatabaseUrl() : localDatabaseUrl();
   const persistence = createSqlPersistence(createDb(url));
   try {
     const result = await seedOlmo(persistence);

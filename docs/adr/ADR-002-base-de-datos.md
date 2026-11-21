@@ -38,7 +38,7 @@ Requisito de esta sesión: que la capa soporte los dos motores, justificado con 
 | SQL a mano con `pg` | Sí | No (habría que reescribir todo con otro controlador) | — | La menor cantidad de dependencias, pero no cumple el requisito de los dos motores. |
 
 ## Decisión
-1. **Motor: PostgreSQL.** Casa Mueble respondió el 20/11/2026 que permite PostgreSQL (consulta 5 de `docs/casa-mueble/respuestas-20-11-contrato-ucp.md`); el «SQL Server» del contrato UCP v1 fue un error del documento, que generó una IA. Si más adelante Casa Mueble quiere operar una sola base con el ERP en SQL Server, se cambia con el procedimiento de «Cómo revertir». Sigue abierto **dónde se aloja** la base del despliegue de `taller-qa` (decisión del equipo).
+1. **Motor: PostgreSQL.** Casa Mueble respondió el 20/11/2026 que permite PostgreSQL (consulta 5 de `docs/casa-mueble/respuestas-20-11-contrato-ucp.md`); el «SQL Server» del contrato UCP v1 fue un error del documento, que generó una IA. Si más adelante Casa Mueble quiere operar una sola base con el ERP en SQL Server, se cambia con el procedimiento de «Cómo revertir». **Alojamiento: Neon, temporal para la demo** (decisión de Santiago del 21/11/2026; Neon ya está conectada a su proyecto de Vercel). Cómo se migra y se siembra: `docs/spec-s2b-base-remota-neon.md` (`db:migrate:remota` y `db:seed:remota`, con el host confirmado y TLS). Dónde se aloja la base definitiva sigue abierto.
 2. **Capa de acceso en dos niveles:**
    - **Repositorios:** interfaces de TypeScript que usan los casos de uso. No exponen SQL ni tipos de Kysely. Cada una tiene una implementación en memoria (para las pruebas) y una en SQL.
    - **Kysely** dentro de la implementación en SQL, con el dialecto elegido por configuración (`PostgresDialect` o `MssqlDialect`).
@@ -66,4 +66,4 @@ Requisito de esta sesión: que la capa soporte los dos motores, justificado con 
 ## Acciones
 1. [x] El equipo acepta o corrige este ADR. Aceptado el 20/11/2026.
 2. [x] Aprobar las dependencias `kysely`, `pg` y `@types/pg` (spec de S2, parada U-dependencias). Aprobadas por Santiago el 17/11/2026; `kysely` en 0.28.x (la 0.29 pide Node 22).
-3. [x] CA-2 (motor de la base): respondida por Casa Mueble el 20/11/2026, permite PostgreSQL. Falta definir dónde se aloja la base del despliegue.
+3. [x] CA-2 (motor de la base): respondida por Casa Mueble el 20/11/2026, permite PostgreSQL. Alojamiento de la demo: Neon, temporal (21/11/2026); el definitivo, abierto.

@@ -20,6 +20,8 @@
     "db:down": "docker compose down",
     "db:migrate": "vite-node --config vitest.config.ts db/scripts/migrate.ts",
     "db:seed": "vite-node --config vitest.config.ts db/scripts/seed.ts",
+    "db:migrate:remota": "vite-node --config vitest.config.ts db/scripts/migrate.ts -- --remota",
+    "db:seed:remota": "vite-node --config vitest.config.ts db/scripts/seed.ts -- --remota",
     "erp:simulado": "vite-node --config vitest.config.ts erp-simulado/servidor.ts"
   },
   "dependencies": {

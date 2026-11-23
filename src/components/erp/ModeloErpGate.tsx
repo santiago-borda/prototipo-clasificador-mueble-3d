@@ -9,6 +9,8 @@
 // trabajo del modelo), el mueble se arma con el CSV (`defDesdeListadoErp`) y se cruza con el .dae (`cruceErp`); si
 // no (404 `sin-listado`), como antes, con `defDesdeModeloErp`. Cualquier otra falla del listado (red, 401, 500, otro
 // trabajo) muestra un error y no registra nada: el próximo montaje lo vuelve a intentar (revisión del 21/11).
+// También de esa revisión: lo ya cargado de un proyecto (clave y cruce) solo se reusa si su trabajo sigue siendo el
+// vigente del proyecto (GET /api/erp/proyectos/{uuid}); si llegó un envío nuevo, se vuelve a cargar todo.
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -36,19 +38,42 @@ const MENSAJES: Record<string, { titulo: string; texto: string }> = {
 const claveRegistrada = new Map<string, string>();
 /** Cruce del listado con el modelo de cada proyecto ya cargado (null: el trabajo no tiene listado). */
 const cruceRegistrado = new Map<string, CruceErp | null>();
+/** Trabajo (en minúsculas) del que salieron la clave y el cruce de cada proyecto. */
+const trabajoRegistrado = new Map<string, string>();
 
+/** Trabajo vigente del proyecto según el servidor, en minúsculas. null: no se pudo saber (se vuelve a cargar todo). */
+async function trabajoVigente(proyectoUuid: string): Promise<string | null> {
+  const r = await fetch(`/api/erp/proyectos/${encodeURIComponent(proyectoUuid)}`, { credentials: "same-origin", cache: "no-store" }).catch(() => null);
+  if (!r || !r.ok) return null;
+  const datos = (await r.json().catch(() => null)) as { modelo?: { trabajoUuid?: string } | null } | null;
+  return datos?.modelo?.trabajoUuid?.toLowerCase() ?? null;
+}
+
+function olvidar(proyectoUuid: string): void {
+  claveRegistrada.delete(proyectoUuid);
+  cruceRegistrado.delete(proyectoUuid);
+  trabajoRegistrado.delete(proyectoUuid);
+}
 
 export function ModeloErpGate({ proyectoUuid, children }: { proyectoUuid: string; children: React.ReactNode }) {
-  const [estado, setEstado] = useState<Estado>(() => {
-    const clave = claveRegistrada.get(proyectoUuid);
-    return clave && getErpFurnitureDef(clave) ? { tipo: "listo", clave } : { tipo: "cargando" };
-  });
+  const [estado, setEstado] = useState<Estado>({ tipo: "cargando" });
 
   useEffect(() => {
     if (estado.tipo !== "cargando") return;
     let cancelado = false;
     (async () => {
       try {
+        // Vuelta del visor a la ficha: si lo cargado es del trabajo vigente, se reusa sin bajar el modelo otra vez.
+        const claveCargada = claveRegistrada.get(proyectoUuid);
+        if (claveCargada && getErpFurnitureDef(claveCargada)) {
+          const vigente = await trabajoVigente(proyectoUuid);
+          if (cancelado) return;
+          if (vigente !== null && vigente === trabajoRegistrado.get(proyectoUuid)) {
+            setEstado({ tipo: "listo", clave: claveCargada });
+            return;
+          }
+        }
+        olvidar(proyectoUuid);
         const r = await fetch(`/api/erp/proyectos/${encodeURIComponent(proyectoUuid)}/modelo`, { credentials: "same-origin", cache: "no-store" });
         if (cancelado) return;
         if (!r.ok) {
@@ -79,6 +104,7 @@ export function ModeloErpGate({ proyectoUuid, children }: { proyectoUuid: string
         const clave = claveErp(trabajoUuid);
         const registrado = registerErpFurniture(clave, { ...def, modelUrl }, `/erp/proyectos/${encodeURIComponent(proyectoUuid)}/visor`);
         claveRegistrada.set(proyectoUuid, clave);
+        trabajoRegistrado.set(proyectoUuid, trabajoUuid.toLowerCase());
         // Antes de mostrar el visor: el primer render ya carga este mueble.
         useViewStore.getState().setSelectedQrId(registrado.furniture.qrId);
         if (!cancelado) setEstado({ tipo: "listo", clave });

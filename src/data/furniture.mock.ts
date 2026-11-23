@@ -12,8 +12,8 @@ export const furniture: Furniture = {
   designVersion: "v1",
   // Poné true para ver el aviso "Hay una versión más nueva de este diseño".
   newerVersionAvailable: false,
-  // Canto ABS 22 x 0,45 mm — provisorio.
-  edgeBandSpec: { type: "ABS", widthMm: 22, thicknessMm: 0.45, status: "provisorio", note: "la lista de compra dice 0,22" },
+  // Canto ABS 22 x 0,22 mm: confirmado por Casa Mueble el 16/10 (consulta 32). El 0,45 venía del optimizador anterior y no se usa.
+  edgeBandSpec: { type: "ABS", widthMm: 22, thicknessMm: 0.22, status: "confirmado", note: "Confirmado por Casa Mueble el 16/10; contrastar con la factura o el rollo" },
 };
 
 // ASUMIDO PARA EL PROTOTIPO, a confirmar con Casa Mueble: la agrupación de piezas en módulos, los nombres
@@ -82,7 +82,7 @@ export const pieceTypes: readonly PieceType[] = [
   piece("C04", "Laterales sector cajones", CAJ, 550, 494, 18, BLANCO, 2, L1C1),
   piece("C05", "Piso y techo sector cajones", CAJ, 550, 404, 18, BLANCO, 2, C1),
   piece("C06", "Gola Vertical", CAJ, 404, 50, 18, BLANCO, 1, SIN_CANTO),
-  piece("C07", "Gola Horizontal", CAJ, 404, 36, 18, BLANCO, 2, L1, "Medida provisoria (404 x 36 mm), a confirmar."),
+  piece("C07", "Gola Horizontal", CAJ, 404, 36, 18, BLANCO, 2, L1),
   piece("C08", "Cajon 1", CAJ, 400, 100, 18, BLANCO, 2, L1),
   piece("C09", "Cajon 1", CAJ, 342, 100, 18, BLANCO, 2, L1),
   piece("C10", "Cajon 2", CAJ, 400, 200, 18, BLANCO, 2, L1),

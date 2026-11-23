@@ -373,6 +373,8 @@ const scanned = [
   path.join(FIXTURE_DIR, "fuente.ts"),
   path.join(FIXTURE_DIR, "manifiesto.json"),
   ...readdirSync(path.join(FIXTURE_DIR, "esperado")).map((file) => path.join(FIXTURE_DIR, "esperado", file)),
+  // Replays de la respuesta real de Vision (10/11): palabras y cajas de los PDF sintéticos, sin datos reales.
+  ...readdirSync(path.join(FIXTURE_DIR, "replay")).map((file) => path.join(FIXTURE_DIR, "replay", file)),
 ];
 const syntheticPairs = new Set(FUENTE.flatMap((doc) => doc.boards.flatMap((board) => board.pieces.map((p) => [p.finalL, p.finalA].sort((a, b) => a - b).join("x")))));
 const realPairs = (documents: CutListPdf[]) =>

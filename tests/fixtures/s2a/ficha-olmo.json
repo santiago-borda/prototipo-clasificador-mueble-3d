@@ -14,9 +14,9 @@
       "edgeBandSpec": {
         "type": "ABS",
         "widthMm": 22,
-        "thicknessMm": 0.45,
-        "status": "provisorio",
-        "note": "la lista de compra dice 0,22"
+        "thicknessMm": 0.22,
+        "status": "confirmado",
+        "note": "Confirmado por Casa Mueble el 16/10; contrastar con la factura o el rollo"
       }
     },
     "modules": [
@@ -142,7 +142,7 @@
         "edgeBanding": [
           "largo-A"
         ],
-        "notes": "Medida provisoria (404 x 36 mm), a confirmar."
+        "notes": null
       },
       {
         "qrId": "olmo-c08",
@@ -537,7 +537,7 @@
         "edgeBanding": [
           "largo-A"
         ],
-        "notes": "Medida provisoria (404 x 36 mm), a confirmar."
+        "notes": null
       },
       "module": {
         "id": "mod-cajones",

@@ -7,7 +7,7 @@ import { migrateToLatest } from "../../db/migrate";
 import { down } from "../../db/migrations/0001_inicial";
 import { down as down0002 } from "../../db/migrations/0002_integracion_erp";
 import { ALL_TABLES } from "../../db/migrations";
-import { AVISO_SIN_BASE, createTestSchema, TEST_DATABASE_URL, type TestSchema } from "./postgres";
+import { AVISO_SIN_BASE, conDdlSerializado, createTestSchema, TEST_DATABASE_URL, type TestSchema } from "./postgres";
 
 describe.skipIf(TEST_DATABASE_URL)("migraciones sin base", () => {
   it.skip(AVISO_SIN_BASE, () => {});
@@ -19,7 +19,7 @@ describe.skipIf(!TEST_DATABASE_URL)("migraciones (PostgreSQL)", () => {
 
   beforeAll(async () => {
     t = await createTestSchema({ migrate: false });
-    aplicadas = await migrateToLatest(t.db as Kysely<unknown>, { schema: t.schema });
+    aplicadas = await conDdlSerializado(() => migrateToLatest(t.db as Kysely<unknown>, { schema: t.schema }));
   });
   afterAll(async () => {
     await t?.drop();
@@ -36,7 +36,7 @@ describe.skipIf(!TEST_DATABASE_URL)("migraciones (PostgreSQL)", () => {
   it("PB-1 (B1): una base vacía queda con todas las tablas, y migrar de nuevo no aplica nada", async () => {
     expect(aplicadas).toEqual(["0001_inicial", "0002_integracion_erp"]);
     expect(await tablas()).toEqual([...ALL_TABLES].sort());
-    expect(await migrateToLatest(t.db as Kysely<unknown>, { schema: t.schema })).toEqual([]);
+    expect(await conDdlSerializado(() => migrateToLatest(t.db as Kysely<unknown>, { schema: t.schema }))).toEqual([]);
     expect(await tablas()).toEqual([...ALL_TABLES].sort());
   });
 
@@ -86,8 +86,10 @@ describe.skipIf(!TEST_DATABASE_URL)("migraciones (PostgreSQL)", () => {
   it("las migraciones se pueden deshacer (0002 y después 0001) en una base sin datos", async () => {
     const otro = await createTestSchema({ migrate: true });
     try {
-      await down0002(otro.db as Kysely<unknown>);
-      await down(otro.db as Kysely<unknown>);
+      await conDdlSerializado(async () => {
+        await down0002(otro.db as Kysely<unknown>);
+        await down(otro.db as Kysely<unknown>);
+      });
       const { rows } = await sql<{ n: string }>`
         select count(*)::text as n from information_schema.tables
         where table_schema = ${otro.schema} and table_name not like 'kysely_%'`.execute(otro.db);

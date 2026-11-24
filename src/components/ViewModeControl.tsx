@@ -1,7 +1,8 @@
 "use client";
 
 import type { ViewMode } from "@/data/types";
-import { resolveQr } from "@/lib/lookup";
+import { targetFromDef } from "@/lib/lookup";
+import { useActiveFurniture } from "@/components/viewer/useActiveFurniture";
 import { useViewStore } from "@/store/viewStore";
 
 const OPTIONS: ReadonlyArray<{ value: ViewMode; label: string }> = [
@@ -14,8 +15,9 @@ export function ViewModeControl() {
   const viewMode = useViewStore((s) => s.viewMode);
   const setViewMode = useViewStore((s) => s.setViewMode);
   const selectedQrId = useViewStore((s) => s.selectedQrId);
+  const def = useActiveFurniture();
   // En la ficha del mueble completo no hay nada que resaltar: los modos no aplican.
-  const disabled = selectedQrId !== null && resolveQr(selectedQrId)?.kind === "furniture";
+  const disabled = selectedQrId !== null && def !== null && targetFromDef(def, selectedQrId)?.kind === "furniture";
 
   return (
     <div

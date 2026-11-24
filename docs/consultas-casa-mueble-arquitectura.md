@@ -1,0 +1,27 @@
+# Consultas a Casa Mueble sobre la arquitectura
+
+Fecha: 17/11/2026 · Sesión 1 · Estado: **para enviar, cuando el equipo lo apruebe**.
+
+Son los datos que solo Casa Mueble puede dar. No son pedidos de permiso: las decisiones técnicas son del equipo. Ninguna frena el trabajo: cada una tiene un supuesto **ASUMIDO**, reversible, que se usa mientras tanto. La numeración `CA-n` es propia de este archivo; cuando una consulta ya existe en el archivo general de consultas, se indica su número.
+
+| # | Consulta | Para qué sirve | ASUMIDO mientras tanto | Dónde se usa | Qué frena si no llega |
+|---|---|---|---|---|---|
+| CA-1 | ¿Dónde se va a publicar el sistema en producción (proveedor, cuenta de quién) y con qué dominio? (consulta 59) | Define el alojamiento, el adaptador de archivos y la URL de los QR. | Se sigue en Vercel. No se imprime ningún QR ni se fija su URL. | ADR-001, ADR-003 | La impresión de QR |
+| CA-2 | ¿Qué motor de base de datos usa el ERP, dónde se aloja y quién lo opera? | Elegir entre PostgreSQL y SQL Server. | PostgreSQL, con una capa de acceso que soporta los dos. | ADR-002, S2 | Nada. Conviene saberlo antes del primer despliegue con datos reales |
+| CA-3 | ¿Cómo puede otro sistema comprobar que un token del ERP es válido? ¿Qué devuelve `/api/session/whoami` (usuario, carpintería, roles)? ¿Hay clave pública para validar la firma? | Validar la sesión del backoffice. | Se llama a `whoami` con el token. La forma de la respuesta se supone y se valida con aserciones. | ADR-004, S4 | La prueba real de S4 contra QA |
+| CA-4 | ¿Los operarios del taller tienen usuario en el ERP? ¿Con qué rol? ¿Usan un celular propio o uno compartido del taller? | Decidir si el operario inicia sesión. | El operario lee por QR sin iniciar sesión. Su progreso se registra por dispositivo, sin identidad verificada. | ADR-004, S6 | Nada |
+| CA-5 | ¿Existe una descripción de la API del ERP (OpenAPI) o se puede generar? | Escribir el cliente del ERP sin adivinar. | Se trabaja con respuestas grabadas a mano y validación estricta. | ADR-005, S5 | Nada. Sin ella, S5 es más frágil |
+| CA-6 | ¿Desde qué pantalla del ERP se abriría este sistema? ¿Prefieren una pestaña aparte o verlo dentro del ERP? ¿Desde qué direcciones (orígenes) se abriría? | Diseñar la entrada y la lista de orígenes permitidos. | Un enlace en la pantalla del mueble abre una pestaña. | ADR-005, S5 | La integración embebida |
+| CA-7 | ¿Se puede descargar por la API el zip original del modelo 3D (con el .dae de SketchUp), además del GLB? ¿Y el PDF de optimización de cortes? | Importar un diseño desde el ERP sin subirlo a mano. | Se sube a mano, como hoy. | ADR-005, S5 | La importación desde el ERP |
+| CA-8 | ¿Los identificadores de proyecto y de mueble del ERP son estables (por ejemplo, P-0002)? ¿Un mueble del ERP es siempre un solo mueble físico? | Enlazar proyectos y muebles con los del ERP. | Sí a las dos. Los identificadores se guardan como texto opcional, sin restricción de unicidad. | Modelo de datos §5 | Nada |
+| CA-9 | ¿De dónde sale el orden de armado de un mueble? ¿Lo define el diseñador, el carpintero, o es el mismo para cada tipo de mueble? ¿Hoy está escrito en algún lado? | Diseñar la guía de armado. | Una persona carga los pasos a mano en el backoffice. | S6 | Nada para construir; todo para tener contenido real |
+| CA-10 | ¿El ERP va a corregir la lectura de componentes dentro de grupos y el nombre sugerido que recorta el número de corte? | Informativo. | No. El sistema lee el .dae original y no usa la lista de piezas del ERP. | ADR-005 | Nada |
+| CA-11 | ¿Cuánto tiempo se guardan los archivos de un proyecto terminado? ¿Quién puede pedir que se borren? | Política de retención. | No se borra nada automáticamente. El borrado es manual, por una persona con permiso. | ADR-003 | Nada |
+| CA-12 | Si un diseño cambia después de imprimir las etiquetas, ¿se reimprimen todas, solo las de las piezas que cambiaron, o ninguna? | Definir cuándo se genera un QR nuevo. | Cada versión publicada genera QR nuevos. La etiqueta vieja sigue abriendo su ficha, con un aviso de versión nueva. | Modelo de datos §4.2 | Nada |
+| CA-13 | ¿Un mismo mueble de un proyecto se fabrica más de una vez (varias unidades iguales)? | Saber si el progreso es por mueble o por unidad. | Una vez. | Modelo de datos §6, S6 | Nada |
+| CA-14 | ¿Qué roles del ERP pueden cargar un diseño, cuáles aprobarlo y cuáles publicarlo? | Permisos del backoffice. | Dos permisos, leer y escribir. Los nombres de rol del ERP se configuran en una tabla, sin fijarlos en el código. | ADR-004, S4 | Nada |
+| CA-15 | Formato del listado de cortes y si hay un orden de cortes (verticales primero). (consultas 35 a 37) | Check de cortes. | Piezas por tablero, un check por pieza física por tablero, sin orden. | Modelo de datos §2, S6 | El check de cortes definitivo |
+| CA-16 | ¿Qué tiempos le interesa medir a Casa Mueble (por pieza, por paso, por mueble)? ¿Los operarios están al tanto de que se miden tiempos? | Eventos de uso y métricas del PFG. | Se registran eventos por dispositivo, sin datos personales. No se muestran tiempos por persona. | Modelo de datos §4.5, S6 | Nada |
+
+## Cómo se cierra una consulta
+Cuando llega una respuesta: se anota acá con la fecha y quién respondió, se cambia el supuesto en el ADR o la spec que lo usa, y se actualiza `CLAUDE.md`. Si la respuesta contradice un supuesto, se usa el «Cómo revertir» del ADR correspondiente.

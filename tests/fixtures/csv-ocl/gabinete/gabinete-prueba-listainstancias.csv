@@ -1,0 +1,6 @@
+﻿No.;Camino;Instancia;Designación;Longitud - cruda;Ancho - crudo;Espesor - crudo;Longitud;Anchura;Grosor;Area - final;Tipo de material;Nombre del material;Descripción del material;URL del material;Descripción;URL;Etiquetas;Longitud del borde 1;Longitud del borde 2;Ancho del borde 1;Ancho de borde 2;Frente;Dorso;Etiqueta
+A;"";"";0001-01-M01-C03;799,6 mm;399,6 mm;18,0 mm;800,0 mm;400,0 mm;18,0 mm;0,32 m²;Tablero;Blanco 18;"";"";"";"";"";Canto_Blanco (0,2 mm x 22,0 mm);Canto_Blanco (0,2 mm x 22,0 mm);Canto_Blanco (0,2 mm x 22,0 mm);Canto_Blanco (0,2 mm x 22,0 mm);"";"";Layer0
+B;"";"";0001-01-M01-C02;763,8 mm;399,8 mm;18,0 mm;764,0 mm;400,0 mm;18,0 mm;0,31 m²;Tablero;Blanco 18;"";"";"";"";"";"";Canto_Blanco (0,2 mm x 22,0 mm);"";Canto_Blanco (0,2 mm x 22,0 mm);"";"";Layer0
+C;"";"";0001-01-M01-C01;699,8 mm;399,8 mm;18,0 mm;700,0 mm;400,0 mm;18,0 mm;0,28 m²;Tablero;Blanco 18;"";"";"";"";"";"";Canto_Blanco (0,2 mm x 22,0 mm);Canto_Blanco (0,2 mm x 22,0 mm);"";"";"";Layer0
+C;"";"";0001-01-M01-C01;699,8 mm;399,8 mm;18,0 mm;700,0 mm;400,0 mm;18,0 mm;0,28 m²;Tablero;Blanco 18;"";"";"";"";"";"";Canto_Blanco (0,2 mm x 22,0 mm);Canto_Blanco (0,2 mm x 22,0 mm);"";"";"";Layer0
+A;"";"";0001-01-M01-C04;764,0 mm;664,0 mm;3,0 mm;764,0 mm;664,0 mm;3,0 mm;0,51 m²;Tablero;Blanco 3 mm;"";"";"";"";"";"";"";"";"";"";"";Layer0

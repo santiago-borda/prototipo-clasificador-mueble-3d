@@ -15,7 +15,7 @@
 import { Box3, Vector3, type BufferGeometry } from "three";
 import type { EdgeId } from "@/data/types";
 
-/** Espesor dibujado del canto (m). Exagerado a propósito: el canto real es 0,45 mm. */
+/** Espesor dibujado del canto (m). Exagerado a propósito: el canto real es 0,22 mm. */
 const BAND_THICKNESS = 0.01;
 
 type Vec3 = [number, number, number];

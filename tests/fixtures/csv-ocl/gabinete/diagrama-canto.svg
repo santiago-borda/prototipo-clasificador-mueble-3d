@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Generator: SketchUp, OpenCutList Extension, Version 7.1.0 -->
+<svg width="75000.0mm" height="22.0mm" viewBox="0 0 75000.0 22.0" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:serif="http://www.serif.com/" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:shaper="http://www.shapertools.com/namespaces/shaper">
+ <g id="OCL_BIN">
+  <rect x="0" y="0" width="75000.0" height="22.0" stroke="#0068ff" fill="none" />
+ </g>
+ <g id="OCL_PART">
+  <rect x="10.0" y="0.0" width="800.0" height="22.0" stroke="none" fill="#000000" id="OCL_PART___A" serif:id="OCL_PART___A" inkscape:label="OCL_PART___A" />
+  <text x="410.0" y="11.0" fill="#00ffff" font-family="monospace" font-size="11.0" text-anchor="middle" dominant-baseline="middle">A</text>
+  <rect x="813.0" y="0.0" width="800.0" height="22.0" stroke="none" fill="#000000" id="OCL_PART___B" serif:id="OCL_PART___B" inkscape:label="OCL_PART___B" />
+  <text x="1213.0" y="11.0" fill="#00ffff" font-family="monospace" font-size="11.0" text-anchor="middle" dominant-baseline="middle">B</text>
+  <rect x="1616.0" y="0.0" width="764.0" height="22.0" stroke="none" fill="#000000" id="OCL_PART___C" serif:id="OCL_PART___C" inkscape:label="OCL_PART___C" />
+  <text x="1998.0" y="11.0" fill="#00ffff" font-family="monospace" font-size="11.0" text-anchor="middle" dominant-baseline="middle">C</text>
+  <rect x="2383.0" y="0.0" width="700.0" height="22.0" stroke="none" fill="#000000" id="OCL_PART___D" serif:id="OCL_PART___D" inkscape:label="OCL_PART___D" />
+  <text x="2733.0" y="11.0" fill="#00ffff" font-family="monospace" font-size="11.0" text-anchor="middle" dominant-baseline="middle">D</text>
+  <rect x="3086.0" y="0.0" width="700.0" height="22.0" stroke="none" fill="#000000" id="OCL_PART___D" serif:id="OCL_PART___D" inkscape:label="OCL_PART___D" />
+  <text x="3436.0" y="11.0" fill="#00ffff" font-family="monospace" font-size="11.0" text-anchor="middle" dominant-baseline="middle">D</text>
+  <rect x="3789.0" y="0.0" width="400.0" height="22.0" stroke="none" fill="#000000" id="OCL_PART___E" serif:id="OCL_PART___E" inkscape:label="OCL_PART___E" />
+  <text x="3989.0" y="11.0" fill="#00ffff" font-family="monospace" font-size="11.0" text-anchor="middle" dominant-baseline="middle">E</text>
+  <rect x="4192.0" y="0.0" width="400.0" height="22.0" stroke="none" fill="#000000" id="OCL_PART___E" serif:id="OCL_PART___E" inkscape:label="OCL_PART___E" />
+  <text x="4392.0" y="11.0" fill="#00ffff" font-family="monospace" font-size="11.0" text-anchor="middle" dominant-baseline="middle">E</text>
+  <rect x="4595.0" y="0.0" width="400.0" height="22.0" stroke="none" fill="#000000" id="OCL_PART___F" serif:id="OCL_PART___F" inkscape:label="OCL_PART___F" />
+  <text x="4795.0" y="11.0" fill="#00ffff" font-family="monospace" font-size="11.0" text-anchor="middle" dominant-baseline="middle">F</text>
+  <rect x="4998.0" y="0.0" width="400.0" height="22.0" stroke="none" fill="#000000" id="OCL_PART___G" serif:id="OCL_PART___G" inkscape:label="OCL_PART___G" />
+  <text x="5198.0" y="11.0" fill="#00ffff" font-family="monospace" font-size="11.0" text-anchor="middle" dominant-baseline="middle">G</text>
+  <rect x="5401.0" y="0.0" width="400.0" height="22.0" stroke="none" fill="#000000" id="OCL_PART___H" serif:id="OCL_PART___H" inkscape:label="OCL_PART___H" />
+  <text x="5601.0" y="11.0" fill="#00ffff" font-family="monospace" font-size="11.0" text-anchor="middle" dominant-baseline="middle">H</text>
+ </g>
+</svg>

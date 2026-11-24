@@ -2,8 +2,11 @@ import { olmoDef } from "@/data/furniture.mock";
 import { pieceMatchesInstance } from "@/data/mapping";
 import { loadOptionalFurniture } from "@/data/optionalFurniture";
 import { createRegistry } from "@/data/registry";
-import type { Furniture, FurnitureDef, Module, PieceType } from "@/data/types";
+import type { FurnitureDef, PieceType } from "@/data/types";
 import { componentCode, shortCode } from "@/model/ids";
+import { getModule, targetFromDef, type QrKind, type QrTarget } from "./qrTarget";
+
+export { getModule, targetFromDef, type QrKind, type QrTarget };
 
 // Olmo siempre; los muebles opcionales (carpetas ignoradas por git) solo si están presentes.
 const baseDefs: readonly FurnitureDef[] = [olmoDef, ...loadOptionalFurniture()];
@@ -11,7 +14,10 @@ const baseDefs: readonly FurnitureDef[] = [olmoDef, ...loadOptionalFurniture()];
 // Fuente adicional: muebles importados (/importar), registrados solo en el navegador al abrir /prueba/<id>.
 // En el servidor queda vacía, así que la generación estática de /p/<qrId> no cambia.
 const importedDefs = new Map<string, FurnitureDef>(); // importId -> mueble
-const importIdByFurniture = new Map<string, string>(); // furniture.id -> importId
+// Fuente adicional de la integración con el ERP (docs/spec-integracion-erp-minima.md v0.3 IE-5): modelos guardados que se abren en el iframe.
+const erpDefs = new Map<string, FurnitureDef>(); // claveErp -> mueble
+// Ruta base de las fichas de un mueble que no está en /p: /prueba/<importId> o /erp/proyectos/<uuid>/visor.
+const hrefBaseByFurniture = new Map<string, string>(); // furniture.id -> ruta base
 let registry = createRegistry(baseDefs);
 
 /**
@@ -24,8 +30,25 @@ export function registerImportedFurniture(importId: string, imported: Omit<Furni
   const def: FurnitureDef = { ...imported, modelUrl: `/api/importaciones/${importId}/modelo` };
   registry = createRegistry([...registry.defs, def]); // si lanza, `registry` no se toca
   importedDefs.set(importId, def);
-  importIdByFurniture.set(def.furniture.id, importId);
+  hrefBaseByFurniture.set(def.furniture.id, `/prueba/${importId}`);
   return def;
+}
+
+/**
+ * IE-7: registra en el navegador el mueble armado con el .dae de un Documento del ERP (`defDesdeModeloErp`), con su
+ * `modelUrl` (un blob: local) y la ruta base de sus fichas dentro del iframe. Inocuo si ya estaba registrado.
+ */
+export function registerErpFurniture(clave: string, def: FurnitureDef, hrefBase: string): FurnitureDef {
+  const existing = erpDefs.get(clave);
+  if (existing) return existing;
+  registry = createRegistry([...registry.defs, def]); // si lanza, `registry` no se toca
+  erpDefs.set(clave, def);
+  hrefBaseByFurniture.set(def.furniture.id, hrefBase);
+  return def;
+}
+
+export function getErpFurnitureDef(clave: string): FurnitureDef | undefined {
+  return erpDefs.get(clave);
 }
 
 export function getImportedFurnitureDef(importId: string): FurnitureDef | undefined {
@@ -42,12 +65,15 @@ export function listBaseFurniture(): readonly FurnitureDef[] {
   return baseDefs;
 }
 
-/** Link a la ficha de un qrId: /p/<qrId>, o /prueba/<importId>[/<qrId>] si el mueble es una importación. */
+/**
+ * Link a la ficha de un qrId: /p/<qrId>; /prueba/<importId>[/<qrId>] si el mueble es una importación;
+ * /erp/proyectos/<uuid>/visor[/<qrId>] si es un modelo del ERP abierto en el iframe.
+ */
 export function qrHref(qrId: string): string {
   const def = registry.findDefByQrId(qrId);
-  const importId = def ? importIdByFurniture.get(def.furniture.id) : undefined;
-  if (!def || !importId) return `/p/${qrId}`;
-  return qrId === def.furniture.qrId ? `/prueba/${importId}` : `/prueba/${importId}/${qrId}`;
+  const base = def ? hrefBaseByFurniture.get(def.furniture.id) : undefined;
+  if (!def || !base) return `/p/${qrId}`;
+  return qrId === def.furniture.qrId ? base : `${base}/${qrId}`;
 }
 
 /** Mueble que se muestra cuando no hay un QR seleccionado. */
@@ -69,42 +95,13 @@ export function getPieceByInstanceId(def: FurnitureDef, instanceId: string): Pie
   return def.pieceTypes.find((piece) => pieceMatchesInstance(piece, instanceId));
 }
 
-export function getModule(def: FurnitureDef, moduleId: string): Module | undefined {
-  return def.modules.find((m) => m.id === moduleId);
-}
-
 // --- Resolución de cualquier QR (mueble, módulo o pieza) -------------------------------------
 
-export type QrKind = "furniture" | "module" | "piece";
-
-export type QrTarget =
-  | { kind: "furniture"; qrId: string; def: FurnitureDef; furniture: Furniture; modules: readonly Module[] }
-  | {
-      kind: "module";
-      qrId: string;
-      def: FurnitureDef;
-      module: Module;
-      /** Tipos de pieza que pertenecen al módulo. */
-      pieces: readonly PieceType[];
-      /** Códigos de los componentes del módulo en el .dae. */
-      componentCodes: readonly string[];
-    }
-  | { kind: "piece"; qrId: string; def: FurnitureDef; piece: PieceType; module: Module | undefined };
-
+// Registro estático: lo usan /, /qr, /escanear y /prueba (fuera de S2A). /p/<qrId> resuelve contra la base
+// (`resolveQrTarget`, src/server/datos.ts; docs/spec-s2a-app-lee-base.md S2A-2).
 export function resolveQr(qrId: string): QrTarget | undefined {
   const def = registry.findDefByQrId(qrId);
-  if (!def) return undefined;
-
-  if (qrId === def.furniture.qrId) return { kind: "furniture", qrId, def, furniture: def.furniture, modules: def.modules };
-
-  const mod = def.modules.find((m) => m.qrId === qrId);
-  if (mod) {
-    const pieces = def.pieceTypes.filter((piece) => piece.moduleId === mod.id);
-    return { kind: "module", qrId, def, module: mod, pieces, componentCodes: pieces.map((piece) => piece.code) };
-  }
-
-  const piece = def.pieceTypes.find((p) => p.qrId === qrId);
-  return piece ? { kind: "piece", qrId, def, piece, module: getModule(def, piece.moduleId) } : undefined;
+  return def ? targetFromDef(def, qrId) : undefined;
 }
 
 /** ¿Esta instancia del 3D hay que resaltarla para el QR dado? (El mueble completo no resalta nada.) */

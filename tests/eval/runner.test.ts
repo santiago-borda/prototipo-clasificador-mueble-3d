@@ -77,8 +77,11 @@ describe("T5: runner del eval (M20)", () => {
       "@react-three/drei",
       "@react-three/fiber",
       "@vercel/blob",
+      "jose", // Aprobada el 20/11 (integración con el ERP v0.3, parada U-dependencias): IE-1, validación RS256 con JWKS.
       "jsqr",
+      "kysely", // Aprobada el 17/11 (S2, parada U-dependencias; ADR-002). En 0.28.x: la 0.29 pide Node 22.
       "next",
+      "pg", // Aprobada el 17/11 (S2, parada U-dependencias).
       "qrcode",
       "react",
       "react-dom",
@@ -88,6 +91,7 @@ describe("T5: runner del eval (M20)", () => {
     expect(Object.keys(pkg.devDependencies).sort()).toEqual([
       "@tailwindcss/turbopack",
       "@types/node",
+      "@types/pg", // Aprobada el 17/11 (S2, parada U-dependencias).
       "@types/qrcode",
       "@types/react",
       "@types/react-dom",

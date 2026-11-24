@@ -83,7 +83,7 @@ const OPTIONAL = [
 const KNOWN = new Set([...REQUIRED, ...OPTIONAL]);
 
 /** Separa el texto en registros y celdas. Acepta comillas dobles (con `""` adentro) y CRLF. */
-function parseRecords(text: string, separator: string): string[][] {
+export function parseRecords(text: string, separator: string): string[][] {
   const records: string[][] = [];
   let record: string[] = [];
   let cell = "";

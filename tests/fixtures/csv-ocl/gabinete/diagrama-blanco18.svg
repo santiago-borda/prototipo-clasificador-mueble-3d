@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Generator: SketchUp, OpenCutList Extension, Version 7.1.0 -->
+<svg width="2800.0mm" height="2070.0mm" viewBox="0 0 2800.0 2070.0" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:serif="http://www.serif.com/" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:shaper="http://www.shapertools.com/namespaces/shaper">
+ <g id="OCL_BIN">
+  <rect x="0" y="0" width="2800.0" height="2070.0" stroke="#0068ff" fill="none" />
+ </g>
+ <g id="OCL_PART">
+  <g id="OCL_PART___A" serif:id="OCL_PART___A" inkscape:label="OCL_PART___A">
+   <path stroke="none" fill="#000000" id="OCL_PART____0_000Z" serif:id="OCL_PART____0_000Z" inkscape:label="OCL_PART____0_000Z" d="M 809.56,10.0 L 10.0,10.0 L 10.0,409.56 L 809.56,409.56Z" />
+   <text x="409.78" y="209.78" fill="#00ffff" font-family="monospace" font-size="60.0" text-anchor="middle" dominant-baseline="middle">A</text>
+  </g>
+  <g id="OCL_PART___B" serif:id="OCL_PART___B" inkscape:label="OCL_PART___B">
+   <path stroke="none" fill="#000000" id="OCL_PART____0_000Z" serif:id="OCL_PART____0_000Z" inkscape:label="OCL_PART____0_000Z" d="M 773.78,412.5 L 10.0,412.5 L 10.0,812.28 L 773.78,812.28Z" />
+   <text x="391.89" y="612.39" fill="#00ffff" font-family="monospace" font-size="60.0" text-anchor="middle" dominant-baseline="middle">B</text>
+  </g>
+  <g id="OCL_PART___C" serif:id="OCL_PART___C" inkscape:label="OCL_PART___C">
+   <path stroke="none" fill="#000000" id="OCL_PART____0_000Z" serif:id="OCL_PART____0_000Z" inkscape:label="OCL_PART____0_000Z" d="M 709.78,815.2 L 10.0,815.2 L 10.0,1214.98 L 709.78,1214.98Z" />
+   <text x="359.89" y="1015.09" fill="#00ffff" font-family="monospace" font-size="60.0" text-anchor="middle" dominant-baseline="middle">C</text>
+  </g>
+  <g id="OCL_PART___C" serif:id="OCL_PART___C" inkscape:label="OCL_PART___C">
+   <path stroke="none" fill="#000000" id="OCL_PART____0_000Z" serif:id="OCL_PART____0_000Z" inkscape:label="OCL_PART____0_000Z" d="M 709.78,1217.9 L 10.0,1217.9 L 10.0,1617.68 L 709.78,1617.68Z" />
+   <text x="359.89" y="1417.79" fill="#00ffff" font-family="monospace" font-size="60.0" text-anchor="middle" dominant-baseline="middle">C</text>
+  </g>
+ </g>
+ <g id="OCL_CUT">
+  <line x1="7.0" y1="2070.0" x2="7.0" y2="0.0" stroke="#ff00ff" stroke-dasharray="5,5" />
+  <line x1="10.0" y1="7.0" x2="2800.0" y2="7.0" stroke="#ff00ff" stroke-dasharray="5,5" />
+  <line x1="809.5" y1="2070.0" x2="809.5" y2="10.0" stroke="#ff00ff" stroke-dasharray="5,5" />
+  <line x1="10.0" y1="409.5" x2="809.5" y2="409.5" stroke="#ff00ff" stroke-dasharray="5,5" />
+  <line x1="10.0" y1="812.2" x2="809.5" y2="812.2" stroke="#ff00ff" stroke-dasharray="5,5" />
+  <line x1="10.0" y1="1214.9" x2="809.5" y2="1214.9" stroke="#ff00ff" stroke-dasharray="5,5" />
+  <line x1="10.0" y1="1617.6" x2="809.5" y2="1617.6" stroke="#ff00ff" stroke-dasharray="5,5" />
+  <line x1="709.7" y1="1214.9" x2="709.7" y2="815.2" stroke="#ff00ff" stroke-dasharray="5,5" />
+  <line x1="709.7" y1="1617.6" x2="709.7" y2="1217.9" stroke="#ff00ff" stroke-dasharray="5,5" />
+  <line x1="773.7" y1="812.2" x2="773.7" y2="412.5" stroke="#ff00ff" stroke-dasharray="5,5" />
+ </g>
+</svg>

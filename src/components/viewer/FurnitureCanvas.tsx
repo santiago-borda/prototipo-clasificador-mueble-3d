@@ -35,6 +35,8 @@ function Framing({ widthMm }: { widthMm: number }) {
 
 export default function FurnitureCanvas() {
   const def = useActiveFurniture();
+  // En /p/* el mueble llega de la página (S2A-3): hasta entonces, el mismo cartel que mientras carga el visor.
+  if (!def) return <div className="flex h-full items-center justify-center text-sm text-slate-500">Cargando visor 3D…</div>;
   const furnitureId = def.furniture.id;
   return (
     <Canvas

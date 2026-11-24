@@ -79,6 +79,7 @@ async function pageStatus(qrId: string): Promise<200 | 404> {
 function urlConEsquema(schema: string): string {
   const url = new URL(TEST_DATABASE_URL!);
   url.searchParams.set("options", `-c search_path=${schema}`);
+  url.searchParams.set("application_name", "s2a.test.ts:raiz"); // DIAG temporal
   return url.toString();
 }
 
